@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { BadgeDollarSign, BriefcaseBusiness, CheckCircle2, Filter, MessageSquare, Search, Send } from "lucide-react";
+import { BadgeDollarSign, BriefcaseBusiness, CheckCircle2, Filter, Loader2, MessageSquare, Search, Send } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { MercadoPagoIcon } from "./brand-icons";
 import { CompanyInvoicesPanel } from "./company-invoices-panel";
@@ -17,14 +17,14 @@ import {
   getCompanyProfile,
   getUnlockedWorkerContact,
   listCompanyJobOffers,
-  listCompanyInvitations,
   listCompanyPayments,
-  listConversationMessages,
   saveCompanyProfile,
   saveJobOffer,
   scheduleInterview,
   sendConversationMessage,
   submitPlatformReview,
+  subscribeToCompanyInvitations,
+  subscribeToMessages,
   updateInvitationStatus,
   uploadCompanyLogo
 } from "@/lib/firebase/companies";
@@ -86,6 +86,8 @@ export function CompanyWorkspace() {
     opportunitySummary: "",
     salaryMin: "1000000",
     salaryMax: "1400000",
+    workMode: "hybrid",
+    contractType: "full_time" as "full_time" | "part_time" | "contractor" | "temporary",
     location: "Santiago",
     message: ""
   });
@@ -109,6 +111,8 @@ export function CompanyWorkspace() {
   const [lastInvitationId, setLastInvitationId] = useState("");
   const [activeInvitationId, setActiveInvitationId] = useState("");
   const [couponCode, setCouponCode] = useState("");
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkout = new URLSearchParams(window.location.search).get("checkout");
@@ -153,11 +157,27 @@ export function CompanyWorkspace() {
 
   useEffect(() => {
     if (!uid) return;
-    listVisibleWorkers().then(setWorkers).catch(() => setWorkers([]));
-    getCompanyProfile(uid).then(setCompanyProfile).catch(() => setCompanyProfile(null));
-    listCompanyInvitations(uid).then(setInvitations).catch(() => setInvitations([]));
-    listCompanyPayments(uid).then(setPayments).catch(() => setPayments([]));
-    listCompanyJobOffers(uid).then(setJobOffers).catch(() => setJobOffers([]));
+
+    setLoadingWorkers(true);
+    listVisibleWorkers()
+      .then(setWorkers)
+      .catch(() => setWorkers([]))
+      .finally(() => setLoadingWorkers(false));
+
+    getCompanyProfile(uid)
+      .then(setCompanyProfile)
+      .catch(() => setStatus("No se pudo cargar el perfil de empresa."));
+
+    listCompanyPayments(uid)
+      .then(setPayments)
+      .catch(() => setStatus("No se pudieron cargar los pagos."));
+
+    listCompanyJobOffers(uid)
+      .then(setJobOffers)
+      .catch(() => setStatus("No se pudieron cargar las publicaciones."));
+
+    const unsubscribeInvitations = subscribeToCompanyInvitations(uid, setInvitations);
+    return () => unsubscribeInvitations();
   }, [uid]);
 
   useEffect(() => {
@@ -294,15 +314,13 @@ export function CompanyWorkspace() {
         salaryMin: Number(invite.salaryMin),
         salaryMax: Number(invite.salaryMax),
         currency: "CLP",
-        workMode: "hybrid",
+        workMode: invite.workMode as "remote" | "hybrid" | "onsite",
         location: invite.location,
-        contractType: "full_time",
+        contractType: invite.contractType,
         message: invite.message
       });
       setLastInvitationId(result.invitationId);
       setActiveInvitationId(result.invitationId);
-      const nextInvitations = await listCompanyInvitations(uid);
-      setInvitations(nextInvitations);
       setActiveView("interview");
       setStatus(`Invitacion creada: ${result.invitationId}`);
     } catch (error) {
@@ -437,22 +455,21 @@ export function CompanyWorkspace() {
 
     try {
       await updateInvitationStatus(activeInvitation.invitationId, statusKey);
-      const nextInvitations = await listCompanyInvitations(uid);
-      setInvitations(nextInvitations);
       setStatus(`Proceso actualizado a ${statusKey}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo actualizar el proceso.");
     }
   }
 
-  async function loadMessages() {
-    if (!activeInvitation) {
-      setStatus("Selecciona un candidato con invitacion para ver mensajes.");
-      return;
-    }
-    const nextMessages = await listConversationMessages(activeInvitation.invitationId);
-    setMessages(nextMessages);
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!activeInvitation) return;
+    const unsub = subscribeToMessages(activeInvitation.invitationId, setMessages);
+    return () => unsub();
+  }, [activeInvitation?.invitationId]);
 
   function selectInvitation(invitation: Invitation) {
     setActiveInvitationId(invitation.invitationId);
@@ -469,8 +486,6 @@ export function CompanyWorkspace() {
 
     try {
       await acceptInterviewRules(activeInvitation.invitationId);
-      const nextInvitations = await listCompanyInvitations(uid);
-      setInvitations(nextInvitations);
       setStatus("Reglas de entrevista aceptadas por la empresa.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudieron aceptar las reglas.");
@@ -486,7 +501,6 @@ export function CompanyWorkspace() {
     try {
       const result = await sendConversationMessage(activeInvitation.invitationId, messageBody);
       setMessageBody("");
-      await loadMessages();
       if (result.paymentRequired) {
         setStatus(result.reason ?? "La entrevista quedo bloqueada hasta confirmar pago.");
         if (result.checkoutUrl) {
@@ -514,7 +528,6 @@ export function CompanyWorkspace() {
       });
       setCalendarUrl(result.calendarUrl);
       setStatus("Entrevista programada. Comparte el enlace de Google Calendar con ambas partes.");
-      await loadMessages();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo programar la entrevista.");
     }
@@ -866,7 +879,9 @@ export function CompanyWorkspace() {
         </section>
 
         <div className="results">
-          {filteredWorkers.length ? filteredWorkers.map((worker) => (
+          {loadingWorkers ? (
+            <p className="emptyState"><Loader2 size={18} className="spinIcon" aria-hidden="true" /> Cargando perfiles...</p>
+          ) : filteredWorkers.length ? filteredWorkers.map((worker) => (
             <article className="resultCard" key={worker.workerId}>
               <div>
                 <span className="profileCode">{worker.profileCode}</span>
@@ -1098,6 +1113,23 @@ export function CompanyWorkspace() {
               Sueldo maximo CLP
               <input value={invite.salaryMax} onChange={(event) => updateInvite("salaryMax", event.target.value)} />
             </label>
+            <label>
+              Modalidad
+              <select value={invite.workMode} onChange={(event) => updateInvite("workMode", event.target.value)}>
+                <option value="hybrid">Híbrido</option>
+                <option value="remote">Remoto</option>
+                <option value="onsite">Presencial</option>
+              </select>
+            </label>
+            <label>
+              Tipo de contrato
+              <select value={invite.contractType} onChange={(event) => updateInvite("contractType", event.target.value)}>
+                <option value="full_time">Tiempo completo</option>
+                <option value="part_time">Part-time</option>
+                <option value="contractor">Contratista / Freelance</option>
+                <option value="temporary">Temporal</option>
+              </select>
+            </label>
             <label className="wide">
               Resumen
               <input value={invite.opportunitySummary} onChange={(event) => updateInvite("opportunitySummary", event.target.value)} />
@@ -1139,13 +1171,13 @@ export function CompanyWorkspace() {
                 <p>{message.body}</p>
               </div>
             )) : <p className="emptyState">Abre o crea una invitacion para iniciar conversacion.</p>}
+            <div ref={messagesEndRef} />
           </div>
           {!interviewReady ? (
             <p className="paymentLockNotice">La entrevista se habilita cuando empresa y postulante aceptan las reglas.</p>
           ) : null}
           <div className="messageComposer">
             <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} />
-            <button className="button secondary" type="button" onClick={loadMessages}>Actualizar</button>
             <button className="button primary" disabled={!interviewReady} type="button" onClick={handleMessage}>Enviar mensaje</button>
           </div>
         </section>
