@@ -1,0 +1,94 @@
+
+> perfil-primero@0.1.0 dev
+> next dev -p 3004
+
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3004
+   - Network:      http://192.168.50.168:3004
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 6.7s (780 modules)
+ GET / 200 in 7719ms
+ GET / 200 in 268ms
+ GET / 200 in 411ms
+ ○ Compiling /trabajador ...
+ ✓ Compiled /trabajador in 4.1s (812 modules)
+ GET /trabajador 200 in 5470ms
+ ○ Compiling /empresa ...
+ ✓ Compiled /empresa in 734ms (830 modules)
+ GET /empresa 200 in 2014ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 760ms (848 modules)
+ GET /admin 200 in 1317ms
+ ✓ Compiled /precios in 483ms (854 modules)
+ GET /precios 200 in 798ms
+ ✓ Compiled /legal/privacidad in 477ms (856 modules)
+ GET /legal/privacidad 200 in 764ms
+ ✓ Compiled /legal/terminos in 505ms (858 modules)
+ GET /legal/terminos 200 in 801ms
+ GET / 200 in 411ms
+ GET /trabajador 200 in 208ms
+ GET /empresa 200 in 221ms
+ GET /admin 200 in 117ms
+ GET /precios 200 in 96ms
+ GET /legal/privacidad 200 in 109ms
+ GET /legal/terminos 200 in 112ms
+ ✓ Compiled in 2.7s (827 modules)
+ ✓ Compiled in 1269ms (827 modules)
+ ✓ Compiled in 447ms (276 modules)
+ ✓ Compiled in 877ms (841 modules)
+ ✓ Compiled in 7.5s (551 modules)
+ ✓ Compiled in 517ms (551 modules)
+ ✓ Compiled in 1355ms (841 modules)
+ ✓ Compiled in 748ms (841 modules)
+ ✓ Compiled in 14.3s (827 modules)
+ ✓ Compiled in 2.9s (827 modules)
+ ✓ Compiled in 666ms (827 modules)
+ ✓ Compiled in 606ms (276 modules)
+ ✓ Compiled in 997ms (827 modules)
+ ✓ Compiled in 1188ms (841 modules)
+ ✓ Compiled in 5.4s (827 modules)
+ ✓ Compiled in 2.3s (276 modules)
+ ✓ Compiled in 1190ms (841 modules)
+ ✓ Compiled in 10.9s (841 modules)
+ ✓ Compiled in 2.4s (827 modules)
+ ✓ Compiled in 1390ms (841 modules)
+ ✓ Compiled in 7.5s (827 modules)
+ ✓ Compiled in 692ms (276 modules)
+ ✓ Compiled in 1751ms (277 modules)
+ ✓ Compiled in 854ms (277 modules)
+ ✓ Compiled in 1838ms (835 modules)
+ ✓ Compiled in 1783ms (835 modules)
+ ✓ Compiled in 1709ms (849 modules)
+ ✓ Compiled in 949ms (849 modules)
+ ✓ Compiled in 30.9s (849 modules)
+ ✓ Compiled in 2.8s (849 modules)
+ ✓ Compiled in 32.6s (835 modules)
+ ✓ Compiled in 2.7s (835 modules)
+ ✓ Compiled in 22.4s (837 modules)
+ ✓ Compiled in 6.4s (806 modules)
+ ✓ Compiled in 1735ms (538 modules)
+ ✓ Compiled in 350ms (268 modules)
+ ✓ Compiled in 11.4s (806 modules)
+ ✓ Compiled in 193ms (268 modules)
+ ✓ Compiled in 6.7s (268 modules)
+ ✓ Compiled in 26.1s (808 modules)
+ ✓ Compiled in 10.7s (822 modules)
+ ✓ Compiled in 3.8s (822 modules)
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3004
+   - Network:      http://192.168.50.168:3004
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 6.6s
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3004
+   - Network:      http://192.168.50.168:3004
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 5.3s

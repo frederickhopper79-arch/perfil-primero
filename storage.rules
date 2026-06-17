@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /workers/{workerId}/{allPaths=**} {
+      allow read: if isOwner(workerId);
+      allow write: if isOwner(workerId)
+        && request.resource.size < 5 * 1024 * 1024
+        && (
+          request.resource.contentType.matches("application/pdf")
+          || request.resource.contentType.matches("text/plain")
+          || request.resource.contentType.matches("application/msword")
+          || request.resource.contentType.matches("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        );
+    }
+
+    match /companies/{companyId}/{allPaths=**} {
+      allow read: if isOwner(companyId);
+      allow write: if isOwner(companyId)
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+    }
+  }
+}
