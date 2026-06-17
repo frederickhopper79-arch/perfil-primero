@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, functions } from "./client";
@@ -184,6 +184,41 @@ export async function listConversationMessages(invitationId: string) {
   );
   const snap = await getDocs(q);
   return snap.docs.map((item) => item.data() as ConversationMessage);
+}
+
+export function subscribeToMessages(
+  invitationId: string,
+  onMessages: (messages: ConversationMessage[]) => void
+) {
+  const q = query(
+    collection(db, "conversationMessages"),
+    where("invitationId", "==", invitationId),
+    orderBy("createdAt", "asc"),
+    limit(80)
+  );
+  return onSnapshot(q, (snap) => {
+    onMessages(snap.docs.map((item) => item.data() as ConversationMessage));
+  });
+}
+
+export function subscribeToWorkerInvitations(
+  workerId: string,
+  onInvitations: (invitations: Invitation[]) => void
+) {
+  const q = query(collection(db, "invitations"), where("workerId", "==", workerId), limit(80));
+  return onSnapshot(q, (snap) => {
+    onInvitations(snap.docs.map((item) => item.data() as Invitation));
+  });
+}
+
+export function subscribeToCompanyInvitations(
+  companyId: string,
+  onInvitations: (invitations: Invitation[]) => void
+) {
+  const q = query(collection(db, "invitations"), where("companyId", "==", companyId), limit(80));
+  return onSnapshot(q, (snap) => {
+    onInvitations(snap.docs.map((item) => item.data() as Invitation));
+  });
 }
 
 export async function listCompanyPayments(companyId: string) {

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { CheckCircle2, EyeOff, FileText, PenLine, UploadCloud } from "lucide-react";
+import { CheckCircle2, EyeOff, FileText, Lock, PenLine, UploadCloud } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { AiProfileAdvisor } from "./ai-profile-advisor";
 import { MercadoPagoIcon } from "./brand-icons";
@@ -11,8 +11,14 @@ import { InterviewRulesCard } from "./company-workspace";
 import { chileRegions, jobAreas, seniorityLevels } from "@/lib/domain/catalogs";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { acceptInterviewRules, acceptInvitation, listWorkerInvitations, submitPlatformReview } from "@/lib/firebase/companies";
-import { listConversationMessages, sendConversationMessage } from "@/lib/firebase/companies";
+import {
+  acceptInterviewRules,
+  acceptInvitation,
+  sendConversationMessage,
+  submitPlatformReview,
+  subscribeToMessages,
+  subscribeToWorkerInvitations
+} from "@/lib/firebase/companies";
 import {
   analyzeCvWithAi,
   createWorkerSubscriptionCheckout,
@@ -41,6 +47,7 @@ export function WorkerOnboarding() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvUrl, setCvUrl] = useState("");
   const [couponCode, setCouponCode] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [scores, setScores] = useState({ english: 0, spanish: 0, personality: 0 });
   const [form, setForm] = useState({
     headline: "Especialista en marketing digital",
@@ -109,9 +116,19 @@ export function WorkerOnboarding() {
   }, []);
 
   useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!activeInvitationId) return;
+    const unsub = subscribeToMessages(activeInvitationId, setMessages);
+    return () => unsub();
+  }, [activeInvitationId]);
+
+  useEffect(() => {
     if (!uid) return;
-    listWorkerInvitations(uid).then(setInvitations).catch(() => setInvitations([]));
-    listWorkerPayments(uid).then(setPayments).catch(() => setPayments([]));
+    const unsubscribeInvitations = subscribeToWorkerInvitations(uid, setInvitations);
+    listWorkerPayments(uid).then(setPayments).catch(() => setStatus("No se pudieron cargar los pagos."));
     getWorkerProfile(uid)
       .then(({ publicProfile, privateProfile }) => {
         if (publicProfile) {
@@ -152,7 +169,9 @@ export function WorkerOnboarding() {
           }));
         }
       })
-      .catch(() => undefined);
+      .catch(() => setStatus("No se pudo cargar el perfil guardado."));
+
+    return () => unsubscribeInvitations();
   }, [uid]);
 
   function update(key: keyof typeof form, value: string) {
@@ -401,16 +420,6 @@ export function WorkerOnboarding() {
     }
   }
 
-  async function loadMessages(invitationId: string) {
-    setActiveInvitationId(invitationId);
-    try {
-      const nextMessages = await listConversationMessages(invitationId);
-      setMessages(nextMessages);
-    } catch {
-      setMessages([]);
-    }
-  }
-
   async function handleWorkerMessage() {
     if (!activeInvitationId) {
       setStatus("Selecciona una invitacion para responder.");
@@ -420,7 +429,6 @@ export function WorkerOnboarding() {
     try {
       const result = await sendConversationMessage(activeInvitationId, messageBody);
       setMessageBody("");
-      await loadMessages(activeInvitationId);
       setStatus(result.paymentRequired
         ? "El chat quedo bloqueado: la empresa esta realizando el pago para cerrar trato contigo."
         : "Mensaje enviado.");
@@ -437,8 +445,6 @@ export function WorkerOnboarding() {
 
     try {
       await acceptInterviewRules(activeInvitationId);
-      const nextInvitations = await listWorkerInvitations(uid);
-      setInvitations(nextInvitations);
       setStatus("Reglas de entrevista aceptadas por el postulante.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudieron aceptar las reglas.");
@@ -706,22 +712,26 @@ export function WorkerOnboarding() {
               CV Perfil Primero generado por IA
               <textarea value={form.formattedCv} onChange={(event) => update("formattedCv", event.target.value)} placeholder="Aqui aparecera el curriculum con formato propio despues del analisis IA." />
             </label>
+          </div>
+
+          <div className="privateSectionHeader">
+            <Lock size={16} aria-hidden="true" />
+            <strong>Datos privados</strong>
+            <span>Solo visibles para ti y para empresas que paguen el desbloqueo de contacto.</span>
+          </div>
+          <div className="formGrid privateFields">
             <label>
-              Nombre legal privado
+              Nombre legal
               <input value={form.legalName} onChange={(event) => update("legalName", event.target.value)} />
             </label>
             <label>
-              Telefono privado
+              Telefono
               <input value={form.phone} onChange={(event) => update("phone", event.target.value)} />
             </label>
             <label className="wide">
-              Portafolio privado
+              Portafolio o LinkedIn
               <input value={form.portfolio} onChange={(event) => update("portfolio", event.target.value)} />
             </label>
-          </div>
-          <div className="privacyNote">
-            <EyeOff size={20} aria-hidden="true" />
-            <p>Nombre legal, telefono, correo y CV quedan en el perfil privado.</p>
           </div>
           <div className="actions">
             <button className="button primary" type="submit">
@@ -837,7 +847,7 @@ export function WorkerOnboarding() {
                   >
                     Aceptar
                   </button>
-                  <button className="button secondary" type="button" onClick={() => loadMessages(invitation.invitationId)}>
+                  <button className="button secondary" type="button" onClick={() => { setActiveInvitationId(invitation.invitationId); setActiveView("interview"); }}>
                     Abrir entrevista
                   </button>
                 </article>
@@ -873,6 +883,7 @@ export function WorkerOnboarding() {
                 <p>{message.body}</p>
               </div>
             )) : <p className="emptyState">Selecciona una invitacion para ver la conversacion.</p>}
+            <div ref={messagesEndRef} />
           </div>
           {!interviewReady && activeInvitation ? (
             <p className="paymentLockNotice">La entrevista se habilita cuando empresa y postulante aceptan las reglas.</p>
