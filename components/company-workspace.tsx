@@ -43,7 +43,14 @@ export function CompanyWorkspace() {
   const [uid, setUid] = useState("");
   const [workers, setWorkers] = useState<WorkerPublicProfile[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<WorkerPublicProfile | null>(null);
-  const [compareWorkers, setCompareWorkers] = useState<WorkerPublicProfile[]>([]);
+  const [compareWorkers, setCompareWorkers] = useState<WorkerPublicProfile[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("pp_compareWorkers");
+      return saved ? (JSON.parse(saved) as WorkerPublicProfile[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [matchAdvice, setMatchAdvice] = useState<{ score: number; verdict: string; reasons: string[]; risks: string[] } | null>(null);
@@ -157,12 +164,24 @@ export function CompanyWorkspace() {
 
   useEffect(() => {
     if (!uid) return;
+    fetchWorkers();
+  }, [uid]);
 
+  function fetchWorkers(overrideFilters?: typeof filters) {
+    const f = overrideFilters ?? filters;
     setLoadingWorkers(true);
-    listVisibleWorkers()
+    listVisibleWorkers({
+      region: f.region || undefined,
+      sector: f.area || undefined,
+      salaryMax: f.salaryMax ? Number(f.salaryMax) : undefined
+    })
       .then(setWorkers)
-      .catch(() => setWorkers([]))
+      .catch(() => setStatus("No se pudieron cargar los perfiles."))
       .finally(() => setLoadingWorkers(false));
+  }
+
+  useEffect(() => {
+    if (!uid) return;
 
     getCompanyProfile(uid)
       .then(setCompanyProfile)
@@ -249,14 +268,12 @@ export function CompanyWorkspace() {
     : selectedWorker
       ? invitations.find((invitation) => invitation.workerId === selectedWorker.workerId) ?? null
       : null;
-  const filteredWorkers = workers.filter((worker) => {
-    const haystack = `${worker.headline} ${worker.summary} ${worker.skills.join(" ")} ${worker.sectors.join(" ")}`.toLowerCase();
-    const matchesQuery = !filters.query || haystack.includes(filters.query.toLowerCase());
-    const matchesRegion = !filters.region || worker.region === filters.region;
-    const matchesArea = !filters.area || worker.sectors.includes(filters.area);
-    const matchesSalary = !filters.salaryMax || worker.expectedSalaryMin <= Number(filters.salaryMax);
-    return matchesQuery && matchesRegion && matchesArea && matchesSalary;
-  });
+  const filteredWorkers = filters.query
+    ? workers.filter((worker) => {
+        const haystack = `${worker.headline} ${worker.summary} ${worker.skills.join(" ")} ${worker.sectors.join(" ")}`.toLowerCase();
+        return haystack.includes(filters.query.toLowerCase());
+      })
+    : workers;
   const interviewReady = Boolean(activeInvitation?.interviewRulesAccepted?.company && activeInvitation?.interviewRulesAccepted?.worker);
 
   function updateFilter(key: keyof typeof filters, value: string) {
@@ -440,10 +457,11 @@ export function CompanyWorkspace() {
 
   function toggleCompare(worker: WorkerPublicProfile) {
     setCompareWorkers((current) => {
-      if (current.some((item) => item.workerId === worker.workerId)) {
-        return current.filter((item) => item.workerId !== worker.workerId);
-      }
-      return [...current, worker].slice(0, 3);
+      const next = current.some((item) => item.workerId === worker.workerId)
+        ? current.filter((item) => item.workerId !== worker.workerId)
+        : [...current, worker].slice(0, 3);
+      try { sessionStorage.setItem("pp_compareWorkers", JSON.stringify(next)); } catch {}
+      return next;
     });
   }
 
@@ -876,6 +894,9 @@ export function CompanyWorkspace() {
               <input value={filters.salaryMax} onChange={(event) => updateFilter("salaryMax", event.target.value)} placeholder="1200000" />
             </label>
           </div>
+          <button className="button primary" type="button" onClick={() => fetchWorkers()}>
+            <Search size={16} aria-hidden="true" /> Buscar
+          </button>
         </section>
 
         <div className="results">

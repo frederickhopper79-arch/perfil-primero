@@ -83,18 +83,31 @@ export async function listWorkerPayments(workerId: string) {
   });
 }
 
-export async function listVisibleWorkers(options?: { pageSize?: number }) {
-  const pageSize = Math.max(1, Math.min(20, Number(options?.pageSize ?? 20)));
-  const q = query(
-    collection(db, "workerPublicProfiles"),
+export async function listVisibleWorkers(options?: {
+  pageSize?: number;
+  region?: string;
+  sector?: string;
+  salaryMax?: number;
+}) {
+  const pageSize = Math.max(1, Math.min(50, Number(options?.pageSize ?? 50)));
+
+  const constraints = [
     where("visibilityStatus", "==", "visible"),
     where("subscriptionStatus", "==", "active"),
+    ...(options?.region ? [where("region", "==", options.region)] : []),
+    ...(options?.sector ? [where("sectors", "array-contains", options.sector)] : []),
     orderBy("expectedSalaryMax", "asc"),
     limit(pageSize)
-  );
+  ];
 
+  const q = query(collection(db, "workerPublicProfiles"), ...constraints);
   const snap = await getDocs(q);
-  const workers = snap.docs.map((item) => item.data() as WorkerPublicProfile);
+  let workers = snap.docs.map((item) => item.data() as WorkerPublicProfile);
+
+  if (options?.salaryMax) {
+    workers = workers.filter((w) => w.expectedSalaryMin <= options.salaryMax!);
+  }
+
   return workers.length ? workers : demoPostulants;
 }
 

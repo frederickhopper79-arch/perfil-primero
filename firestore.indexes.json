@@ -4,72 +4,67 @@
       "collectionGroup": "workerPublicProfiles",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "visibilityStatus",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "subscriptionStatus",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "expectedSalaryMax",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "visibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
+        { "fieldPath": "expectedSalaryMax", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workerPublicProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "expectedSalaryMax", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workerPublicProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
+        { "fieldPath": "sectors", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "expectedSalaryMax", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workerPublicProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
+        { "fieldPath": "region", "order": "ASCENDING" },
+        { "fieldPath": "sectors", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "expectedSalaryMax", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "invitations",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "workerId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "workerId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "contactUnlocks",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "invitationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "companyId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "invitationId", "order": "ASCENDING" },
+        { "fieldPath": "companyId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "relatedInvitationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "paymentType",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "relatedInvitationId", "order": "ASCENDING" },
+        { "fieldPath": "paymentType", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     }
   ],

@@ -71,8 +71,8 @@ export function WorkerOnboarding() {
   });
 
   const profileCode = useMemo(() => {
-    if (!uid) return "P1-NUEVO";
-    return `P1-${uid.slice(0, 4).toUpperCase()}`;
+    if (!uid) return "PP-NUEVO";
+    return `PP-${uid.slice(0, 8).toUpperCase()}`;
   }, [uid]);
 
   useEffect(() => {
