@@ -4,11 +4,11 @@
 
 Una plataforma donde los profesionales y trabajadores publican su perfil laboral, expectativas y disponibilidad, y las empresas buscan, filtran y contactan a candidatos compatibles.
 
-El objetivo es invertir la logica tradicional: la persona no persigue ofertas en silencio; la empresa debe demostrar interes, transparencia y velocidad.
+El objetivo es invertir la lógica tradicional: la persona no persigue ofertas en silencio; la empresa debe demostrar interés, transparencia y velocidad.
 
 ## Problema que resolvemos
 
-Las bolsas de trabajo tradicionales estan disenadas alrededor de la empresa que publica la oferta. Eso produce postulaciones sin respuesta, filtros opacos, avisos fantasmas, sueldos ocultos y formularios repetitivos.
+Las bolsas de trabajo tradicionales están diseñadas alrededor de la empresa que publica la oferta. Eso produce postulaciones sin respuesta, filtros opacos, avisos fantasmas, sueldos ocultos y formularios repetitivos.
 
 Este sistema parte desde la dignidad del trabajador:
 
@@ -16,7 +16,7 @@ Este sistema parte desde la dignidad del trabajador:
 - La empresa solicita permiso para iniciar contacto.
 - El sueldo, modalidad y condiciones deben ser visibles desde el primer acercamiento.
 - Los procesos tienen plazos, estados y cierre obligatorio.
-- La plataforma mide tambien el comportamiento de las empresas.
+- La plataforma mide también el comportamiento de las empresas.
 
 ## Propuesta
 
@@ -27,8 +27,8 @@ Los trabajadores crean un perfil vivo con:
 - Experiencia.
 - Habilidades.
 - Rubro.
-- Ubicacion.
-- Modalidad preferida: presencial, hibrida o remota.
+- Ubicación.
+- Modalidad preferida: presencial, híbrida o remota.
 - Renta esperada.
 - Disponibilidad.
 - Portafolio, CV o evidencia de trabajo.
@@ -40,7 +40,7 @@ Las empresas pueden buscar candidatos usando filtros claros:
 - Experiencia.
 - Habilidades.
 - Rango de sueldo compatible.
-- Region o ciudad.
+- Región o ciudad.
 - Modalidad.
 - Disponibilidad.
 - Tipo de contrato.
@@ -55,7 +55,7 @@ La empresa no puede contactar a una persona sin mostrar:
 - Cargo o necesidad real.
 - Rango salarial.
 - Modalidad de trabajo.
-- Ubicacion.
+- Ubicación.
 - Tipo de contrato.
 - Plazo estimado del proceso.
 
@@ -71,21 +71,21 @@ Cada contacto o invitacion tiene estados visibles:
 - Oferta enviada.
 - Cerrada.
 
-Si la empresa abandona el proceso, la plataforma lo registra y afecta su reputacion interna.
+Si la empresa abandona el proceso, la plataforma lo registra y afecta su reputación interna.
 
 ### 3. Perfil antes que CV
 
-El CV puede existir, pero no debe ser el centro. El sistema debe transformar la informacion del trabajador en un perfil facil de leer, comparar y actualizar.
+El CV puede existir, pero no debe ser el centro. El sistema debe transformar la información del trabajador en un perfil fácil de leer, comparar y actualizar.
 
 ### 4. Matching asistido, no filtro castigador
 
 La inteligencia del sistema debe ayudar a ambas partes:
 
-- Al trabajador, mostrando que datos faltan para aparecer mejor en busquedas.
+- Al trabajador, mostrando qué datos faltan para aparecer mejor en búsquedas.
 - A la empresa, recomendando perfiles compatibles.
-- Nunca debe descartar personas automaticamente por no usar una palabra exacta.
+- Nunca debe descartar personas automáticamente por no usar una palabra exacta.
 
-### 5. Empresas tambien son evaluadas
+### 5. Empresas también son evaluadas
 
 La plataforma debe medir:
 
@@ -105,7 +105,7 @@ Debe poder indicar:
 - "Escucho ofertas".
 - "No disponible por ahora".
 
-Tambien debe poder ocultar datos sensibles hasta aceptar un contacto.
+También debe poder ocultar datos sensibles hasta aceptar un contacto.
 
 Datos inicialmente privados:
 
@@ -120,7 +120,7 @@ La empresa crea una cuenta verificada y busca talento.
 
 Puede guardar candidatos, enviar invitaciones y administrar procesos.
 
-Antes de contactar, debe completar una ficha de oportunidad con informacion minima obligatoria.
+Antes de contactar, debe completar una ficha de oportunidad con información mínima obligatoria.
 
 ## Diferenciacion frente a Laborum, Trabajando y portales tradicionales
 
@@ -128,8 +128,8 @@ Antes de contactar, debe completar una ficha de oportunidad con informacion mini
 - No permite sueldos ocultos en contactos laborales.
 - No deja procesos abiertos eternamente.
 - No castiga a candidatos por ATS rigidos.
-- No obliga a repetir informacion del CV en formularios infinitos.
-- Penaliza empresas que no responden o publican informacion incompleta.
+- No obliga a repetir información del CV en formularios infinitos.
+- Penaliza empresas que no responden o publican información incompleta.
 
 ## MVP inicial
 
@@ -148,27 +148,27 @@ Antes de contactar, debe completar una ficha de oportunidad con informacion mini
 
 - Registro de empresa.
 - Buscador de perfiles.
-- Filtros por habilidades, ubicacion, sueldo, modalidad y disponibilidad.
+- Filtros por habilidades, ubicación, sueldo, modalidad y disponibilidad.
 - Envio de invitacion laboral.
 - Panel de procesos.
 
 ### Reglas clave del MVP
 
 - La empresa debe indicar rango salarial para contactar.
-- Toda invitacion vence si no hay movimiento.
-- El trabajador puede aceptar, rechazar o pedir mas informacion.
-- El sistema muestra trazabilidad basica del proceso.
+- Toda invitación vence si no hay movimiento.
+- El trabajador puede aceptar, rechazar o pedir más información.
+- El sistema muestra trazabilidad básica del proceso.
 
 ## Modelo de negocio inicial
 
 ### Cobro al trabajador
 
-El trabajador paga USD 10 por mantener su curriculum y perfil visible durante 30 dias en la plataforma.
+El trabajador paga USD 10 por mantener su currículum y perfil visible durante 30 días en la plataforma.
 
 Este pago debe entregar valor claro:
 
 - Perfil publicado y visible para empresas.
-- Posicionamiento en busquedas segun compatibilidad, no solo por pago.
+- Posicionamiento en búsquedas según compatibilidad, no solo por pago.
 - Panel para ver visitas, invitaciones y estado de contactos.
 - Recomendaciones para mejorar el perfil.
 - Posibilidad de pausar u ocultar el perfil.
@@ -199,12 +199,12 @@ La promesa para la empresa es: pagar solo cuando encuentra talento util, sin pub
 
 ### Riesgos del modelo
 
-Cobrar al trabajador puede generar desconfianza si la plataforma no demuestra valor rapido. Para reducir ese riesgo:
+Cobrar al trabajador puede generar desconfianza si la plataforma no demuestra valor rápido. Para reducir ese riesgo:
 
 - Mostrar metricas de visibilidad del perfil.
 - Verificar empresas antes de permitir busquedas.
 - Evitar ofertas falsas o contactos incompletos.
-- Permitir cancelar facilmente.
+- Permitir cancelar fácilmente.
 - Considerar perfiles gratuitos limitados en una etapa futura.
 
 ## Nombre provisional
