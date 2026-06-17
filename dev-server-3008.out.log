@@ -1,0 +1,72 @@
+
+> perfil-primero@0.1.0 dev
+> next dev -p 3008
+
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3008
+   - Network:      http://192.168.50.168:3008
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 4.7s
+ ○ Compiling / ...
+ ✓ Compiled / in 24.8s (780 modules)
+ GET / 200 in 26891ms
+ ○ Compiling /trabajador ...
+ ✓ Compiled /trabajador in 860ms (826 modules)
+ GET /trabajador 200 in 1363ms
+ ✓ Compiled /empresa in 395ms (832 modules)
+ GET /empresa 200 in 728ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 5.1s (850 modules)
+ GET /admin 200 in 6489ms
+ ○ Compiling /precios ...
+ ✓ Compiled /precios in 3.1s (856 modules)
+ GET /precios 200 in 4198ms
+ ✓ Compiled /legal/privacidad in 416ms (858 modules)
+ GET /legal/privacidad 200 in 642ms
+ ✓ Compiled /legal/terminos in 409ms (860 modules)
+ GET /legal/terminos 200 in 636ms
+ GET / 200 in 467ms
+ GET /trabajador 200 in 172ms
+ GET /empresa 200 in 171ms
+ GET /admin 200 in 147ms
+ GET /precios 200 in 100ms
+ GET /legal/privacidad 200 in 112ms
+ GET /legal/terminos 200 in 102ms
+ ✓ Compiled in 1978ms (874 modules)
+ ✓ Compiled in 11s (541 modules)
+ ✓ Compiled in 3.3s (823 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.8s (560 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.5s (1184 modules)
+ GET / 500 in 10451ms
+ ✓ Compiled in 31.1s (429 modules)
+ ✓ Compiled in 2.6s (1156 modules)
+ ✓ Compiled in 19.4s (1158 modules)
+ ✓ Compiled in 10.9s (1152 modules)
+ ✓ Compiled in 349ms (729 modules)
+ ✓ Compiled in 9.2s (1152 modules)
+ ✓ Compiled in 468ms (423 modules)
+ ✓ Compiled in 7.9s (1152 modules)
+ ✓ Compiled in 333ms (423 modules)
+ ✓ Compiled in 5.6s (424 modules)
+ ✓ Compiled in 6s (1154 modules)
+ ✓ Compiled in 4.6s (1154 modules)
+ ✓ Compiled in 7.6s (1168 modules)
+ ✓ Compiled in 1550ms (1168 modules)
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3008
+   - Network:      http://192.168.50.168:3008
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 6.8s
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3008
+   - Network:      http://192.168.50.168:3008
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 4.3s

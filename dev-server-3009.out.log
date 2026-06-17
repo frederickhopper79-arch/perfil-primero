@@ -1,0 +1,30 @@
+
+> perfil-primero@0.1.0 dev
+> next dev -p 3009
+
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3009
+   - Network:      http://192.168.50.168:3009
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 5.4s (780 modules)
+ GET / 200 in 7176ms
+ ○ Compiling /trabajador ...
+ ✓ Compiled /trabajador in 1359ms (826 modules)
+ GET /trabajador 200 in 2024ms
+ ✓ Compiled /empresa in 359ms (832 modules)
+ GET /empresa 200 in 662ms
+ ✓ Compiled /admin in 421ms (850 modules)
+ GET /admin 200 in 687ms
+ ○ Compiling /precios ...
+ ✓ Compiled /precios in 529ms (856 modules)
+ GET /precios 200 in 731ms
+ ✓ Compiled /legal/privacidad in 466ms (858 modules)
+ GET /legal/privacidad 200 in 672ms
+ ✓ Compiled /legal/terminos in 501ms (860 modules)
+ GET /legal/terminos 200 in 725ms
+ GET / 200 in 426ms
+[?25h

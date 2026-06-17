@@ -1,0 +1,195 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function role() {
+      return signedIn() ? userDoc(request.auth.uid).data.role : null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && role() == "admin";
+    }
+
+    function isWorker() {
+      return signedIn() && role() == "worker";
+    }
+
+    function isCompany() {
+      return signedIn() && role() == "company";
+    }
+
+    function isOmil() {
+      return signedIn() && role() == "omil";
+    }
+
+    function ownerCreatesAllowedUser() {
+      return request.resource.data.role in ["worker", "company", "omil"]
+        && request.resource.data.status == "active";
+    }
+
+    function ownerUpdatesOwnUser() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status;
+    }
+
+    function ownerCreatesWorkerDraft() {
+      return request.resource.data.subscriptionStatus == "inactive"
+        && request.resource.data.visibilityStatus == "hidden";
+    }
+
+    function ownerUpdatesWorkerProfile() {
+      return request.resource.data.subscriptionStatus == resource.data.subscriptionStatus
+        && (
+          request.resource.data.visibilityStatus == resource.data.visibilityStatus
+          || request.resource.data.visibilityStatus in ["hidden", "paused"]
+        );
+    }
+
+    function ownerCreatesCompanyForReview() {
+      return request.resource.data.verificationStatus == "pending";
+    }
+
+    function ownerUpdatesCompanyProfile() {
+      return request.resource.data.verificationStatus == resource.data.verificationStatus;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && ownerCreatesAllowedUser();
+      allow update: if isAdmin() || (isOwner(userId) && ownerUpdatesOwnUser());
+      allow delete: if isAdmin();
+    }
+
+    match /workerPublicProfiles/{workerId} {
+      allow read: if signedIn();
+      allow create: if isOwner(workerId) && isWorker() && ownerCreatesWorkerDraft();
+      allow update: if isAdmin() || (isOwner(workerId) && isWorker() && ownerUpdatesWorkerProfile());
+      allow delete: if isAdmin();
+    }
+
+    match /workerPrivateProfiles/{workerId} {
+      allow read: if isOwner(workerId) || isAdmin();
+      allow create, update: if (isOwner(workerId) && isWorker()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /companyProfiles/{companyId} {
+      allow read: if signedIn();
+      allow create: if isOwner(companyId) && isCompany() && ownerCreatesCompanyForReview();
+      allow update: if isAdmin() || (isOwner(companyId) && isCompany() && ownerUpdatesCompanyProfile());
+      allow delete: if isAdmin();
+    }
+
+    match /jobOffers/{jobOfferId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && isCompany()
+        && request.resource.data.companyId == request.auth.uid;
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && isCompany()
+          && resource.data.companyId == request.auth.uid
+          && request.resource.data.companyId == resource.data.companyId
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /invitations/{invitationId} {
+      allow read: if signedIn()
+        && (
+          resource.data.companyId == request.auth.uid
+          || resource.data.workerId == request.auth.uid
+          || isAdmin()
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /contactUnlocks/{unlockId} {
+      allow read: if signedIn()
+        && (
+          resource.data.companyId == request.auth.uid
+          || resource.data.workerId == request.auth.uid
+          || isAdmin()
+        );
+      allow write: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    match /conversationMessages/{messageId} {
+      allow read: if signedIn()
+        && (
+          resource.data.companyId == request.auth.uid
+          || resource.data.workerId == request.auth.uid
+          || isAdmin()
+        );
+      allow write: if false;
+    }
+
+    match /scheduledInterviews/{interviewId} {
+      allow read: if signedIn()
+        && (
+          resource.data.companyId == request.auth.uid
+          || resource.data.workerId == request.auth.uid
+          || isAdmin()
+        );
+      allow write: if false;
+    }
+
+    match /platformReviews/{reviewId} {
+      allow read: if signedIn()
+        && (
+          resource.data.companyId == request.auth.uid
+          || resource.data.workerId == request.auth.uid
+          || isAdmin()
+        );
+      allow write: if false;
+    }
+
+    match /accountingEntries/{entryId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /emailReminders/{reminderId} {
+      allow read: if isAdmin() || (isOmil() && resource.data.omilId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /aiUsageLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /marketAnalyticsReports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /configuracion_sistema/{configId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /auditEvents/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}

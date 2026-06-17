@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\\\\app\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object FullName | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\\\\components\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object Name | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\\\\lib\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object Name | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\\\\functions\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object FullName | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\\\\functions\\\\src\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object FullName | Format-Table -AutoSize)",
+      "PowerShell($gitPaths = @\\(\"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\", \"C:\\\\Program Files \\(x86\\)\\\\Git\\\\bin\\\\git.exe\", \"$env:LOCALAPPDATA\\\\Programs\\\\Git\\\\bin\\\\git.exe\"\\); foreach \\($p in $gitPaths\\) { if \\(Test-Path $p\\) { Write-Output \"Found: $p\" } })",
+      "PowerShell($git = \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\"; cd \"C:\\\\Users\\\\fabia\\\\OneDrive\\\\Documentos\\\\Pagina de Empleos\"; & $git init; if \\($?\\) { & $git add . }; if \\($?\\) { & $git commit -m \"Initial commit\" })"
+    ]
+  }
+}
