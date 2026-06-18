@@ -1,17 +1,19 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useMemo, useState } from "react";
 import { Building2, CalendarClock, CheckCircle2, UserPlus } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { chileRegions, jobAreas } from "@/lib/domain/catalogs";
-import { logout } from "@/lib/firebase/auth";
+import { getUserRole, logout } from "@/lib/firebase/auth";
 import { createOmilPostulantProfile } from "@/lib/firebase/omil";
 
 export function OmilWorkspace() {
   const [uid, setUid] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
+  const [accessDenied, setAccessDenied] = useState(false);
   const [lastCreated, setLastCreated] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [createdCount, setCreatedCount] = useState(0);
   const [form, setForm] = useState({
     legalName: "",
     email: "",
@@ -40,7 +42,7 @@ export function OmilWorkspace() {
     await logout().catch(() => undefined);
     setUid("");
     setEmail("");
-    setStatus("Sesion OMIL cerrada.");
+    setStatus("Sesión OMIL cerrada.");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -63,7 +65,8 @@ export function OmilWorkspace() {
         workMode: form.workMode as "remote" | "hybrid" | "onsite"
       });
       setLastCreated({ code: created.profileCode, expiresAt: created.profileExpiresAt });
-      setStatus("Perfil publicado sin cobro por 30 dias. El correo de continuidad quedo en cola administrativa.");
+      setCreatedCount((n) => n + 1);
+      setStatus("Perfil publicado sin cobro por 30 días. El correo de continuidad quedó en cola administrativa.");
       setForm((current) => ({
         ...current,
         legalName: "",
@@ -78,6 +81,19 @@ export function OmilWorkspace() {
     }
   }
 
+  if (accessDenied) {
+    return (
+      <section className="accessSplit omilAccess">
+        <div className="accessPitch">
+          <span className="smallLabel">Acceso restringido</span>
+          <h2>Esta sección es exclusiva para usuarios OMIL autorizados.</h2>
+          <p>Tu cuenta no tiene permisos para acceder a este portal. Si eres representante de una Oficina Municipal de Información Laboral, contacta al administrador de la plataforma para solicitar acceso.</p>
+          <a className="button secondary" href="/">Volver al inicio</a>
+        </div>
+      </section>
+    );
+  }
+
   if (!uid) {
     return (
       <section className="accessSplit omilAccess">
@@ -85,18 +101,24 @@ export function OmilWorkspace() {
           <span className="smallLabel">Ingreso institucional</span>
           <h2>OMIL puede cargar postulantes sin cobro inicial y con vigencia controlada.</h2>
           <p>
-            Cada perfil queda visible por 30 dias. Al vencer, el postulante recibe aviso para continuar
-            de forma personal mediante suscripcion normal.
+            Cada perfil queda visible por 30 días. Al vencer, el postulante recibe aviso para continuar
+            de forma personal mediante suscripción normal.
           </p>
           <div className="portalStatGrid">
             <div><strong>Gratis</strong><span>alta institucional</span></div>
-            <div><strong>30 dias</strong><span>visibilidad inicial</span></div>
+            <div><strong>30 días</strong><span>visibilidad inicial</span></div>
             <div><strong>Ilimitado</strong><span>postulantes por OMIL</span></div>
           </div>
         </div>
         <AuthCard
           role="omil"
-          onReady={(nextUid, nextEmail) => {
+          onReady={async (nextUid, nextEmail) => {
+            const role = await getUserRole(nextUid).catch(() => null);
+            if (role !== "omil" && role !== "admin") {
+              await logout().catch(() => undefined);
+              setAccessDenied(true);
+              return;
+            }
             setUid(nextUid);
             setEmail(nextEmail);
           }}
@@ -114,11 +136,16 @@ export function OmilWorkspace() {
         </div>
         <h2>Cuenta institucional</h2>
         <p>{email}</p>
-        <button className="button secondary full" type="button" onClick={handleLogout}>Cerrar sesion</button>
+        <button className="button secondary full" type="button" onClick={handleLogout}>Cerrar sesión</button>
       </aside>
 
       <div className="stack">
         <section className="dashboardGrid">
+          <article>
+            <span className="smallLabel">Perfiles creados hoy</span>
+            <strong>{createdCount}</strong>
+            <p>En esta sesión activa.</p>
+          </article>
           <article>
             <span className="smallLabel">Modelo</span>
             <strong>Sin cobro</strong>
@@ -126,19 +153,39 @@ export function OmilWorkspace() {
           </article>
           <article>
             <span className="smallLabel">Vigencia</span>
-            <strong>30 dias</strong>
-            <p>Luego se envía aviso de continuidad.</p>
+            <strong>30 días</strong>
+            <p>Luego se envía aviso de continuidad al postulante.</p>
           </article>
           <article>
-            <span className="smallLabel">Alcance</span>
-            <strong>Ilimitado</strong>
-            <p>Puede crear postulantes sin tope operativo.</p>
+            <span className="smallLabel">Comisión por contratación</span>
+            <strong>20%</strong>
+            <p>Del cobro al empleador cuando un perfil OMIL es contratado.</p>
           </article>
-          <article>
-            <span className="smallLabel">Privacidad</span>
-            <strong>Anonimo</strong>
-            <p>Datos personales quedan bloqueados.</p>
-          </article>
+        </section>
+
+        <section className="formSurface omilRevenueInfo">
+          <div className="formHeader">
+            <CalendarClock size={20} aria-hidden="true" />
+            <div>
+              <h2>Modelo de comisión OMIL</h2>
+              <p>Cuando un postulante cargado por esta OMIL es contratado a través de la plataforma, la OMIL recibe el 20% del cobro al empleador.</p>
+            </div>
+          </div>
+          <div className="omilCommissionTable">
+            <div className="omilCommRow">
+              <span>Postulante OMIL contratado</span>
+              <span className="omilCommAmount">$999 cobro empresa</span>
+            </div>
+            <div className="omilCommRow">
+              <span>Comisión OMIL (20%)</span>
+              <span className="omilCommAmount highlight">~$200 CLP</span>
+            </div>
+            <div className="omilCommRow">
+              <span>Pago se coordina mensualmente</span>
+              <span className="omilCommAmount">Transferencia bancaria</span>
+            </div>
+          </div>
+          <p className="helperText">Las comisiones se acumulan mensualmente y se liquidan el último día hábil de cada mes. Escribe a contacto@perfil-primero.cl para registrar tu cuenta bancaria.</p>
         </section>
 
         <form className="formSurface omilForm" onSubmit={handleSubmit}>
@@ -159,7 +206,7 @@ export function OmilWorkspace() {
               <input value={form.email} onChange={(event) => update("email", event.target.value)} type="email" required />
             </label>
             <label>
-              Telefono
+              Teléfono
               <input value={form.phone} onChange={(event) => update("phone", event.target.value)} />
             </label>
             <label>
@@ -167,13 +214,13 @@ export function OmilWorkspace() {
               <input value={form.headline} onChange={(event) => update("headline", event.target.value)} required />
             </label>
             <label>
-              Area
+              Área
               <select value={form.area} onChange={(event) => update("area", event.target.value)} required>
                 {jobAreas.map((area) => <option key={area} value={area}>{area}</option>)}
               </select>
             </label>
             <label>
-              Region
+              Región
               <select value={form.region} onChange={(event) => update("region", event.target.value)} required>
                 {chileRegions.map((region) => <option key={region.name} value={region.name}>{region.name}</option>)}
               </select>
@@ -188,16 +235,16 @@ export function OmilWorkspace() {
               Modalidad
               <select value={form.workMode} onChange={(event) => update("workMode", event.target.value)}>
                 <option value="onsite">Presencial</option>
-                <option value="hybrid">Hibrida</option>
+                <option value="hybrid">Híbrida</option>
                 <option value="remote">Remota</option>
               </select>
             </label>
             <label>
-              Renta minima
+              Renta mínima
               <input value={form.salaryMin} onChange={(event) => update("salaryMin", event.target.value)} inputMode="numeric" />
             </label>
             <label>
-              Renta maxima
+              Renta máxima
               <input value={form.salaryMax} onChange={(event) => update("salaryMax", event.target.value)} inputMode="numeric" />
             </label>
             <label className="wide">
@@ -219,7 +266,7 @@ export function OmilWorkspace() {
             <div className="omilSuccess">
               <CalendarClock size={20} aria-hidden="true" />
               <p>
-                Codigo {lastCreated.code}. Visible hasta {new Date(lastCreated.expiresAt).toLocaleDateString("es-CL")}.
+                Código {lastCreated.code}. Visible hasta {new Date(lastCreated.expiresAt).toLocaleDateString("es-CL")}.
               </p>
             </div>
           ) : null}
@@ -229,3 +276,5 @@ export function OmilWorkspace() {
     </section>
   );
 }
+
+

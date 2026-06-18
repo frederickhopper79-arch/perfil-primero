@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import {
@@ -19,8 +19,9 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { loginWithEmail } from "@/lib/firebase/auth";
+import { loginWithEmail, loginWithGoogle } from "@/lib/firebase/auth";
 import { logout } from "@/lib/firebase/auth";
+import { GoogleIcon } from "./brand-icons";
 import {
   approveManualTransfer,
   createManagedUser,
@@ -180,6 +181,19 @@ export function AdminPanel() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setStatus("Abriendo Google...");
+    try {
+      const { signInWithPopup, GoogleAuthProvider } = await import("firebase/auth");
+      const { auth } = await import("@/lib/firebase/client");
+      const credential = await signInWithPopup(auth, new GoogleAuthProvider());
+      setUid(credential.user.uid);
+      await loadDashboard();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo entrar con Google.");
+    }
+  }
+
   async function loadDashboard(nextCursors?: Record<string, string>) {
     setStatus("Cargando consola operativa...");
     try {
@@ -237,7 +251,7 @@ export function AdminPanel() {
     setEmail("");
     setPassword("");
     setDashboard(null);
-    setStatus("Sesion admin cerrada.");
+    setStatus("Sesión admin cerrada.");
   }
 
   async function handleCreateManagedUser(event: FormEvent<HTMLFormElement>) {
@@ -320,6 +334,10 @@ export function AdminPanel() {
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required />
           </label>
           <button className="button primary full" type="submit">Entrar al panel</button>
+          <button className="button secondary full" type="button" onClick={handleGoogleLogin}>
+            <GoogleIcon />
+            Entrar con Google
+          </button>
           {status ? <p className="statusText">{status}</p> : null}
         </form>
       </section>
@@ -360,7 +378,7 @@ export function AdminPanel() {
         <button className="button secondary full" type="button" onClick={() => loadDashboard()}>Aplicar filtros</button>
         <button className="button secondary full" type="button" onClick={() => loadDashboard(dashboardCursors)}>Siguiente pagina</button>
         <button className="button secondary full" type="button" onClick={handleExportAccounting}>Exportar CSV contable</button>
-        <button className="button ghost full" type="button" onClick={handleLogout}>Cerrar sesion</button>
+        <button className="button ghost full" type="button" onClick={handleLogout}>Cerrar sesión</button>
       </aside>
 
       <div className="stack">
@@ -519,7 +537,7 @@ function AdministrationView({
           <Users size={22} aria-hidden="true" />
           <div>
             <h2>Crear o habilitar usuario</h2>
-            <p>Crea cuentas operativas para postulantes, empresas o administradores internos.</p>
+            <p>Crea cuentas operativas para postulantes, empresas, OMIL municipales o administradores internos. Las cuentas OMIL solo pueden crearse desde aquí — no tienen autoregistro.</p>
           </div>
         </div>
         <div className="formGrid">

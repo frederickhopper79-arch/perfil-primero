@@ -64,6 +64,12 @@ service cloud.firestore {
       return request.resource.data.verificationStatus == resource.data.verificationStatus;
     }
 
+    // Public stats — read by anyone, written only by Cloud Functions (Admin SDK)
+    match /publicStats/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && ownerCreatesAllowedUser();
