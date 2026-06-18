@@ -1,38 +1,23 @@
 # Modelo de datos Firestore y privacidad
 
-## Objetivo
-
-Definir una estructura de base de datos para una plataforma laboral invertida donde los trabajadores pueden mostrarse ante empresas sin revelar datos sensibles hasta que exista una condicion autorizada.
-
-Condicion autorizada inicial:
-
-- Empresa verificada.
-- Invitacion laboral valida.
-- Rango salarial visible.
-- Trabajador acepta el contacto.
-- Pago o desbloqueo registrado segun la regla comercial.
+> **Estado al 2026-06-17:** refleja el modelo de produccion real desplegado en Firebase project `perfil-primero`.
 
 ## Principio central
 
-Los datos publicos y privados del trabajador deben vivir separados.
+Los datos publicos y privados del trabajador viven en colecciones separadas. La interfaz nunca decide por si sola que mostrar u ocultar. La seguridad se aplica en Firestore Security Rules y Cloud Functions.
 
-La interfaz nunca debe decidir por si sola que mostrar u ocultar. La seguridad debe aplicarse en Firestore Security Rules y Cloud Functions.
+Condicion para desbloquear datos privados:
+- Empresa verificada (`verificationStatus: "verified"`).
+- Invitacion laboral valida con rango salarial visible.
+- Trabajador acepta el contacto.
+- Pago de desbloqueo registrado en `payments` y confirmado por webhook.
+- `contactUnlocks` activo creado por Cloud Function.
 
-## Colecciones principales
+---
 
-### users
+## Colecciones — escritura cliente
 
-Coleccion:
-
-```text
-users/{userId}
-```
-
-Uso:
-
-Guarda datos minimos comunes para autenticacion, rol y estado general.
-
-Campos:
+### users `users/{userId}`
 
 ```json
 {
@@ -45,47 +30,31 @@ Campos:
 }
 ```
 
-Roles posibles:
+Roles posibles: `worker`, `company`, `admin`, `omil`.
 
-- worker.
-- company.
-- admin.
+---
 
-## Perfil del trabajador
+### workerPublicProfiles `workerPublicProfiles/{workerId}`
 
-### workerPublicProfiles
-
-Coleccion:
-
-```text
-workerPublicProfiles/{workerId}
-```
-
-Uso:
-
-Contiene la informacion visible en busquedas de empresas.
-
-No debe contener telefono, correo personal, nombre legal completo ni archivos descargables privados.
-
-Campos:
+Informacion visible en busquedas. No contiene telefono, correo personal, nombre legal ni archivos privados.
 
 ```json
 {
   "workerId": "uid",
-  "profileCode": "TL-8F29",
+  "profileCode": "PP-a1b2c3d4",
   "displayName": "Profesional de marketing digital",
   "headline": "Especialista en campanas pagadas y analitica",
-  "summary": "5 anos de experiencia en crecimiento digital para ecommerce y servicios.",
-  "skills": ["Google Ads", "Meta Ads", "GA4", "SEO", "Looker Studio"],
-  "sectors": ["Marketing", "Ecommerce", "Tecnologia"],
+  "summary": "5 anos de experiencia en crecimiento digital.",
+  "skills": ["Google Ads", "Meta Ads", "GA4"],
+  "sectors": ["Marketing", "Ecommerce"],
   "experienceLevel": "mid",
   "yearsOfExperience": 5,
   "region": "Region Metropolitana",
   "city": "Santiago",
   "workModes": ["remote", "hybrid"],
-  "expectedSalaryMin": 1200,
-  "expectedSalaryMax": 1800,
-  "currency": "USD",
+  "expectedSalaryMin": 1200000,
+  "expectedSalaryMax": 1800000,
+  "currency": "CLP",
   "availability": "listening",
   "visibilityStatus": "visible",
   "subscriptionStatus": "active",
@@ -96,33 +65,15 @@ Campos:
 }
 ```
 
-Estados de disponibilidad:
+`availability`: `actively_looking` / `listening` / `unavailable`.
+`visibilityStatus`: `visible` / `paused` / `hidden` / `expired` / `suspended`.
+`profileCode`: formato `PP-XXXXXXXX` (8 caracteres del uid).
 
-- actively_looking: busca activamente.
-- listening: escucha ofertas.
-- unavailable: no disponible.
+---
 
-Estados de visibilidad:
+### workerPrivateProfiles `workerPrivateProfiles/{workerId}`
 
-- visible.
-- paused.
-- hidden.
-- expired.
-- suspended.
-
-### workerPrivateProfiles
-
-Coleccion:
-
-```text
-workerPrivateProfiles/{workerId}
-```
-
-Uso:
-
-Contiene datos sensibles. Solo el trabajador, administradores autorizados y procesos desbloqueados pueden acceder.
-
-Campos:
+Solo el trabajador, administradores y Cloud Functions con desbloqueo activo pueden acceder.
 
 ```json
 {
@@ -131,51 +82,33 @@ Campos:
   "preferredName": "Nombre",
   "email": "usuario@correo.com",
   "phone": "+56912345678",
-  "nationality": "CL",
-  "documentIdHash": "hash-no-reversible",
-  "cvFilePath": "workers/uid/cv/cv.pdf",
-  "photoFilePath": "workers/uid/profile/photo.jpg",
-  "portfolioFiles": [
-    "workers/uid/portfolio/caso-1.pdf"
-  ],
-  "portfolioLinks": [
-    "https://portafolio.com"
-  ],
-  "contactPreferences": {
-    "email": true,
-    "phone": false,
-    "whatsapp": false
-  },
+  "portfolioLinks": ["https://portafolio.com"],
+  "cvAnalysisSummary": "Texto generado por Gemini",
+  "formattedCv": "CV estructurado en Markdown",
+  "coverLetter": "Carta de presentacion",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
 ```
 
-Regla:
+Esta coleccion nunca se consulta desde listados publicos ni buscadores.
 
-Esta coleccion nunca se consulta desde listados publicos ni buscadores de empresas.
+---
 
-## Perfil de empresa
-
-### companyProfiles
-
-Coleccion:
-
-```text
-companyProfiles/{companyId}
-```
-
-Campos:
+### companyProfiles `companyProfiles/{companyId}`
 
 ```json
 {
   "companyId": "uid",
   "companyName": "Empresa SpA",
   "legalName": "Empresa Legal SpA",
-  "taxId": "rut-o-id-fiscal",
+  "taxId": "12.345.678-9",
   "website": "https://empresa.com",
+  "logoUrl": "https://storage...",
   "industry": "Tecnologia",
   "size": "11-50",
+  "region": "Region Metropolitana",
+  "city": "Santiago",
   "verificationStatus": "verified",
   "billingStatus": "active",
   "reputationScore": 100,
@@ -186,24 +119,36 @@ Campos:
 }
 ```
 
-Estados de verificacion:
+`verificationStatus`: `pending` / `verified` / `rejected` / `suspended`.
 
-- pending.
-- verified.
-- rejected.
-- suspended.
+---
 
-## Invitaciones laborales
+### jobOffers `jobOffers/{jobOfferId}`
 
-### invitations
+Ofertas laborales publicadas por la empresa.
 
-Coleccion:
-
-```text
-invitations/{invitationId}
+```json
+{
+  "jobOfferId": "id",
+  "companyId": "uid",
+  "title": "Desarrollador Full Stack",
+  "description": "...",
+  "salaryMin": 1500000,
+  "salaryMax": 2500000,
+  "currency": "CLP",
+  "workMode": "hybrid",
+  "contractType": "full_time",
+  "region": "Region Metropolitana",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
 ```
 
-Campos:
+---
+
+## Colecciones — solo Cloud Functions pueden escribir
+
+### invitations `invitations/{invitationId}`
 
 ```json
 {
@@ -211,14 +156,14 @@ Campos:
   "companyId": "uid_empresa",
   "workerId": "uid_trabajador",
   "opportunityTitle": "Especialista en marketing digital",
-  "opportunitySummary": "Buscamos apoyar crecimiento de ecommerce regional.",
-  "salaryMin": 1300,
-  "salaryMax": 1700,
-  "currency": "USD",
+  "opportunitySummary": "Buscamos apoyar crecimiento de ecommerce.",
+  "salaryMin": 1300000,
+  "salaryMax": 1700000,
+  "currency": "CLP",
   "workMode": "hybrid",
   "location": "Santiago",
   "contractType": "full_time",
-  "message": "Nos interesa conversar por tu experiencia en performance.",
+  "message": "Nos interesa conversar.",
   "status": "sent",
   "expiresAt": "timestamp",
   "createdAt": "timestamp",
@@ -226,41 +171,13 @@ Campos:
 }
 ```
 
-Estados:
+Estados: `sent → viewed → accepted → rejected / more_info_requested → in_process → offer_sent → hired / closed / expired`.
 
-- sent.
-- viewed.
-- accepted.
-- rejected.
-- more_info_requested.
-- unlocked.
-- in_process.
-- offer_sent.
-- hired.
-- closed.
-- expired.
+Reglas: sueldo obligatorio, empresa verificada, no durar indefinidamente.
 
-Reglas:
+---
 
-- No se permite crear invitacion sin rango salarial.
-- No se permite crear invitacion desde empresa no verificada.
-- No se permite mantener invitaciones abiertas indefinidamente.
-
-## Desbloqueos de contacto
-
-### contactUnlocks
-
-Coleccion:
-
-```text
-contactUnlocks/{unlockId}
-```
-
-Uso:
-
-Registra que una empresa tiene permiso para ver datos privados de un trabajador en el contexto de una invitacion especifica.
-
-Campos:
+### contactUnlocks `contactUnlocks/{unlockId}`
 
 ```json
 {
@@ -275,66 +192,60 @@ Campos:
 }
 ```
 
-Estados:
-
-- pending_payment.
-- active.
-- revoked.
-- expired.
-- refunded.
-
-Regla:
+`status`: `pending_payment` / `active` / `revoked` / `expired` / `refunded`.
 
 Una empresa solo puede leer datos privados del trabajador si existe un `contactUnlocks` activo para esa combinacion `companyId + workerId + invitationId`.
 
-## Pagos
+---
 
-### payments
-
-Coleccion:
-
-```text
-payments/{paymentId}
-```
-
-Campos:
+### payments `payments/{paymentId}`
 
 ```json
 {
   "paymentId": "id",
   "userId": "uid",
   "payerRole": "worker",
-  "provider": "stripe",
-  "providerPaymentId": "pi_123",
-  "amount": 10,
-  "currency": "USD",
+  "provider": "mercadopago",
+  "providerPaymentId": "mp_123",
+  "amount": 999,
+  "currency": "CLP",
   "paymentType": "worker_subscription",
   "status": "paid",
   "relatedWorkerId": "uid_trabajador",
   "relatedCompanyId": null,
   "relatedInvitationId": null,
+  "folioSii": null,
+  "pdfUrl": null,
+  "xmlUrl": null,
+  "siiStatus": "pending",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
 ```
 
-Tipos de pago:
+Tipos: `worker_subscription` ($999 CLP lanzamiento / $9.990 real), `company_contact_unlock` ($999 CLP lanzamiento / $24.990 real).
+Proveedores: `mercadopago` (primario), `stripe` (secundario).
 
-- worker_subscription: USD 10 por 30 dias.
-- company_contact_unlock: USD 50 por desbloqueo/contacto.
-- company_success_fee: USD 50 por contratacion confirmada, si se usa ese modelo.
+---
 
-## Eventos de auditoria
+### conversationMessages `conversationMessages/{messageId}`
 
-### auditEvents
-
-Coleccion:
-
-```text
-auditEvents/{eventId}
+```json
+{
+  "messageId": "id",
+  "invitationId": "id_invitacion",
+  "senderId": "uid",
+  "senderRole": "company",
+  "body": "Hola, nos gustaria conversar.",
+  "createdAt": "timestamp"
+}
 ```
 
-Campos:
+Leidos via `onSnapshot` para chat en tiempo real. Limite de 80 mensajes por query.
+
+---
+
+### auditEvents `auditEvents/{eventId}`
 
 ```json
 {
@@ -344,181 +255,72 @@ Campos:
   "eventType": "private_profile_unlocked",
   "targetType": "worker",
   "targetId": "uid_trabajador",
-  "metadata": {
-    "invitationId": "id",
-    "paymentId": "id"
-  },
+  "metadata": { "invitationId": "id", "paymentId": "id" },
   "createdAt": "timestamp"
 }
 ```
 
-Eventos importantes:
+---
 
-- worker_profile_created.
-- worker_profile_published.
-- worker_subscription_paid.
-- company_verified.
-- worker_profile_viewed.
-- invitation_sent.
-- invitation_viewed.
-- invitation_accepted.
-- contact_unlock_paid.
-- private_profile_unlocked.
-- process_closed.
+### aiUsageLogs `aiUsageLogs/{logId}`
 
-## Cloud Functions necesarias
+Registro de cada llamada a Gemini: modelo, latencia, estado, tamaño de prompt y respuesta, si hubo archivo adjunto.
 
-### onWorkerSubscriptionPaid
+---
 
-Evento:
+### marketAnalyticsReports `marketAnalyticsReports/{reportId}`
 
-Webhook de Stripe o Mercado Pago.
+Reportes semanales (o generados manualmente desde admin) con: trabajadores visibles, empresas verificadas, salario promedio, skills mas frecuentes, bloqueos de chat, metricas de IA.
 
-Acciones:
+---
 
-- Crear registro en `payments`.
-- Marcar `workerPublicProfiles/{workerId}.subscriptionStatus` como active.
-- Actualizar `profileExpiresAt` a 30 dias.
-- Registrar evento de auditoria.
+### configuracion_sistema `configuracion_sistema/tarifas`
 
-### createInvitation
-
-Evento:
-
-Empresa envia invitacion.
-
-Validaciones:
-
-- Empresa verificada.
-- Trabajador visible.
-- Invitacion con sueldo minimo y maximo.
-- Mensaje no vacio.
-
-Acciones:
-
-- Crear documento en `invitations`.
-- Registrar auditoria.
-- Notificar al trabajador.
-
-### acceptInvitation
-
-Evento:
-
-Trabajador acepta invitacion.
-
-Acciones:
-
-- Cambiar estado a accepted.
-- Registrar auditoria.
-- Habilitar siguiente paso de pago/desbloqueo para empresa.
-
-### unlockWorkerContact
-
-Evento:
-
-Empresa paga o confirma desbloqueo.
-
-Validaciones:
-
-- Invitacion aceptada.
-- Pago exitoso.
-- Empresa corresponde a la invitacion.
-- Trabajador corresponde a la invitacion.
-
-Acciones:
-
-- Crear `contactUnlocks`.
-- Cambiar invitacion a unlocked.
-- Registrar auditoria.
-
-## Borrador de reglas de seguridad
-
-Este es un esquema conceptual. Las reglas finales deben probarse con emuladores de Firebase antes de produccion.
-
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return signedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
-    }
-
-    function isCompany() {
-      return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "company";
-    }
-
-    match /workerPublicProfiles/{workerId} {
-      allow read: if signedIn();
-      allow create, update: if isOwner(workerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /workerPrivateProfiles/{workerId} {
-      allow read: if isOwner(workerId) || isAdmin();
-      allow create, update: if isOwner(workerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /companyProfiles/{companyId} {
-      allow read: if signedIn();
-      allow create, update: if isOwner(companyId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /invitations/{invitationId} {
-      allow read: if signedIn()
-        && (
-          resource.data.companyId == request.auth.uid
-          || resource.data.workerId == request.auth.uid
-          || isAdmin()
-        );
-      allow create, update, delete: if false;
-    }
-
-    match /payments/{paymentId} {
-      allow read: if signedIn()
-        && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if false;
-    }
-
-    match /contactUnlocks/{unlockId} {
-      allow read: if signedIn()
-        && (
-          resource.data.companyId == request.auth.uid
-          || resource.data.workerId == request.auth.uid
-          || isAdmin()
-        );
-      allow write: if false;
-    }
-
-    match /auditEvents/{eventId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-  }
+```json
+{
+  "fase_lanzamiento_activa": true,
+  "tarifa_suscripcion_postulante_clp": 999,
+  "tarifa_contacto_empresa_clp": 999,
+  "tarifa_postulante_precio_real": 9990,
+  "tarifa_empresa_precio_real": 24990
 }
 ```
 
-## Nota importante sobre datos privados
+---
 
-Firestore Security Rules no pueden hacer consultas complejas para buscar permisos en colecciones arbitrarias de forma flexible. Por eso, para produccion conviene usar una de estas estrategias:
+## Indices Firestore compuestos — productivos
 
-- Mantener los datos privados accesibles solo para el trabajador y admin, y entregar datos de contacto mediante una Cloud Function callable que verifique `contactUnlocks`.
-- Crear subdocumentos de acceso por empresa, por ejemplo `workerPrivateProfiles/{workerId}/authorizedCompanies/{companyId}`.
-- Duplicar un resumen de contacto autorizado dentro de `invitations/{invitationId}` solo cuando el trabajador acepta y la empresa paga.
+Para la busqueda de trabajadores visibles con filtros:
 
-Recomendacion inicial:
+| Campos | Uso |
+|---|---|
+| `visibilityStatus` + `subscriptionStatus` + `expectedSalaryMax` | Busqueda base |
+| `visibilityStatus` + `subscriptionStatus` + `region` + `expectedSalaryMax` | Filtro por region |
+| `visibilityStatus` + `subscriptionStatus` + `sectors (ARRAY_CONTAINS)` + `expectedSalaryMax` | Filtro por sector |
+| `visibilityStatus` + `subscriptionStatus` + `region` + `sectors (ARRAY_CONTAINS)` + `expectedSalaryMax` | Filtro combinado |
 
-Usar Cloud Functions para entregar datos privados autorizados. Es mas auditable, mas facil de controlar y reduce riesgos de exposicion accidental.
+---
 
+## Reglas de seguridad — implementadas
+
+Las reglas reales estan en `firestore.rules`. Resumen:
+
+- `workerPublicProfiles`: lectura autenticada; escritura solo owner o admin.
+- `workerPrivateProfiles`: lectura y escritura solo owner o admin.
+- `companyProfiles`: lectura autenticada; escritura solo owner o admin.
+- `invitations`: lectura solo company o worker involucrado, o admin; escritura `if false` (solo Cloud Functions).
+- `payments`: lectura solo owner o admin; escritura `if false`.
+- `contactUnlocks`: lectura solo company o worker involucrado, o admin; escritura `if false`.
+- `conversationMessages`, `auditEvents`, `aiUsageLogs`, `marketAnalyticsReports`, `configuracion_sistema`: lectura solo admin; escritura `if false`.
+
+Suite de pruebas: 14 tests con emulador Firestore. Todos pasan en produccion.
+
+---
+
+## Estrategia para datos privados
+
+Los datos privados del trabajador se entregan via Cloud Function callable `getUnlockedWorkerContact`, que verifica:
+1. Existe `contactUnlocks` activo para `companyId + workerId + invitationId`.
+2. El llamante es la empresa correcta (`request.auth.uid == companyId`).
+
+Esto es mas auditable que reglas Firestore complejas y reduce riesgo de exposicion accidental.

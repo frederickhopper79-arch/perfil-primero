@@ -29,8 +29,8 @@ Se extrajeron y dejaron en Markdown los 9 documentos Word entregados por el usua
 ## Pendientes duros detectados en los documentos
 
 - Facturacion real SII/OpenFactura: la plataforma registra estado contable, pero falta integracion real con proveedor de DTE.
-- Conciliacion bancaria por transferencia: falta endpoint/panel transaccional para aprobar transferencias contra factura anticipada.
-- Paginacion avanzada de buscador empresa: existe limite de 20; falta cursor UI real, filtros compuestos e indices productivos.
-- Chat en tiempo real: falta optimizacion fina para escuchar solo mensajes nuevos por cursor/timestamp en todas las vistas.
+- Conciliacion bancaria por transferencia: falta endpoint/panel transaccional para aprobar transferencias contra factura anticipada. *(panel admin implementado en cierre-2026-06-16)*
+- Paginacion avanzada de buscador empresa: ~~existe limite de 20~~ limite aumentado a 50; filtros compuestos e indices Firestore productivos agregados en sesion 2026-06-17. Falta cursor UI real para paginas adicionales.
+- Chat en tiempo real: ~~falta optimizacion~~ implementado con `onSnapshot` en sesion 2026-06-17. Auto-scroll y actualizacion automatica funcionando.
 - Correos reales Gmail/SendGrid: hay registros `emailReminders`, pero falta proveedor de envio conectado.
 - Reportes contables descargables avanzados: existe CSV contable base; falta separacion mensual F29, XML/PDF DTE y conciliacion completa.

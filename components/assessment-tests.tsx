@@ -9,18 +9,45 @@ type Scores = {
   personality: number;
 };
 
+function scoreLabel(key: keyof Scores, score: number): string {
+  if (score === 0) return "Sin completar";
+  if (key === "english") {
+    if (score >= 91) return "C2 · Maestría";
+    if (score >= 76) return "C1 · Avanzado";
+    if (score >= 61) return "B2 · Intermedio alto";
+    if (score >= 41) return "B1 · Intermedio";
+    if (score >= 21) return "A2 · Básico";
+    return "A1 · Principiante";
+  }
+  if (key === "spanish") {
+    if (score >= 85) return "Experto";
+    if (score >= 65) return "Avanzado";
+    if (score >= 40) return "Intermedio";
+    return "Básico";
+  }
+  if (key === "personality") {
+    if (score >= 80) return "Proactivo";
+    if (score >= 60) return "Colaborativo";
+    if (score >= 40) return "Metódico";
+    return "Independiente";
+  }
+  return `${score}%`;
+}
+
 export function AssessmentTests({
   scores,
+  attemptCounts,
   onChange
 }: {
   scores: Scores;
+  attemptCounts?: { english: number; spanish: number; personality: number };
   onChange: (scores: Scores) => void;
 }) {
   type Answers = Record<keyof Scores, Record<string, number>>;
   const pages: Array<{ key: keyof Scores; title: string; description: string }> = [
-    { key: "personality", title: "Perfil laboral conductual", description: "Identifica valores de trabajo, colaboracion, responsabilidad y reaccion ante presion." },
-    { key: "english", title: "Test de ingles laboral", description: "Evalua lectura, vocabulario y redaccion profesional base para contextos de trabajo." },
-    { key: "spanish", title: "Test de espanol profesional", description: "Evalua comprension, ortografia funcional y comunicacion con clientes o equipos." }
+    { key: "personality", title: "Evaluación conductual laboral", description: "Identifica valores de trabajo, colaboración, responsabilidad y reacción ante situaciones de presión o conflicto." },
+    { key: "english", title: "Test de inglés laboral", description: "Evalúa gramática, vocabulario y redacción profesional en contextos de trabajo reales, con niveles A2 a C1." },
+    { key: "spanish", title: "Test de español profesional", description: "Evalúa comprensión, ortografía funcional y comunicación escrita con clientes, equipos y proveedores." }
   ];
   const [activeTest, setActiveTest] = useState<keyof Scores | null>(null);
   const [answers, setAnswers] = useState<Answers>({
@@ -28,6 +55,12 @@ export function AssessmentTests({
     spanish: {},
     personality: {}
   });
+
+  function resetTest(test: keyof Scores) {
+    setAnswers((current) => ({ ...current, [test]: {} }));
+    onChange({ ...scores, [test]: 0 });
+    setActiveTest(test);
+  }
 
   function answer(test: keyof Scores, questionIndex: number, optionIndex: number) {
     const question = testQuestions[test][questionIndex];
@@ -48,41 +81,66 @@ export function AssessmentTests({
     });
   }
 
+  const allCompleted = scores.english > 0 && scores.spanish > 0 && scores.personality > 0;
+
   return (
     <section className="assessmentSuite">
       <div className="formHeader">
         <div className="miniIconText">T</div>
         <div>
-          <h2>Tests de validacion</h2>
-          <p>Resultados visibles para empresas, sin exponer identidad.</p>
+          <h2>Tests de validación</h2>
+          <p>Resultados visibles para empresas verificadas, sin exponer tu identidad.</p>
         </div>
       </div>
       <div className="assessmentWarning">
-        Estos tests son una senal inicial de seleccion. No son diagnostico psicologico,
-        certificacion de idioma ni evaluacion psicometrica formal.
+        Estos tests son una señal orientativa inicial. No son diagnóstico psicológico,
+        certificación de idioma ni evaluación psicométrica formal.
       </div>
+      {allCompleted && (
+        <div className="validatedBadge">
+          <span className="validatedIcon">✓</span>
+          <div>
+            <strong>Perfil validado</strong>
+            <p>Completaste los tres tests. Tu perfil destaca entre los demás postulantes.</p>
+          </div>
+        </div>
+      )}
       {!activeTest ? (
         <div className="assessmentCatalog">
-          {pages.map((item, index) => (
-            <article className={`assessmentLauncher launcher${index + 1}`} key={item.key}>
-              <div className="assessmentArt">
-                <span>{index + 1}</span>
-              </div>
-              <div>
-                <span className="smallLabel">{scores[item.key] ? `Resultado ${scores[item.key]}%` : "Opcional"}</span>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                <ul>
-                  <li>Resultado visible solo dentro del perfil</li>
-                  <li>Sirve como senal inicial, no como certificacion formal</li>
-                  <li>Puede repetirse antes de publicar cambios</li>
-                </ul>
-              </div>
-              <button className="button primary" type="button" onClick={() => setActiveTest(item.key)}>
-                Realizar test
-              </button>
-            </article>
-          ))}
+          {pages.map((item, index) => {
+            const count = attemptCounts?.[item.key] ?? 0;
+            const completed = scores[item.key] > 0;
+            return (
+              <article className={`assessmentLauncher launcher${index + 1}`} key={item.key}>
+                <div className="assessmentArt">
+                  <span>{index + 1}</span>
+                </div>
+                <div>
+                  <span className="smallLabel">
+                    {completed ? scoreLabel(item.key, scores[item.key]) : "Opcional · sin completar"}
+                    {count > 0 && <span className="attemptBadge">{count} {count === 1 ? "intento" : "intentos"}</span>}
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                  <ul>
+                    <li>Resultado visible solo dentro del perfil</li>
+                    <li>Sirve como señal inicial, no como certificación formal</li>
+                    <li>Puedes repetirlo para mejorar tu resultado</li>
+                  </ul>
+                </div>
+                <div className="launcherActions">
+                  <button className="button primary" type="button" onClick={() => setActiveTest(item.key)}>
+                    {completed ? "Continuar test" : "Realizar test"}
+                  </button>
+                  {completed && (
+                    <button className="button secondary" type="button" onClick={() => resetTest(item.key)}>
+                      Reintentar desde cero
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="testGrid independentTests">
@@ -131,7 +189,7 @@ function TestForm({
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
-        <strong>{score}%</strong>
+        <strong>{score > 0 ? scoreLabel(test, score) : "—"}</strong>
       </div>
       <button className="button secondary" type="button" onClick={onBack}>Volver a tests</button>
       <span className="testProgress">Avance {answeredCount}/{questions.length}</span>

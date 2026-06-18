@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useState } from "react";
 import { ensureUserRecord, getUserRole, loginWithEmail, loginWithGoogle, logout, registerWithEmail } from "@/lib/firebase/auth";
@@ -14,7 +14,8 @@ export function AuthCard({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"register" | "login">("register");
+  const isInstitutional = role === "omil" || role === "admin";
+  const [mode, setMode] = useState<"register" | "login">(isInstitutional ? "login" : "register");
   const [status, setStatus] = useState("");
 
   async function handleEmail(event: FormEvent<HTMLFormElement>) {
@@ -29,7 +30,7 @@ export function AuthCard({
       await ensureUserRecord(user.uid, user.email ?? email, role);
       await assertExpectedRole(user.uid);
       onReady(user.uid, user.email ?? email);
-      setStatus("Sesion lista.");
+      setStatus("Sesión lista.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo iniciar sesion.");
     }
@@ -42,7 +43,7 @@ export function AuthCard({
       const user = await loginWithGoogle(role);
       await assertExpectedRole(user.uid);
       onReady(user.uid, user.email ?? "");
-      setStatus("Sesion lista.");
+      setStatus("Sesión lista.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo iniciar con Google.");
     }
@@ -83,17 +84,26 @@ export function AuthCard({
           {mode === "register" ? "Crear cuenta" : "Entrar"}
         </button>
       </form>
-      <button className="button secondary full" type="button" onClick={handleGoogle}>
-        <GoogleIcon />
-        Entrar con Gmail
-      </button>
-      <button
-        className="textButton"
-        type="button"
-        onClick={() => setMode(mode === "register" ? "login" : "register")}
-      >
-        {mode === "register" ? "Ya tengo cuenta" : "Crear una cuenta nueva"}
-      </button>
+      {!isInstitutional && (
+        <>
+          <button className="button secondary full" type="button" onClick={handleGoogle}>
+            <GoogleIcon />
+            Entrar con Gmail
+          </button>
+          <button
+            className="textButton"
+            type="button"
+            onClick={() => setMode(mode === "register" ? "login" : "register")}
+          >
+            {mode === "register" ? "Ya tengo cuenta" : "Crear una cuenta nueva"}
+          </button>
+        </>
+      )}
+      {isInstitutional && (
+        <p className="helperText" style={{ textAlign: "center", fontSize: "12px" }}>
+          Acceso institucional. Las credenciales son asignadas por el administrador.
+        </p>
+      )}
       {status ? <p className="statusText">{status}</p> : null}
     </section>
   );

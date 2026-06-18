@@ -3,12 +3,15 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   limit,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
-  where
+  updateDoc,
+  where,
+  writeBatch
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -34,11 +37,15 @@ export type WorkerProfileDraft = {
   };
 };
 
-export async function saveWorkerProfile(draft: WorkerProfileDraft) {
+export async function saveWorkerProfile(
+  draft: WorkerProfileDraft,
+  previousScores?: { english: number; spanish: number; personality: number }
+) {
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+  const publicRef = doc(db, "workerPublicProfiles", draft.publicProfile.workerId);
 
   await setDoc(
-    doc(db, "workerPublicProfiles", draft.publicProfile.workerId),
+    publicRef,
     {
       ...draft.publicProfile,
       profileExpiresAt: expiresAt,
@@ -46,6 +53,20 @@ export async function saveWorkerProfile(draft: WorkerProfileDraft) {
     },
     { merge: true }
   );
+
+  // Increment attempt counts for tests that were retaken (score changed or first attempt)
+  const scores = draft.publicProfile.assessmentScores;
+  if (scores && previousScores) {
+    const increments: Record<string, ReturnType<typeof increment>> = {};
+    (["english", "spanish", "personality"] as const).forEach((key) => {
+      if (scores[key] > 0 && scores[key] !== previousScores[key]) {
+        increments[`testAttemptCounts.${key}`] = increment(1);
+      }
+    });
+    if (Object.keys(increments).length) {
+      await updateDoc(publicRef, increments);
+    }
+  }
 
   await setDoc(
     doc(db, "workerPrivateProfiles", draft.privateProfile.workerId),
@@ -106,6 +127,18 @@ export async function listVisibleWorkers(options?: {
 
   if (options?.salaryMax) {
     workers = workers.filter((w) => w.expectedSalaryMin <= options.salaryMax!);
+  }
+
+  const realWorkers = snap.docs.map((d) => d.id);
+  if (realWorkers.length) {
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => {
+      batch.update(d.ref, {
+        "analytics.totalImpressions": increment(1),
+        "analytics.weekImpressions": increment(1)
+      });
+    });
+    batch.commit().catch(() => {});
   }
 
   return workers.length ? workers : demoPostulants;

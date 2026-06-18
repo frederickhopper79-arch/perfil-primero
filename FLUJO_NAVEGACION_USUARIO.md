@@ -1,561 +1,263 @@
-# Flujo de navegacion del usuario
+# Flujo de navegación del usuario
 
-## Objetivo
+> **Estado al 2026-06-17:** rutas y flujos reflejan la implementación real en producción.
 
-Definir las pantallas principales de la plataforma laboral invertida y el recorrido de cada tipo de usuario:
+## Rutas reales de la aplicación
 
-- Trabajador.
-- Empresa.
-- Administrador.
+```text
+/                  Landing pública
+/como-funciona     Explicación del modelo invertido
+/postulante        Panel SPA del trabajador (onboarding + perfil + invitaciones + pagos)
+/empresa           Panel SPA de empresa (búsqueda + invitaciones + proceso + ofertas + pagos)
+/consola-admin     Panel SPA de administración
+/omil              Panel SPA de OMIL
+/legal/terminos    Términos y condiciones
+/legal/privacidad  Política de privacidad
+```
 
-La experiencia debe reforzar la idea central: las empresas buscan talento disponible y deben entregar informacion clara antes de contactar.
+Rutas legacy con redirección automática:
+```text
+/trabajador  →  /postulante
+/admin       →  /consola-admin
+```
+
+> Nota: la aplicación es una SPA estática (Next.js `output: "export"`). No hay rutas dinámicas del lado servidor. Cada panel es una SPA con tabs internos, no rutas separadas.
+
+---
 
 ## Entrada principal
 
-### Landing publica
+### Landing pública `/`
 
-Ruta sugerida:
+Objetivo: explicar rápidamente el sistema invertido y dirigir al flujo correcto.
 
-```text
-/
-```
+Mensaje central: **"Publica tu perfil y recibe ofertas con sueldo claro desde el primer contacto."**
 
-Objetivo:
+Bloques:
+- Topbar con logo, navegación y accesos (Postulante / Empresa).
+- Hero con tagline y acciones principales.
+- Strip de 3 pasos del modelo invertido.
+- Footer global con links legales y crédito de diseño.
 
-Explicar rapidamente el sistema invertido y enviar al usuario al flujo correcto.
+### Cómo funciona `/como-funciona`
 
-Acciones principales:
+Página explicativa con:
+- Storyboard de 3 pasos.
+- Perfiles anónimos de ejemplo.
+- Beneficios para postulantes y empresas.
+- Banner de empresas verificadas.
 
-- Soy trabajador.
-- Soy empresa.
-
-Mensaje central:
-
-```text
-Que las empresas postulen por ti.
-```
-
-Elementos clave:
-
-- Promesa para trabajadores: crea tu perfil, define tu renta y recibe invitaciones transparentes.
-- Promesa para empresas: encuentra talento disponible sin publicar avisos masivos.
-- Enlace a iniciar sesion.
+---
 
 ## Flujo del trabajador
 
-### 1. Seleccion de tipo de cuenta
+### 1. Registro
 
-Ruta sugerida:
+El usuario crea cuenta vía Firebase Auth (email/password o Google). Al registrarse elige rol `worker`. Llega al panel `/postulante`.
 
-```text
-/registro
-```
+### 2. Onboarding del perfil público
 
-El usuario elige:
+Tab "Perfil" en `/postulante`.
 
-- Crear perfil como trabajador.
-- Crear cuenta de empresa.
-
-### 2. Registro del trabajador
-
-Ruta sugerida:
-
-```text
-/registro/trabajador
-```
-
-Datos minimos:
-
-- Email.
-- Contrasena o ingreso con Google.
-- Aceptacion de terminos.
-
-Despues del registro:
-
-Enviar al onboarding del perfil.
-
-### 3. Onboarding del perfil publico
-
-Ruta sugerida:
-
-```text
-/trabajador/onboarding/perfil-publico
-```
-
-Objetivo:
-
-Crear la version visible del trabajador sin datos sensibles.
-
-Campos:
-
-- Titulo profesional o laboral.
+Campos del perfil público:
+- Título profesional.
 - Resumen breve.
-- Rubros.
-- Habilidades.
-- Nivel de experiencia.
-- Anos de experiencia.
-- Region o ciudad.
-- Modalidad preferida.
-- Renta esperada.
-- Disponibilidad.
+- Área / rubro.
+- Habilidades (separadas por coma).
+- Nivel de seniority y años de experiencia.
+- Región y ciudad.
+- Modalidad preferida (remoto / híbrido / presencial).
+- Renta esperada (mín / máx en CLP).
+- Disponibilidad (buscando activamente / escucho ofertas / no disponible).
 
-Regla:
+Regla: en esta sección no se pide teléfono ni correo visible para empresas.
 
-En esta pantalla no se pide telefono ni correo visible para empresas.
+### 3. Datos privados
 
-### 4. Datos privados
+Misma tab "Perfil", sección inferior visualmente separada con fondo ámbar e ícono candado.
 
-Ruta sugerida:
+Campos privados:
+- Nombre legal completo.
+- Teléfono.
+- Links de portafolio o LinkedIn.
+- CV en PDF (con análisis IA opcional vía Gemini).
+- Carta de presentación.
 
-```text
-/trabajador/onboarding/datos-privados
-```
+Mensaje de confianza: "Estos datos no serán visibles para empresas hasta que aceptes una invitación autorizada."
 
-Objetivo:
+### 4. CV con análisis de IA
 
-Guardar datos que solo se revelaran con autorizacion.
+Tab "CV + IA" (integrado en tab "Perfil").
 
-Campos:
+- Subida de CV en PDF (hasta 5 MB).
+- Cloud Function `analyzeWorkerCv` con Gemini extrae: cargo, experiencia, habilidades, sectores, resumen.
+- El postulante revisa y aprueba el perfil generado.
+- El perfil público se actualiza con los datos analizados.
 
-- Nombre completo.
-- Telefono.
-- Email de contacto.
-- CV en PDF.
-- Foto opcional.
-- Portafolio opcional.
+### 5. Carta de presentación
 
-Mensaje de confianza:
+Tab "Carta" en `/postulante`.
 
-```text
-Estos datos no seran visibles para empresas hasta que aceptes una invitacion autorizada.
-```
+Generador con datos del perfil actual. Editable antes de guardar.
 
-### 5. Vista previa anonima
+### 6. Tests opcionales
 
-Ruta sugerida:
+Tab "Tests" en `/postulante`.
 
-```text
-/trabajador/onboarding/vista-previa
-```
+Tres evaluaciones opcionales:
+- **Test de inglés laboral** (22 preguntas, niveles A2–C1, resultado CEFR).
+- **Test de español profesional** (20 preguntas, ortografía, redacción, comprensión).
+- **Evaluación conductual laboral** (20 preguntas, tipo Situational Judgment Test).
 
-Objetivo:
+Resultados visibles en el perfil público para empresas verificadas como señal adicional.
+Nivel CEFR mostrado en etiquetas: A1, A2, B1, B2, C1, C2.
 
-Mostrar exactamente como vera una empresa el perfil antes del desbloqueo.
+### 7. Activación de visibilidad
 
-Debe mostrar:
+Tab "Activación" o desde el checklist lateral.
 
-- Titulo.
-- Resumen.
-- Habilidades.
-- Experiencia.
-- Rango de renta.
-- Modalidad.
-- Disponibilidad.
+Precio: `$999 CLP` por 30 días (período de lanzamiento).
+Proveedor: Mercado Pago (primario) / Stripe (secundario).
 
-Debe ocultar:
+Al pagar exitosamente:
+- Se activa `subscriptionStatus: "active"`.
+- Se establece `profileExpiresAt` a 30 días.
+- El perfil queda visible en búsquedas de empresas.
 
-- Nombre legal.
-- Telefono.
-- Email.
-- CV descargable.
+### 8. Panel de invitaciones
 
-Acciones:
+Tab "Invitaciones" en `/postulante`.
 
-- Editar perfil.
-- Continuar al pago.
-
-### 6. Pago de suscripcion
-
-Ruta sugerida:
-
-```text
-/trabajador/pago
-```
-
-Objetivo:
-
-Activar visibilidad por 30 dias.
-
-Producto:
-
-```text
-Perfil visible por 30 dias - USD 10
-```
-
-Despues de pago exitoso:
-
-- Activar `subscriptionStatus`.
-- Establecer fecha de expiracion.
-- Publicar perfil.
-- Enviar al panel del trabajador.
-
-### 7. Panel del trabajador
-
-Ruta sugerida:
-
-```text
-/trabajador/panel
-```
-
-Objetivo:
-
-Mostrar el estado real del perfil y oportunidades recibidas.
-
-Secciones:
-
-- Estado del perfil.
-- Dias restantes de visibilidad.
-- Visitas al perfil.
-- Invitaciones recibidas.
-- Procesos activos.
-- Recomendaciones para mejorar perfil.
-
-Acciones:
-
-- Pausar perfil.
-- Editar perfil.
-- Renovar suscripcion.
-- Ver invitaciones.
-
-### 8. Invitaciones recibidas
-
-Ruta sugerida:
-
-```text
-/trabajador/invitaciones
-```
-
-Cada invitacion debe mostrar:
-
-- Empresa.
+Cada invitación muestra:
+- Empresa (verificada).
 - Cargo u oportunidad.
-- Rango salarial.
-- Modalidad.
-- Ubicacion.
-- Tipo de contrato.
+- Rango salarial (obligatorio).
+- Modalidad y tipo de contrato.
+- Ubicación.
 - Mensaje.
 - Fecha de vencimiento.
 
-Acciones:
+Acciones: Aceptar / Rechazar.
 
-- Aceptar invitacion.
-- Rechazar.
-- Pedir mas informacion.
+Regla: el trabajador nunca acepta sin ver sueldo, modalidad y empresa verificada.
 
-Regla:
+### 9. Proceso activo (chat)
 
-El trabajador nunca debe aceptar una invitacion sin ver sueldo, modalidad y empresa.
+Al abrir una invitación aceptada, se abre el chat en tiempo real (Firestore `onSnapshot`).
+El chat se actualiza automáticamente sin recargar. Auto-scroll al último mensaje.
 
-### 9. Invitacion aceptada
+Estados visibles del proceso:
+`sent → viewed → accepted → in_process → offer_sent → hired / closed`
 
-Ruta sugerida:
-
-```text
-/trabajador/invitaciones/{invitationId}
-```
-
-Cuando acepta:
-
-- La empresa puede pasar al pago/desbloqueo.
-- El trabajador ve el estado del proceso.
-- El sistema registra auditoria.
-
-Estados visibles:
-
-- Invitacion aceptada.
-- Esperando desbloqueo de empresa.
-- Contacto desbloqueado.
-- En entrevista.
-- Oferta enviada.
-- Cerrado.
+---
 
 ## Flujo de la empresa
 
-### 1. Registro de empresa
+### 1. Registro y verificación
 
-Ruta sugerida:
+La empresa crea cuenta vía Firebase Auth. Al registrarse elige rol `company`. Llega al panel `/empresa`.
 
-```text
-/registro/empresa
-```
+Primera vez: completa datos de empresa (razón social, RUT, sitio web, rubro, tamaño).
+El estado queda `verificationStatus: "pending"`. Admin verifica y cambia a `"verified"`.
 
-Datos:
+Una empresa no verificada no puede enviar invitaciones ni contactar postulantes.
 
-- Email corporativo.
-- Contrasena o ingreso con Google.
-- Nombre de empresa.
-- Sitio web.
-- Rubro.
+### 2. Panel izquierdo — checklist de pasos
 
-Despues del registro:
+Columna izquierda en `/empresa` muestra 6 pasos del proceso de contratación con estado visual (pendiente / completado):
+1. Cuenta creada.
+2. Datos empresa completados.
+3. Verificación aprobada.
+4. Primera búsqueda realizada.
+5. Invitación enviada.
+6. Cierre pagado.
 
-Enviar a verificacion.
+### 3. Búsqueda de talento
 
-### 2. Verificacion de empresa
+Tab "Buscar talento" en `/empresa`.
 
-Ruta sugerida:
+Filtros server-side (Firestore con índices compuestos):
+- Palabra clave (filtro client-side sobre resultados).
+- Región.
+- Sector / rubro.
+- Salario máximo esperado.
 
-```text
-/empresa/verificacion
-```
+Resultados: tarjetas anónimas de trabajadores con badges de nivel de tests si los completaron.
 
-Objetivo:
+Funciones adicionales:
+- Comparador de hasta 3 candidatos (persistido en sessionStorage entre tabs).
+- Análisis IA con Gemini por candidato.
+- Botón "Invitar" directamente desde cada tarjeta.
 
-Evitar empresas falsas o contactos abusivos.
+### 4. Crear invitación laboral
 
-Campos:
-
-- Razon social.
-- Identificador tributario.
-- Sitio web.
-- Persona responsable.
-- Cargo del responsable.
-- Documento o comprobante opcional.
-
-Estado:
-
-- Pendiente.
-- Verificada.
-- Rechazada.
-
-Regla:
-
-Una empresa no verificada no puede enviar invitaciones.
-
-### 3. Panel de empresa
-
-Ruta sugerida:
-
-```text
-/empresa/panel
-```
-
-Secciones:
-
-- Busqueda de trabajadores.
-- Invitaciones enviadas.
-- Procesos activos.
-- Contactos desbloqueados.
-- Pagos.
-- Reputacion de respuesta.
-
-### 4. Buscador de talento
-
-Ruta sugerida:
-
-```text
-/empresa/buscar
-```
-
-Filtros:
-
-- Cargo o palabra clave.
-- Habilidades.
-- Rubro.
-- Region.
-- Modalidad.
-- Renta esperada.
-- Disponibilidad.
-- Nivel de experiencia.
-
-Resultados:
-
-Tarjetas anonimas de trabajadores.
-
-Cada tarjeta muestra:
-
-- Titulo.
-- Habilidades principales.
-- Experiencia.
-- Renta esperada.
-- Modalidad.
-- Disponibilidad.
-
-No muestra:
-
-- Nombre legal.
-- Email.
-- Telefono.
-- CV descargable.
-
-### 5. Perfil anonimo del trabajador
-
-Ruta sugerida:
-
-```text
-/empresa/talento/{workerId}
-```
-
-Objetivo:
-
-Permitir evaluar compatibilidad sin revelar identidad completa.
-
-Acciones:
-
-- Guardar perfil.
-- Enviar invitacion.
-
-### 6. Crear invitacion laboral
-
-Ruta sugerida:
-
-```text
-/empresa/invitaciones/nueva/{workerId}
-```
+Formulario en tab "Buscar" o "Invitaciones" en `/empresa`.
 
 Campos obligatorios:
-
-- Titulo de oportunidad.
+- Título de oportunidad.
 - Resumen.
-- Rango salarial minimo.
-- Rango salarial maximo.
-- Moneda.
-- Modalidad.
-- Ubicacion.
+- Rango salarial (mín y máx en CLP).
+- Modalidad de trabajo.
 - Tipo de contrato.
-- Mensaje.
-- Fecha limite de respuesta.
+- Ubicación.
+- Mensaje personalizado.
 
-Reglas:
+Al enviar: Cloud Function `createInvitation` crea el documento en Firestore.
+El trabajador recibe la invitación en su panel en tiempo real.
 
-- No se permite sueldo oculto.
-- No se permite mensaje vacio.
-- No se permite enviar si la empresa no esta verificada.
+### 5. Proceso activo
 
-### 7. Invitaciones enviadas
+Tab "Proceso activo" en `/empresa`.
 
-Ruta sugerida:
+- Chat en tiempo real con el trabajador.
+- Timeline de estados del proceso.
+- Reglas de entrevista (ambas partes deben aceptar).
+- Desbloqueo de contacto: pago de `$999 CLP` vía Mercado Pago / Stripe.
+- Agendamiento de entrevista.
+- Evaluación post-proceso.
 
-```text
-/empresa/invitaciones
-```
+### 6. Panel derecho — centro de contratación
 
-Estados:
+Columna derecha en `/empresa` muestra:
+- Descripción del modelo de pago por resultado.
+- KPIs: invitaciones enviadas, respuestas recibidas, cierres pagados.
+- Estado de verificación de la empresa.
 
-- Enviada.
-- Vista.
-- Aceptada.
-- Rechazada.
-- Mas informacion solicitada.
-- Expirada.
-
-Cuando una invitacion es aceptada:
-
-- Se habilita el pago de desbloqueo.
-
-### 8. Pago de desbloqueo
-
-Ruta sugerida:
-
-```text
-/empresa/invitaciones/{invitationId}/desbloquear
-```
-
-Producto:
-
-```text
-Desbloqueo de contacto - USD 50
-```
-
-Despues del pago:
-
-- Se crea `contactUnlocks`.
-- Se muestra la informacion autorizada del trabajador.
-- Se registra auditoria.
-- El proceso pasa a `unlocked`.
-
-### 9. Proceso activo
-
-Ruta sugerida:
-
-```text
-/empresa/procesos/{invitationId}
-```
-
-Estados:
-
-- Contacto desbloqueado.
-- Contactado.
-- Entrevista agendada.
-- Oferta enviada.
-- Contratado.
-- Cerrado sin contratacion.
-
-Regla:
-
-Todo proceso debe cerrarse. Si la empresa abandona, afecta su reputacion.
+---
 
 ## Flujo administrador
 
-### Panel admin
+### Panel admin `/consola-admin`
 
-Ruta sugerida:
+Acceso: solo usuarios con `role: "admin"`. Login con Google o email/password.
+Cuenta administradora: `fabiancarrillo@gmail.com`.
 
-```text
-/admin
-```
+Tabs:
+- **Dashboard**: métricas de mercado (trabajadores visibles, empresas verificadas, invitaciones activas, salario promedio, skills más frecuentes).
+- **Empresas**: revisar pendientes, verificar o rechazar empresas.
+- **Usuarios**: crear usuarios gestionados (especialmente cuentas OMIL), suspender cuentas, cambiar roles.
+- **Contabilidad**: asientos contables, conciliación de pagos, aprobación de transferencias manuales, actualización de estado DTE/SII.
+- **Reportes**: reportes científicos de mercado generados semanalmente o manualmente.
 
-Funciones:
+---
 
-- Ver trabajadores.
-- Ver empresas.
-- Revisar empresas pendientes.
-- Revisar reportes.
-- Ver pagos.
-- Ver auditoria.
-- Suspender usuarios.
-- Cerrar procesos abusivos.
+## Flujo OMIL
 
-## Mapa resumido
+### Panel OMIL `/omil`
 
-```text
-/
-  /registro
-    /registro/trabajador
-    /registro/empresa
+Acceso: usuarios con `role: "omil"` (Oficinas Municipales de Intermediación Laboral).
+Las cuentas OMIL son creadas por el administrador desde `/consola-admin` → tab "Usuarios".
+No existe autoregistro OMIL; solo login institucional con credenciales asignadas.
 
-  /trabajador
-    /trabajador/onboarding/perfil-publico
-    /trabajador/onboarding/datos-privados
-    /trabajador/onboarding/vista-previa
-    /trabajador/pago
-    /trabajador/panel
-    /trabajador/invitaciones
-    /trabajador/invitaciones/{invitationId}
+Función: crear y gestionar perfiles de trabajadores en nombre de postulantes que no tienen acceso digital directo.
+Los perfiles creados por OMIL se marcan con `profileSource: "omil"` y `createdByOmilId`.
 
-  /empresa
-    /empresa/verificacion
-    /empresa/panel
-    /empresa/buscar
-    /empresa/talento/{workerId}
-    /empresa/invitaciones
-    /empresa/invitaciones/nueva/{workerId}
-    /empresa/invitaciones/{invitationId}/desbloquear
-    /empresa/procesos/{invitationId}
-
-  /admin
-```
-
-## Prioridad para el MVP
-
-Primero construir:
-
-1. Landing con seleccion trabajador/empresa.
-2. Registro e inicio de sesion.
-3. Onboarding del trabajador.
-4. Pago simulado o real de USD 10.
-5. Panel del trabajador.
-6. Registro de empresa.
-7. Buscador de perfiles anonimos.
-8. Envio de invitacion.
-9. Aceptacion de invitacion.
-10. Desbloqueo de contacto por USD 50.
+---
 
 ## Principio de experiencia
 
-Cada pantalla debe responder una pregunta clara:
+Cada pantalla responde una pregunta clara:
 
-- Trabajador: que ven de mi, quien me busca y que condiciones ofrecen.
-- Empresa: que talento esta disponible, cuanto espera ganar y como puedo contactarlo correctamente.
-- Plataforma: que procesos estan sanos, cuales estan abandonados y donde hay riesgo de abuso.
-
+- **Trabajador**: qué ven de mí, quién me busca, qué condiciones ofrecen, cuánto tiempo me queda visible.
+- **Empresa**: qué talento está disponible, cuánto espera ganar, cómo contactarlo correctamente, qué proceso está activo.
+- **Plataforma**: qué procesos están sanos, cuáles están abandonados, dónde hay riesgo de abuso, cómo va la contabilidad.

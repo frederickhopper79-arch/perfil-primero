@@ -1,159 +1,122 @@
 # Marca y pantallas principales
 
-## Nombre provisional
+> **Estado al 2026-06-17:** paleta implementada en produccion. Desplegado en https://perfil-primero.web.app
+
+## Nombre
 
 Perfil Primero
 
-## Idea de marca
+## Concepto
 
-Perfil Primero es una plataforma laboral invertida: los trabajadores publican un perfil protegido y las empresas verificadas buscan talento disponible con condiciones transparentes.
+Plataforma laboral invertida: los trabajadores publican un perfil protegido y las empresas verificadas buscan talento disponible con condiciones transparentes desde el primer contacto.
 
 ## Frase principal
 
 Que las empresas postulen por ti.
 
-## Promesa
+## Promesa al trabajador
 
-Un perfil visible, anonimo y medible para que empresas verificadas puedan invitarte con sueldo, modalidad y condiciones claras.
+Un perfil visible y anonimo para que empresas verificadas puedan invitarte con sueldo, modalidad y condiciones claras. Tu tiempo esta protegido.
+
+## Promesa a la empresa
+
+Encuentra talento disponible sin publicar avisos masivos. Ves lo que necesitas saber antes de contactar. Pagas solo cuando hay interes mutuo.
 
 ## Tono visual
 
-- Profesional.
-- Claro.
-- Confiable.
+- Profesional y claro.
+- Confiable — no un portal de spam.
 - Moderno sin parecer una red social ruidosa.
 - Enfocado en datos utiles y decisiones rapidas.
 
-## Paleta inicial
+---
 
-- Fondo principal: #f7f3ea.
-- Texto principal: #17201b.
-- Verde confianza: #176b4d.
-- Azul accion: #315f9b.
-- Coral alerta/acento: #d96c4a.
-- Borde suave: #d8d2c6.
-- Superficie: #fffaf1.
+## Paleta — implementada en globals.css
 
-La paleta evita parecer una bolsa tradicional fria y tambien evita depender de un solo color.
+| Token | Valor | Uso |
+|---|---|---|
+| Fondo principal | `#f7f3ea` | Body, backgrounds |
+| Superficie | `#fffaf1` | Cards, panels |
+| Texto principal | `#17201b` | Headings, body text |
+| Verde confianza | `#176b4d` | Primario, CTA positivo, marca |
+| Verde oscuro | `#0f5039` | Hover de verde, enfasis |
+| Azul accion | `#315f9b` | Accion secundaria, links |
+| Coral alerta/acento | `#d96c4a` | Alertas, badges, acentos |
+| Borde suave | `#d8d2c6` | Separadores, bordes de input |
+| Borde fuerte | `#c0b9af` | Bordes con enfasis |
+| Muted | `#7a7a72` | Texto secundario |
+| Muted fuerte | `#4a5a52` | Texto terciario, labels |
 
-## Pantallas del MVP
+La paleta evita el azul frio de portales tradicionales y comunica calidez profesional con base verde.
+
+---
+
+## Pantallas implementadas
 
 ### 1. Inicio
 
-Ruta:
+Ruta: `/`
 
-```text
-/
-```
-
-Objetivo:
-
-Separar rapidamente a trabajador y empresa.
-
-Bloques:
-
-- Barra superior con nombre y accesos.
-- Mensaje principal.
-- Acciones: Soy trabajador / Soy empresa.
-- Resumen de como funciona.
+Bloques actuales:
+- Topbar con logo y navegacion (Soy trabajador / Soy empresa / Ingresar).
+- Hero con tagline y acciones principales.
 - Vista previa de perfiles anonimos.
-- Reglas de transparencia.
+- Buscador de talento para empresas.
+- Explicacion del modelo invertido (storyboard).
+- Categorias de rubros.
+- Banner de momentum / estado de plataforma.
 
-### 2. Onboarding trabajador
+### 2. Panel trabajador (SPA)
 
-Ruta:
+Ruta: `/postulante`
 
-```text
-/trabajador
-```
+Tabs dentro del panel:
+- **Perfil**: onboarding con perfil publico, datos privados (separados visualmente con icono candado), carga y analisis de CV con IA, carta de presentacion.
+- **Vista previa**: como ve la empresa el perfil antes del desbloqueo.
+- **Invitaciones**: lista de invitaciones recibidas con estado. Chat en tiempo real via Firestore `onSnapshot`. Timeline del proceso.
+- **Pagos**: historial de suscripciones. Retorno de Mercado Pago con estado claro.
 
-Objetivo:
+Precio de suscripcion: `$999 CLP` por 30 dias de visibilidad (lanzamiento).
+Codigo de perfil: formato `PP-XXXXXXXX` (8 caracteres del uid).
 
-Crear un perfil publico y datos privados en pasos separados.
+### 3. Panel empresa (SPA)
 
-Bloques:
+Ruta: `/empresa`
 
-- Estado de avance.
-- Perfil publico.
-- Datos privados.
-- Vista previa anonima.
-- Activacion por USD 10.
+Tabs dentro del panel:
+- **Buscar talento**: buscador con filtros server-side (region, sector, salario maximo). Comparador de hasta 3 candidatos (persistido en sessionStorage). Lista anonima de trabajadores.
+- **Invitaciones**: formulario de invitacion con cargo, sueldo, modalidad, tipo de contrato, mensaje. Lista de procesos activos.
+- **Proceso activo**: chat en tiempo real, timeline de estados, reglas de entrevista, desbloqueo de contacto, agendamiento, evaluacion.
+- **Ofertas**: gestion de ofertas laborales publicadas.
+- **Pagos**: historial y documentos de facturacion.
 
-### 3. Panel trabajador
+Precio de desbloqueo: `$999 CLP` por contacto (lanzamiento).
 
-Ruta:
+### 4. Consola admin
 
-```text
-/trabajador/panel
-```
+Ruta: `/consola-admin`
 
-Objetivo:
+Funciones:
+- Dashboard con metricas de mercado (reportes `marketAnalyticsReports`).
+- Verificacion de empresas (pendientes / verificadas / rechazadas).
+- Gestion de usuarios (crear, suspender, cambiar rol).
+- Reportes contables y conciliacion de pagos.
+- Aprobacion de transferencias manuales.
+- Actualizacion de estado SII/OpenFactura.
+- Generacion manual de reporte de mercado.
 
-Mostrar valor al usuario que paga.
+### 5. Panel OMIL
 
-Bloques:
+Ruta: `/omil`
 
-- Dias visibles restantes.
-- Visitas al perfil.
-- Invitaciones.
-- Estados de procesos.
-- Recomendaciones.
+Funcion: Oficinas Municipales de Intermediacion Laboral pueden crear perfiles de trabajadores gestionados en nombre de postulantes que no tienen acceso digital.
 
-### 4. Buscador empresa
+---
 
-Ruta:
+## Reglas de experiencia
 
-```text
-/empresa
-```
+Cada pantalla responde una pregunta clara:
 
-Objetivo:
-
-Permitir buscar talento anonimo por habilidades, renta, modalidad y disponibilidad.
-
-Bloques:
-
-- Filtros.
-- Lista de perfiles anonimos.
-- Boton enviar invitacion.
-- Recordatorio de sueldo obligatorio.
-
-### 5. Invitacion
-
-Ruta:
-
-```text
-/empresa/invitacion
-```
-
-Objetivo:
-
-Crear una invitacion laboral valida.
-
-Campos obligatorios:
-
-- Cargo.
-- Rango salarial.
-- Modalidad.
-- Tipo de contrato.
-- Ubicacion.
-- Mensaje.
-
-### 6. Desbloqueo
-
-Ruta:
-
-```text
-/empresa/desbloqueo
-```
-
-Objetivo:
-
-Cobrar USD 50 a la empresa cuando el trabajador acepta y liberar datos de contacto.
-
-## Regla de experiencia
-
-Cada pantalla debe mostrar el beneficio y el control:
-
-- Trabajador: quien me vio, quien me invito, que datos estan ocultos.
-- Empresa: que perfiles cumplen, que debo transparentar, que proceso esta abierto.
+- **Trabajador**: quien me vio, quien me invita, que datos estan ocultos, cuanto tiempo me queda visible.
+- **Empresa**: que talento esta disponible, cuanto espera ganar, que debo transparentar, que proceso esta activo.
+- **Admin**: que procesos estan sanos, cuales estan abandonados, donde hay riesgo de abuso, como va la contabilidad.

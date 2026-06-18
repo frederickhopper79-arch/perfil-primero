@@ -1,403 +1,172 @@
-# Roadmap tecnico: plataforma laboral invertida
+# Roadmap tecnico: Perfil Primero
+
+> **Estado al 2026-06-17:** plataforma desplegada y operativa en https://perfil-primero.web.app
 
 ## Objetivo
 
-Construir una plataforma donde trabajadores publican perfiles laborales y empresas verificadas buscan, invitan y contratan talento.
+Plataforma laboral invertida donde trabajadores publican perfiles protegidos y empresas verificadas buscan, invitan y contratan talento con sueldo y condiciones claras desde el primer contacto.
 
-La arquitectura debe priorizar:
+Prioridades arquitectonicas:
 
-- Desarrollo rapido.
-- Bajo costo inicial.
-- Seguridad de datos personales.
-- Perfiles anonimos o parcialmente anonimos.
-- Suscripciones y pagos trazables.
-- Escalabilidad sin servidores dedicados.
+- Desarrollo rapido sin servidores dedicados.
+- Bajo costo inicial con Firebase sin costo en volumenes bajos.
+- Seguridad de datos personales con perfiles anonimos.
+- Suscripciones y pagos trazables con Mercado Pago y Stripe.
+- Escalabilidad via Cloud Functions y Firestore.
 
-## Stack recomendado
+---
+
+## Stack implementado
 
 ### Frontend
 
-Tecnologia recomendada:
-
-- Next.js.
-- React.
-- TypeScript.
-
-Motivo:
-
-- Permite construir una experiencia web moderna, rapida y responsiva.
-- Facilita SEO para paginas publicas.
-- Permite separar vistas de trabajador, empresa y administracion.
-- Tiene buen ecosistema para integrarse con Firebase, Stripe y Mercado Pago.
+- **Next.js** con `output: "export"` — exportacion estatica, sin SSR.
+- **React + TypeScript**.
+- Desplegado en **Firebase Hosting** con CDN global y SSL automatico.
+- SPA con cuatro paneles: `/postulante`, `/empresa`, `/consola-admin`, `/omil`.
 
 ### Backend
 
-Tecnologia recomendada:
-
-- Firebase Cloud Functions.
-
-Motivo:
-
-- Modelo serverless.
-- Bajo costo cuando hay poco trafico.
-- Buena integracion con Firebase Auth, Firestore, Cloud Storage y pagos.
-- Ideal para acciones puntuales: crear usuario, procesar pagos, enviar invitaciones, actualizar estados y validar permisos.
+- **Firebase Cloud Functions v2** (`onCall`, `onRequest`, `onSchedule`).
+- Toda la logica de negocio critica vive en `functions/src/index.ts`.
+- Sin endpoints REST propios; los clientes usan `httpsCallable`.
 
 ### Base de datos
 
-Tecnologia recomendada:
-
-- Google Firestore.
-
-Motivo:
-
-- Base de datos NoSQL flexible.
-- Buena para perfiles, invitaciones, estados de procesos y actividad en tiempo real.
-- Permite reglas de seguridad granulares.
-- Escala sin administrar servidores.
-
-### Archivos privados
-
-Tecnologia recomendada:
-
-- Firebase Storage / Google Cloud Storage.
-
-Uso:
-
-- CV originales en PDF.
-- Imagenes de perfil.
-- Portafolios.
-- Documentos de verificacion de empresas.
-
-Regla clave:
-
-Los archivos privados no deben ser publicos. El acceso debe autorizarse mediante reglas de seguridad o URLs firmadas generadas por backend.
-
-### Autenticacion
-
-Tecnologia recomendada:
-
-- Firebase Authentication.
-
-Roles iniciales:
-
-- Trabajador.
-- Empresa.
-- Administrador.
-
-## Pagos
-
-### Trabajador
-
-Cobro:
-
-- USD 10 por 30 dias de perfil activo.
-
-Modelo tecnico:
-
-- Suscripcion mensual.
-- El backend recibe eventos del proveedor de pago.
-- El perfil se marca como activo, vencido, cancelado o suspendido.
-
-### Empresa
-
-Cobro:
-
-- USD 50 por trabajador encontrado.
-
-Opciones tecnicas:
-
-- Cobro al aceptar contacto.
-- Cobro al liberar datos completos del candidato.
-- Cobro al marcar contratacion confirmada.
-
-Recomendacion inicial:
-
-Cobrar cuando la empresa desbloquea el contacto completo o confirma interes formal aceptado por el trabajador. Es mas facil de auditar que esperar a una contratacion externa.
-
-### Proveedores de pago
-
-Opciones:
-
-- Stripe.
-- Mercado Pago.
-
-Recomendacion:
-
-Empezar con Stripe si el mercado objetivo y la cuenta comercial lo permiten. Usar Mercado Pago si se prioriza Chile/Latam y metodos locales.
-
-## Estructura de datos inicial
-
-### users
-
-Datos comunes:
-
-- uid.
-- email.
-- role.
-- createdAt.
-- lastLoginAt.
-- status.
-
-### workerProfiles
-
-Datos:
-
-- userId.
-- publicName.
-- anonymizedName.
-- headline.
-- summary.
-- skills.
-- experienceLevel.
-- sectors.
-- location.
-- workMode.
-- expectedSalaryMin.
-- expectedSalaryMax.
-- availability.
-- visibilityStatus.
-- subscriptionStatus.
-- profileExpiresAt.
-- cvFilePath.
-- portfolioLinks.
-- contactPrivacy.
-
-### companyProfiles
-
-Datos:
-
-- userId.
-- companyName.
-- legalName.
-- taxId.
-- website.
-- industry.
-- verificationStatus.
-- reputationScore.
-- responseRate.
-- averageResponseTime.
-
-### invitations
-
-Datos:
-
-- companyId.
-- workerId.
-- opportunityTitle.
-- salaryMin.
-- salaryMax.
-- workMode.
-- location.
-- contractType.
-- message.
-- status.
-- expiresAt.
-- createdAt.
-- updatedAt.
-
-Estados:
-
-- sent.
-- viewed.
-- accepted.
-- rejected.
-- more_info_requested.
-- in_process.
-- offer_sent.
-- hired.
-- closed.
-- expired.
-
-### payments
-
-Datos:
-
-- userId.
-- payerRole.
-- provider.
-- providerPaymentId.
-- amount.
-- currency.
-- paymentType.
-- status.
-- createdAt.
-
-Tipos:
-
-- worker_subscription.
-- company_unlock.
-- company_success_fee.
-
-## Seguridad y privacidad
-
-### Perfiles anonimos
-
-El trabajador debe poder aparecer en busquedas sin exponer datos sensibles.
-
-Datos publicos posibles:
-
-- Nombre parcial o alias profesional.
-- Rubro.
-- Experiencia.
-- Habilidades.
-- Region.
-- Rango de renta esperada.
-- Disponibilidad.
-
-Datos privados:
-
-- Nombre legal completo.
-- Telefono.
-- Email personal.
-- CV descargable.
-- Documentos.
-
-### Reglas de acceso
-
-La empresa solo debe ver datos completos cuando:
-
-- Esta verificada.
-- Envia una invitacion con sueldo y condiciones.
-- El trabajador acepta el contacto.
-- O la empresa paga por desbloqueo, segun la regla comercial elegida.
-
-### Auditoria
-
-Guardar eventos relevantes:
-
-- Perfil visto.
-- Invitacion enviada.
-- Invitacion vista.
-- Contacto aceptado.
-- Datos desbloqueados.
-- Pago realizado.
-- Proceso cerrado.
-
-## Alojamiento
-
-### Frontend
-
-Opcion recomendada:
-
-- Firebase Hosting.
-
-Ventajas:
-
-- SSL automatico.
-- CDN global.
-- Buen costo inicial.
-- Integracion natural con Firebase.
-
-Nota:
-
-Si se usa Next.js con renderizado avanzado del lado servidor, puede evaluarse Firebase App Hosting o Cloud Run. Para un MVP, tambien se puede empezar con una app React/Next exportada de forma estatica si las vistas dinamicas se cargan desde Firebase.
-
-### Backend
-
-Opcion recomendada:
-
-- Cloud Functions for Firebase.
+- **Cloud Firestore** — NoSQL, tiempo real, reglas de seguridad granulares.
+- Indice compuesto para busqueda de trabajadores por region, sector y salario.
+- Colecciones write-locked: solo Cloud Functions pueden escribir en invitations, payments, conversationMessages, contactUnlocks, auditEvents, y otras colecciones criticas.
 
 ### Archivos
 
-Opcion recomendada:
+- **Firebase Storage** — CVs en PDF, logos de empresa, fotos de perfil.
+- Acceso privado via `getDownloadURL` desde backend; nunca URLs publicas directas.
 
-- Firebase Storage / Google Cloud Storage.
+### Autenticacion
 
-## Costos estimados
+- **Firebase Auth** — email/password y Google OAuth.
+- Cuatro roles: `worker`, `company`, `admin`, `omil`.
+- Rol almacenado en `users/{uid}.role`; verificado server-side en Cloud Functions con `assertAdmin()`.
 
-Estos costos deben confirmarse antes del lanzamiento porque dependen del plan, region, consumo y cambios de precio de Google.
+---
 
-Segun la pagina oficial de precios de Firebase consultada el 14 de junio de 2026:
+## Pagos — implementado
 
-- Firebase Hosting incluye 10 GB de almacenamiento sin costo y 360 MB diarios de transferencia sin costo. Luego el almacenamiento figura desde USD 0.026/GB y la transferencia desde USD 0.15/GB.
-- Cloud Firestore incluye 1 GiB almacenado, 50.000 lecturas diarias, 20.000 escrituras diarias y 20.000 eliminaciones diarias sin costo en la edicion estandar.
-- Cloud Functions incluye 2 millones de invocaciones mensuales sin costo; luego figura USD 0.40 por millon de invocaciones, mas computo y red segun uso.
-- Cloud Storage para Firebase tiene cuotas sin costo que dependen del tipo de bucket y region.
+### Trabajador
 
-Fuentes oficiales:
+- **$999 CLP** por 30 dias de visibilidad (precio de lanzamiento).
+- Precio real: $9.990 CLP.
+- Configurable desde Firestore en `configuracion_sistema/tarifas`.
 
-- https://firebase.google.com/pricing
-- https://firebase.google.com/docs/hosting/usage-quotas-pricing
-- https://firebase.google.com/docs/firestore/quotas
-- https://cloud.google.com/functions/pricing
+### Empresa
 
-## Gasto fijo inicial
+- **$999 CLP** por desbloqueo de contacto (precio de lanzamiento).
+- Precio real: $24.990 CLP.
+- Configurable desde Firestore en `configuracion_sistema/tarifas`.
 
-### Dominio
+### Proveedores
 
-Comprar un dominio propio:
+- **Mercado Pago** (primario, Chile). SDK oficial en Cloud Functions. Webhook en `mercadoPagoWebhook`.
+- **Stripe** (secundario/respaldo). Webhook en `stripeWebhook`.
+- Precios gestionados desde `configuracion_sistema/tarifas` — no hardcodeados.
 
-- .com.
-- .cl.
+---
 
-Estimacion:
+## Colecciones Firestore — implementadas
 
-- USD 10 a USD 15 anuales para muchos dominios .com.
-- El precio de dominios .cl puede variar segun proveedor.
+| Coleccion | Escritura |
+|---|---|
+| `users` | Cliente (owner) + Admin SDK |
+| `workerPublicProfiles` | Cliente (owner) + Admin SDK |
+| `workerPrivateProfiles` | Cliente (owner) + Admin SDK |
+| `companyProfiles` | Cliente (owner) + Admin SDK |
+| `jobOffers` | Cliente (owner) + Admin SDK |
+| `invitations` | Solo Cloud Functions |
+| `contactUnlocks` | Solo Cloud Functions |
+| `payments` | Solo Cloud Functions |
+| `conversationMessages` | Solo Cloud Functions |
+| `scheduledInterviews` | Solo Cloud Functions |
+| `platformReviews` | Solo Cloud Functions |
+| `accountingEntries` | Solo Cloud Functions |
+| `emailReminders` | Solo Cloud Functions |
+| `aiUsageLogs` | Solo Cloud Functions |
+| `marketAnalyticsReports` | Solo Cloud Functions |
+| `configuracion_sistema` | Solo Cloud Functions |
+| `auditEvents` | Solo Cloud Functions |
+
+---
+
+## Cloud Functions exportadas
+
+`createInvitation`, `updateInvitationStatus`, `acceptInvitation`, `acceptInterviewRules`, `createWorkerSubscriptionCheckout`, `createCompanyUnlockCheckout`, `mercadoPagoWebhook`, `stripeWebhook`, `analyzeWorkerCv`, `analyzeCvWithAi`, `getProfileAiAdvice`, `getCandidateMatchAdvice`, `listCompaniesForReview`, `updateCompanyVerification`, `createManagedUser`, `getAdminDashboard`, `scheduleInterview`, `submitReview`, `sendConversationMessage`, `getUnlockedWorkerContact`, `listCompanyBillingDocuments`, `generateMarketAnalyticsNow`, `getPublicPricingConfig`, `updateBillingDocument`, `approveManualTransfer`.
+
+---
+
+## IA implementada
+
+- **Gemini 2.5 Flash** via `@google/genai` SDK oficial.
+- `GEMINI_MODEL` configurable por variable de entorno en `functions/.env`.
+- Cada llamada registra `aiUsageLogs` con modelo, latencia, estado, tamaño de prompt y respuesta.
+- Funciones IA activas: analisis de CV (`analyzeCvWithAi`), consejo de perfil (`getProfileAiAdvice`), compatibilidad empresa-candidato (`getCandidateMatchAdvice`).
+
+---
 
 ## Fases de desarrollo
 
-### Fase 1: MVP funcional
+### Fase 1: MVP funcional — COMPLETADA
 
-Objetivo:
+- [x] Registro y login (email + Google).
+- [x] Onboarding de trabajador con perfil publico y datos privados separados.
+- [x] Vista previa anonima del perfil.
+- [x] Suscripcion del trabajador via Mercado Pago / Stripe.
+- [x] Onboarding de empresa con verificacion.
+- [x] Buscador de perfiles anonimos con filtros por region, sector y salario.
+- [x] Invitaciones con sueldo obligatorio.
+- [x] Panel de invitaciones para trabajador y empresa.
+- [x] Aceptacion/rechazo de invitaciones.
+- [x] Desbloqueo de contacto (pago empresa).
+- [x] Panel admin con dashboard y verificacion de empresas.
 
-Validar que trabajadores pagan por visibilidad y empresas pagan por encontrar talento.
+### Fase 2: Confianza y control — COMPLETADA
 
-Incluye:
+- [x] Verificacion de empresas con estado `pending → verified`.
+- [x] Reputacion y `reputationScore` en perfil de empresa.
+- [x] Procesos con vencimiento (`expiresAt` en invitaciones).
+- [x] Mensajeria en tiempo real via Firestore `onSnapshot`.
+- [x] Agendamiento de entrevistas (`scheduledInterviews`).
+- [x] Evaluaciones post-proceso (`platformReviews`).
+- [x] Reportes cientificos de mercado semanales (`generateMarketAnalyticsReport`).
+- [x] Panel contable para admin (CSV, asientos, conciliacion manual).
+- [x] Analisis de CV con IA (Gemini).
+- [x] Suite de Firestore Security Rules con 14 pruebas en emulador.
+- [x] OMIL: creacion de perfiles gestionados por oficinas municipales.
 
-- Registro y login.
-- Perfil de trabajador.
-- Estado de disponibilidad.
-- Perfil de empresa.
-- Buscador basico de trabajadores.
-- Invitaciones con sueldo obligatorio.
-- Panel de invitaciones.
-- Suscripcion del trabajador.
-- Cobro o simulacion de cobro a empresa.
+### Fase 3: Matching inteligente — PARCIALMENTE COMPLETADA
 
-### Fase 2: Confianza y control
+- [x] Compatibilidad empresa-candidato con score IA (`getCandidateMatchAdvice`).
+- [x] Consejos de mejora de perfil con IA (`getProfileAiAdvice`).
+- [x] Filtros compuestos server-side con indices Firestore productivos.
+- [ ] Busquedas guardadas para empresas.
+- [ ] Alertas inteligentes por nuevos perfiles compatibles.
+- [ ] Sugerencias de candidatos similares en panel empresa.
 
-Objetivo:
+---
 
-Evitar que la plataforma repita los errores de las bolsas tradicionales.
+## Pendientes reales
 
-Incluye:
+- Integracion productiva con proveedor OpenFactura/SII para DTE real.
+- Envio de correos transaccionales via SendGrid, Gmail API o Cloud Tasks.
+- Paginacion con cursor real en buscador de talento (actualmente limite de 50).
+- Prueba completa Mercado Pago con pago real/sandbox aprobado.
+- Revision legal por abogado chileno antes de operar con datos reales masivos.
 
-- Verificacion de empresas.
-- Reputacion de empresas.
-- Procesos con vencimiento automatico.
-- Metricas de visitas al perfil.
-- Reportes y moderacion.
-- Perfiles anonimos mejorados.
+---
 
-### Fase 3: Matching inteligente
+## Costos estimados Firebase (referencia junio 2026)
 
-Objetivo:
+- **Hosting**: 10 GB almacenamiento y 360 MB/dia transferencia sin costo. Luego $0.026/GB y $0.15/GB.
+- **Firestore**: 1 GiB, 50.000 lecturas/dia, 20.000 escrituras/dia sin costo.
+- **Cloud Functions**: 2 millones de invocaciones/mes sin costo; luego $0.40/millon.
+- **Firebase Storage**: cuotas sin costo segun tipo de bucket y region.
 
-Mejorar conversion sin filtros injustos.
-
-Incluye:
-
-- Recomendaciones de mejora del perfil.
-- Compatibilidad trabajador-empresa.
-- Alertas inteligentes.
-- Busquedas guardadas para empresas.
-- Sugerencias de candidatos similares.
-
-## Primer backlog tecnico
-
-- Crear proyecto Next.js con TypeScript.
-- Configurar Firebase.
-- Definir colecciones de Firestore.
-- Crear reglas de seguridad iniciales.
-- Crear autenticacion por rol.
-- Construir onboarding de trabajador.
-- Construir onboarding de empresa.
-- Construir buscador de perfiles.
-- Crear flujo de invitacion.
-- Crear estados de invitacion.
-- Integrar proveedor de pagos.
-- Crear panel administrativo minimo.
-
+Fuentes: https://firebase.google.com/pricing

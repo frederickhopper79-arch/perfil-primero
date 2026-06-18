@@ -1,14 +1,15 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { CheckCircle2, EyeOff, FileText, Lock, PenLine, UploadCloud } from "lucide-react";
+import { CheckCircle2, EyeOff, FileText, Lock, PenLine, UploadCloud, Check } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { AiProfileAdvisor } from "./ai-profile-advisor";
 import { MercadoPagoIcon } from "./brand-icons";
 import { AssessmentTests } from "./assessment-tests";
 import { InterviewRulesCard } from "./company-workspace";
 import { chileRegions, jobAreas, seniorityLevels } from "@/lib/domain/catalogs";
+import { calculateProfileCompleteness, getCompletenessHints } from "@/lib/domain/matching-engine";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import {
@@ -29,7 +30,7 @@ import {
 } from "@/lib/firebase/workers";
 import type { ConversationMessage, Invitation } from "@/lib/domain/types";
 
-const steps = ["Cuenta", "CV + IA", "Perfil publico", "Tests", "Activacion"];
+const steps = ["Cuenta", "CV + IA", "Perfil público", "Carta", "Tests", "Activación"];
 
 export function WorkerOnboarding() {
   const [uid, setUid] = useState("");
@@ -49,19 +50,22 @@ export function WorkerOnboarding() {
   const [couponCode, setCouponCode] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [scores, setScores] = useState({ english: 0, spanish: 0, personality: 0 });
+  const [savedScores, setSavedScores] = useState({ english: 0, spanish: 0, personality: 0 });
+  const [attemptCounts, setAttemptCounts] = useState({ english: 0, spanish: 0, personality: 0 });
+  const [verifiedInviteCount, setVerifiedInviteCount] = useState(0);
   const [form, setForm] = useState({
-    headline: "Especialista en marketing digital",
-    region: "Region Metropolitana",
-    city: "Santiago",
-    area: "Marketing y Publicidad",
-    seniority: "Semi Sr",
-    yearsExperience: "5",
+    headline: "",
+    region: "Región Metropolitana",
+    city: "",
+    area: "",
+    seniority: "",
+    yearsExperience: "",
     workMode: "hybrid",
     availability: "listening",
-    salaryMin: "1200000",
-    salaryMax: "1800000",
-    skills: "Google Ads, GA4, Meta Ads",
-    summary: "5 anos de experiencia en crecimiento digital para ecommerce y servicios.",
+    salaryMin: "",
+    salaryMax: "",
+    skills: "",
+    summary: "",
     cvAnalysisSummary: "",
     formattedCv: "",
     coverLetter: "",
@@ -78,10 +82,10 @@ export function WorkerOnboarding() {
   useEffect(() => {
     const checkout = new URLSearchParams(window.location.search).get("checkout");
     if (checkout === "success") {
-      setStatus("Pago recibido por Mercado Pago. La activacion se confirma cuando llegue el webhook aprobado.");
+      setStatus("Pago recibido por Mercado Pago. La activación se confirma cuando llegue el webhook aprobado.");
     }
     if (checkout === "pending") {
-      setStatus("Mercado Pago dejo el pago pendiente. Revisaremos la confirmacion automaticamente.");
+      setStatus("Mercado Pago dejó el pago pendiente. Revisaremos la confirmación automáticamente.");
     }
     if (checkout === "failure") {
       setStatus("Mercado Pago no pudo completar el pago. Puedes intentar nuevamente.");
@@ -136,7 +140,10 @@ export function WorkerOnboarding() {
             visibilityStatus: publicProfile.visibilityStatus,
             subscriptionStatus: publicProfile.subscriptionStatus
           });
-          setScores(publicProfile.assessmentScores ?? { english: 0, spanish: 0, personality: 0 });
+          const loadedScores = publicProfile.assessmentScores ?? { english: 0, spanish: 0, personality: 0 };
+          setScores(loadedScores);
+          setSavedScores(loadedScores);
+          setAttemptCounts(publicProfile.testAttemptCounts ?? { english: 0, spanish: 0, personality: 0 });
           setCvUrl(publicProfile.cvFileUrl ?? "");
           setForm((current) => ({
             ...current,
@@ -158,6 +165,7 @@ export function WorkerOnboarding() {
         }
 
         if (privateProfile) {
+          setVerifiedInviteCount((privateProfile as { verifiedInviteCount?: number }).verifiedInviteCount ?? 0);
           setForm((current) => ({
             ...current,
             legalName: privateProfile.legalName ?? current.legalName,
@@ -178,12 +186,12 @@ export function WorkerOnboarding() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleRegionChange(regionName: string) {
-    const nextRegion = chileRegions.find((region) => region.name === regionName) ?? chileRegions[0];
+  function handleRegiónChange(regionName: string) {
+    const nextRegión = chileRegions.find((region) => region.name === regionName) ?? chileRegions[0];
     setForm((current) => ({
       ...current,
-      region: nextRegion.name,
-      city: nextRegion.communes.includes(current.city) ? current.city : nextRegion.communes[0]
+      region: nextRegión.name,
+      city: nextRegión.communes.includes(current.city) ? current.city : nextRegión.communes[0]
     }));
   }
 
@@ -199,7 +207,7 @@ export function WorkerOnboarding() {
     }
   }
 
-  const selectedRegion = chileRegions.find((region) => region.name === form.region) ?? chileRegions[0];
+  const selectedRegión = chileRegions.find((region) => region.name === form.region) ?? chileRegions[0];
   const activeInvitation = invitations.find((invitation) => invitation.invitationId === activeInvitationId) ?? null;
   const interviewReady = Boolean(activeInvitation?.interviewRulesAccepted?.company && activeInvitation?.interviewRulesAccepted?.worker);
 
@@ -279,14 +287,14 @@ export function WorkerOnboarding() {
         return;
       }
       if (!Number.isFinite(yearsExperience) || yearsExperience < 0 || yearsExperience > 60) {
-        setStatus("Revisa los anos de experiencia: debe ser un numero entre 0 y 60.");
+        setStatus("Revisa los años de experiencia: debe ser un número entre 0 y 60.");
         return;
       }
 
       await saveCurrentProfile(form, cvUrl);
       setStatus(profileState.subscriptionStatus === "active"
         ? "Perfil actualizado y sigue visible para empresas verificadas."
-        : "Perfil guardado como borrador privado. Activa Mercado Pago para hacerlo visible por 30 dias.");
+        : "Perfil guardado como borrador privado. Activa Mercado Pago para hacerlo visible por 30 días.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar el perfil.");
     }
@@ -312,7 +320,7 @@ export function WorkerOnboarding() {
     await logout();
     setUid("");
     setEmail("");
-    setStatus("Sesion cerrada.");
+    setStatus("Sesión cerrada.");
   }
 
   async function saveCurrentProfile(nextForm = form, nextCvUrl = cvUrl, nextScores = scores) {
@@ -353,7 +361,8 @@ export function WorkerOnboarding() {
         cvAnalysisSummary: nextForm.cvAnalysisSummary,
         coverLetter: nextForm.coverLetter
       }
-    });
+    }, savedScores);
+    setSavedScores(nextScores);
   }
 
   function generateCoverLetter() {
@@ -381,13 +390,13 @@ export function WorkerOnboarding() {
     ].join("\n");
 
     update("coverLetter", nextCoverLetter);
-    setStatus("Carta de presentacion generada. Revisala, ajustala y guarda el perfil.");
+    setStatus("Carta de presentación generada. Revisala, ajustala y guarda el perfil.");
   }
 
   async function handleSaveCoverLetter() {
     try {
       await saveCurrentProfile();
-      setStatus("Carta de presentacion guardada en tu perfil.");
+      setStatus("Carta de presentación guardada en tu perfil.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar la carta.");
     }
@@ -422,7 +431,7 @@ export function WorkerOnboarding() {
 
   async function handleWorkerMessage() {
     if (!activeInvitationId) {
-      setStatus("Selecciona una invitacion para responder.");
+      setStatus("Selecciona una invitación para responder.");
       return;
     }
 
@@ -439,7 +448,7 @@ export function WorkerOnboarding() {
 
   async function handleAcceptInterviewRules() {
     if (!activeInvitationId) {
-      setStatus("Selecciona una invitacion antes de aceptar la entrevista.");
+      setStatus("Selecciona una invitación antes de aceptar la entrevista.");
       return;
     }
 
@@ -453,7 +462,7 @@ export function WorkerOnboarding() {
 
   async function handleReviewCompany() {
     if (!activeInvitationId) {
-      setStatus("Selecciona una invitacion antes de evaluar a la empresa.");
+      setStatus("Selecciona una invitación antes de evaluar a la empresa.");
       return;
     }
 
@@ -478,12 +487,12 @@ export function WorkerOnboarding() {
           <h2>Entra para crear tu perfil, subir tu CV y activar tu visibilidad.</h2>
           <p>
             Antes de iniciar sesion no mostramos formularios internos, invitaciones,
-            tests ni entrevistas. Tu informacion laboral vive dentro de tu cuenta.
+            tests ni entrevistas. Tu información laboral vive dentro de tu cuenta.
           </p>
           <div className="portalStatGrid">
             <div><strong>CV + IA</strong><span>perfil autollenado</span></div>
             <div><strong>Anonimato</strong><span>datos privados bloqueados</span></div>
-            <div><strong>$999</strong><span>precio de prueba</span></div>
+            <div><strong>$999</strong><span>activación 30 días</span></div>
           </div>
         </div>
         <AuthCard
@@ -499,39 +508,144 @@ export function WorkerOnboarding() {
   }
 
   const completedTests = Object.values(scores).filter(Boolean).length;
-  const profileCompletion = Math.round(([
-    form.headline,
-    form.summary,
-    form.skills,
-    form.region,
-    form.city,
-    cvUrl || form.formattedCv,
-    profileState.subscriptionStatus === "active"
-  ].filter(Boolean).length / 7) * 100);
+
+  const completenessProfile = {
+    skills: form.skills.split(",").map((s) => s.trim()).filter(Boolean),
+    summary: form.summary,
+    workModes: [form.workMode as "remote" | "hybrid" | "onsite"],
+    expectedSalaryMin: Number(form.salaryMin) || 0,
+    expectedSalaryMax: Number(form.salaryMax) || 0,
+    assessmentScores: (scores.english || scores.spanish || scores.personality) ? scores : undefined,
+    cvAnalysisSummary: form.cvAnalysisSummary
+  };
+  const profileCompletion = calculateProfileCompleteness(completenessProfile);
+  const completenessHints = getCompletenessHints(completenessProfile);
+
   const missingTests = [
-    scores.english ? "" : "ingles",
-    scores.spanish ? "" : "espanol",
+    scores.english ? "" : "inglés",
+    scores.spanish ? "" : "español",
     scores.personality ? "" : "personalidad"
   ].filter(Boolean).join(", ") || "ninguno";
+
+  const stepsDone = [
+    Boolean(uid),
+    Boolean(cvUrl || form.formattedCv),
+    Boolean(form.headline && form.summary && form.skills && form.region),
+    Boolean(form.coverLetter),
+    completedTests >= 1,
+    profileState.subscriptionStatus === "active"
+  ];
 
   return (
     <section className="flowLayout">
       <aside className="steps">
         {steps.map((step, index) => (
-          <div className="step" key={step}>
-            <span>{index + 1}</span>
+          <div className={`step${stepsDone[index] ? " done" : ""}`} key={step}>
+            <span>
+              {stepsDone[index] ? <Check size={13} strokeWidth={3} /> : index + 1}
+            </span>
             <p>{step}</p>
           </div>
         ))}
+
+        <section className="sidePanel activationLeft">
+          <div className="sidePanelHeader">
+            <MercadoPagoIcon />
+            <strong>Activación</strong>
+          </div>
+          <div className="previewBox">
+            <span className="profileCode">{profileCode}</span>
+            <h3>{form.headline || "Sin título aún"}</h3>
+            <p>{form.skills ? form.skills.split(",").slice(0, 3).join(", ") : "Sin habilidades aún"}</p>
+          </div>
+          <strong className="activationPrice">{profileState.subscriptionStatus === "active" ? "✓ Activo" : "$999 CLP"}</strong>
+          <p className="helperText">Perfil visible 30 días para empresas verificadas.</p>
+          {profileState.subscriptionStatus !== "active" ? (
+            <button className="button primary full" type="button" onClick={handleCheckout}>
+              <MercadoPagoIcon />
+              Activar visibilidad
+            </button>
+          ) : null}
+          <label className="couponLabel">
+            Cupón
+            <input value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Código de descuento" />
+          </label>
+        </section>
+
+        {/* Completitud del perfil */}
+        <section className="sidePanel completenessPanel">
+          <div className="sidePanelHeader">
+            <strong>Completitud del perfil</strong>
+            <span className="completenessScore">{profileCompletion}%</span>
+          </div>
+          <div className="completenessBar">
+            <div
+              className="completenessBarFill"
+              style={{ width: `${profileCompletion}%` }}
+              aria-valuenow={profileCompletion}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              role="progressbar"
+            />
+          </div>
+          {completenessHints.length > 0 && (
+            <ul className="completenessHints">
+              {completenessHints.slice(0, 3).map((hint) => (
+                <li key={hint.label}>
+                  <span className="hintDot" />
+                  {hint.label} <span className="hintPoints">+{hint.points}%</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Badge: invitado por empresa verificada */}
+        {verifiedInviteCount > 0 && (
+          <section className="sidePanel verifiedInviteBadge">
+            <div className="verifiedInviteIcon">✓</div>
+            <div>
+              <strong>Empresa verificada interesada</strong>
+              <p>
+                {verifiedInviteCount === 1
+                  ? "Una empresa verificada te invitó y aceptaste. Tu perfil está generando interés real."
+                  : `${verifiedInviteCount} empresas verificadas te han invitado. Tu perfil destaca en búsquedas activas.`}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Estadísticas de visibilidad */}
+        {profileState.subscriptionStatus === "active" && (
+          <section className="sidePanel visibilityStats">
+            <div className="sidePanelHeader">
+              <strong>Tu visibilidad esta semana</strong>
+            </div>
+            <div className="statGrid">
+              <div className="statItem">
+                <span className="statNumber">
+                  {/* We read this from Firestore analytics field loaded in getWorkerProfile */}
+                  —
+                </span>
+                <span className="statLabel">Búsquedas donde apareciste</span>
+              </div>
+              <div className="statItem">
+                <span className="statNumber">{completedTests}/3</span>
+                <span className="statLabel">Tests completados</span>
+              </div>
+            </div>
+            <p className="helperText">Las empresas ven tu perfil en búsquedas activas. Cada aparición es una oportunidad.</p>
+          </section>
+        )}
       </aside>
 
       <div className="stack">
         <section className="workspaceSessionBar">
           <div>
-            <span className="smallLabel">Sesion postulante</span>
+            <span className="smallLabel">Sesión postulante</span>
             <strong>{email || profileCode}</strong>
           </div>
-          <button className="button secondary" type="button" onClick={handleLogout}>Cerrar sesion</button>
+          <button className="button secondary" type="button" onClick={handleLogout}>Cerrar sesión</button>
         </section>
 
         <div className="workspaceTabs" role="tablist" aria-label="Panel postulante">
@@ -553,96 +667,30 @@ export function WorkerOnboarding() {
           ))}
         </div>
 
-        <section className="commandHero workerCommandHero">
-          <div className="commandHeroContent">
-            <span className="smallLabel">Centro de visibilidad</span>
-            <h2>Tu perfil trabaja por ti sin exponer tus datos privados.</h2>
-            <p>
-              Completa CV, carta y pruebas opcionales. Cuando actives tu visibilidad,
-              las empresas verificadas veran una ficha clara, anonima y lista para invitarte.
-            </p>
-          </div>
-          <div className="commandKpiGrid">
-            <article className="commandKpi commandPrimary">
-              <span>Preparacion</span>
-              <strong>{profileCompletion}%</strong>
-              <small>{profileCompletion >= 80 ? "Perfil competitivo" : "Faltan datos clave"}</small>
-            </article>
-            <article className="commandKpi">
-              <span>Visibilidad</span>
-              <strong>{profileState.subscriptionStatus === "active" ? "Activa" : "Privada"}</strong>
-              <small>{profileState.visibilityStatus === "visible" ? "Apareces en busquedas" : "No apareces hasta pagar"}</small>
-            </article>
-            <article className="commandKpi">
-              <span>Diferenciadores</span>
-              <strong>{completedTests}/3</strong>
-              <small>Tests completados</small>
-            </article>
-          </div>
-        </section>
-
-        {activeView === "profile" ? (
-        <section className="dashboardGrid">
-          <article>
-            <span className="smallLabel">Datos manuales</span>
-            <strong>{form.legalName || "Pendiente"}</strong>
-            <p>{form.phone || "Telefono privado no informado"}</p>
-          </article>
-          <article>
-            <span className="smallLabel">Estado de publicacion</span>
-            <strong>{profileState.subscriptionStatus === "active" ? "Activo" : "No visible"}</strong>
-            <p>{profileState.visibilityStatus === "visible" ? "Visible para empresas verificadas." : "Oculto hasta confirmar pago mensual."}</p>
-          </article>
-          <article>
-            <span className="smallLabel">Perfil creado por IA</span>
-            <strong>{cvUrl ? "CV analizado" : "Sin CV analizado"}</strong>
-            <p>{form.cvAnalysisSummary || form.summary}</p>
-          </article>
-          <article>
-            <span className="smallLabel">Tests opcionales</span>
-            <strong>{completedTests}/3</strong>
-            <p>Faltan: {missingTests}</p>
-          </article>
-        </section>
-        ) : null}
 
         {activeView === "profile" ? (
         <form className="formSurface" onSubmit={handleSubmit}>
           <div className="formHeader">
-            <UploadCloud size={24} aria-hidden="true" />
-            <div>
-              <h2>Curriculum inteligente</h2>
-              <p>Sube tu CV y la IA extrae la informacion para crear tu perfil.</p>
-            </div>
-          </div>
-          <div className="uploadZone">
-            <input
-              accept=".pdf,.doc,.docx,.txt,application/pdf,text/plain"
-              type="file"
-              onChange={(event) => setCvFile(event.target.files?.[0] ?? null)}
-            />
-            <button className="button secondary" type="button" onClick={handleCvAnalysis}>
-              <UploadCloud size={18} aria-hidden="true" />
-              Analizar CV con Google IA
-            </button>
-          </div>
-          {cvFile ? <p className="helperText">Archivo seleccionado: {cvFile.name}</p> : null}
-
-          <div className="formHeader">
             <FileText size={24} aria-hidden="true" />
             <div>
-              <h2>Perfil publico</h2>
-              <p>Esta informacion aparece en las busquedas de empresas.</p>
+              <h2>Perfil público</h2>
+              <p>Esta información aparece en las búsquedas de empresas.</p>
+            </div>
+            <div className="completenessInline">
+              <div className="completenessBarMini">
+                <div className="completenessBarFill" style={{ width: `${profileCompletion}%` }} />
+              </div>
+              <span>{profileCompletion}%</span>
             </div>
           </div>
           <div className="formGrid">
             <label>
-              Titulo laboral
+              Título laboral
               <input value={form.headline} onChange={(event) => update("headline", event.target.value)} required />
             </label>
             <label>
-              Region
-              <select value={form.region} onChange={(event) => handleRegionChange(event.target.value)} required>
+              Región
+              <select value={form.region} onChange={(event) => handleRegiónChange(event.target.value)} required>
                 {chileRegions.map((region) => (
                   <option key={region.name} value={region.name}>{region.name}</option>
                 ))}
@@ -651,7 +699,7 @@ export function WorkerOnboarding() {
             <label>
               Comuna
               <select value={form.city} onChange={(event) => update("city", event.target.value)} required>
-                {selectedRegion.communes.map((commune) => (
+                {selectedRegión.communes.map((commune) => (
                   <option key={commune} value={commune}>{commune}</option>
                 ))}
               </select>
@@ -665,7 +713,7 @@ export function WorkerOnboarding() {
               </select>
             </label>
             <label>
-              Nivel laboral
+              Seniority
               <select value={form.seniority} onChange={(event) => update("seniority", event.target.value)} required>
                 {seniorityLevels.map((level) => (
                   <option key={level} value={level}>{level}</option>
@@ -673,13 +721,13 @@ export function WorkerOnboarding() {
               </select>
             </label>
             <label>
-              Anos de experiencia
+              Años de experiencia
               <input value={form.yearsExperience} onChange={(event) => update("yearsExperience", event.target.value)} inputMode="numeric" required />
             </label>
             <label>
-              Modalidad preferida
+              Modalidad
               <select value={form.workMode} onChange={(event) => update("workMode", event.target.value)} required>
-                <option value="hybrid">Hibrido</option>
+                <option value="hybrid">Híbrido</option>
                 <option value="remote">Remoto</option>
                 <option value="onsite">Presencial</option>
               </select>
@@ -693,24 +741,24 @@ export function WorkerOnboarding() {
               </select>
             </label>
             <label>
-              Renta minima
+              Renta mínima
               <input value={form.salaryMin} onChange={(event) => update("salaryMin", event.target.value)} required />
             </label>
             <label>
-              Renta maxima
+              Renta máxima
               <input value={form.salaryMax} onChange={(event) => update("salaryMax", event.target.value)} required />
             </label>
             <label className="wide">
-              Habilidades
+              Habilidades (separadas por coma)
               <input value={form.skills} onChange={(event) => update("skills", event.target.value)} required />
             </label>
             <label className="wide">
-              Resumen
+              Resumen profesional
               <textarea value={form.summary} onChange={(event) => update("summary", event.target.value)} required />
             </label>
             <label className="wide">
-              CV Perfil Primero generado por IA
-              <textarea value={form.formattedCv} onChange={(event) => update("formattedCv", event.target.value)} placeholder="Aqui aparecera el curriculum con formato propio despues del analisis IA." />
+              CV formateado por IA
+              <textarea value={form.formattedCv} onChange={(event) => update("formattedCv", event.target.value)} placeholder="Aquí aparecerá el CV estructurado después del análisis de IA." />
             </label>
           </div>
 
@@ -721,11 +769,11 @@ export function WorkerOnboarding() {
           </div>
           <div className="formGrid privateFields">
             <label>
-              Nombre legal
+              Nombre completo (privado)
               <input value={form.legalName} onChange={(event) => update("legalName", event.target.value)} />
             </label>
             <label>
-              Telefono
+              Teléfono (privado)
               <input value={form.phone} onChange={(event) => update("phone", event.target.value)} />
             </label>
             <label className="wide">
@@ -738,25 +786,17 @@ export function WorkerOnboarding() {
               Guardar perfil
               <CheckCircle2 size={18} aria-hidden="true" />
             </button>
-            <button className="button secondary" type="button" onClick={handleCheckout}>
-              <MercadoPagoIcon />
-              Activar por $999
-            </button>
           </div>
-          <label>
-            Cupon de descuento
-            <input value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="BIENVENIDA50" />
-          </label>
-          {status ? <p className="statusText">{status}</p> : null}
         </form>
         ) : null}
+
 
         {activeView === "cover" ? (
           <section className="formSurface coverLetterSurface">
             <div className="formHeader">
               <PenLine size={24} aria-hidden="true" />
               <div>
-                <h2>Carta de presentacion</h2>
+                <h2>Carta de presentación</h2>
                 <p>Crea una carta breve, profesional y editable usando los datos de tu perfil.</p>
               </div>
             </div>
@@ -777,7 +817,7 @@ export function WorkerOnboarding() {
                   className="coverLetterText"
                   value={form.coverLetter}
                   onChange={(event) => update("coverLetter", event.target.value)}
-                  placeholder="Genera una carta o escribe aqui tu presentacion profesional."
+                  placeholder="Genera una carta o escribe aquí tu presentación profesional."
                 />
               </label>
             </div>
@@ -797,26 +837,14 @@ export function WorkerOnboarding() {
         {activeView === "tests" ? (
         <section className="formSurface">
           <div className="assessmentIntro">
-            <h2>Tests opcionales para diferenciarte</h2>
+            <h2>Tests opcionales</h2>
             <p>
-              No son obligatorios para crear perfil. Si los completas, sus resultados quedaran junto a tu perfil,
-              CV y datos privados para que una empresa verificada tenga mas senales antes de entrevistarte.
+              No son obligatorios para crear perfil. Si los completas, sus resultados quedarán junto a tu perfil,
+              CV y datos privados para que una empresa verificada tenga más señales antes de entrevistarte.
             </p>
           </div>
-        <AssessmentTests scores={scores} onChange={handleScoresChange} />
+        <AssessmentTests scores={scores} attemptCounts={attemptCounts} onChange={handleScoresChange} />
         </section>
-        ) : null}
-
-        {activeView === "profile" ? (
-        <AiProfileAdvisor
-          headline={form.headline}
-          summary={form.summary}
-          skills={form.skills}
-          onApply={(nextSummary) => {
-            update("summary", nextSummary);
-            setStatus("Mejora aplicada al resumen. Guarda el perfil para persistir el cambio.");
-          }}
-        />
         ) : null}
 
         {activeView === "interview" ? (
@@ -833,10 +861,22 @@ export function WorkerOnboarding() {
               invitations.map((invitation) => (
                 <article className="resultCard" key={invitation.invitationId}>
                   <div>
-                    <span className="profileCode">{invitation.status}</span>
+                    <div className="resultCardTop">
+                      <span className="profileCode">{invitation.status}</span>
+                      {invitation.companyVerified && (
+                        <span className="companyTrustBadge">
+                          ✓ Empresa verificada
+                          {(invitation.companyHiredCount ?? 0) > 0 && (
+                            <span className="trustHiredCount">
+                              · {invitation.companyHiredCount} {invitation.companyHiredCount === 1 ? "contratación" : "contrataciones"} exitosas
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                     <h2>{invitation.opportunityTitle}</h2>
                     <p>
-                      ${invitation.salaryMin.toLocaleString("es-CL")} - ${invitation.salaryMax.toLocaleString("es-CL")} - {invitation.workMode}
+                      ${invitation.salaryMin.toLocaleString("es-CL")} – ${invitation.salaryMax.toLocaleString("es-CL")} · {invitation.workMode}
                     </p>
                   </div>
                   <button
@@ -853,7 +893,7 @@ export function WorkerOnboarding() {
                 </article>
               ))
             ) : (
-              <p className="emptyState">Cuando una empresa te invite, aparecera aqui.</p>
+              <p className="emptyState">Cuando una empresa te invite, aparecerá aquí.</p>
             )}
           </div>
         </section>
@@ -879,10 +919,10 @@ export function WorkerOnboarding() {
           <div className="messageList">
             {messages.length ? messages.map((message) => (
               <div className={`messageBubble ${message.senderRole}`} key={message.messageId}>
-                <strong>{message.senderRole === "company" ? "Empresa" : message.senderRole === "worker" ? "Tu" : "Sistema"}</strong>
+                <strong>{message.senderRole === "company" ? "Empresa" : message.senderRole === "worker" ? "Tú" : "Sistema"}</strong>
                 <p>{message.body}</p>
               </div>
-            )) : <p className="emptyState">Selecciona una invitacion para ver la conversacion.</p>}
+            )) : <p className="emptyState">Selecciona una invitación para ver la conversación.</p>}
             <div ref={messagesEndRef} />
           </div>
           {!interviewReady && activeInvitation ? (
@@ -905,7 +945,7 @@ export function WorkerOnboarding() {
                 </select>
               </label>
               <label className="wide">
-                Opinion del proceso
+                Opinión del proceso
                 <textarea value={companyReview.comment} onChange={(event) => setCompanyReview((current) => ({ ...current, comment: event.target.value }))} />
               </label>
               <button className="button secondary" type="button" onClick={handleReviewCompany}>Evaluar empresa</button>
@@ -920,7 +960,7 @@ export function WorkerOnboarding() {
               <CheckCircle2 size={22} aria-hidden="true" />
               <div>
                 <h2>Estado de pagos</h2>
-              <p>Tu visibilidad se activa por 30 dias despues de Mercado Pago.</p>
+              <p>Tu visibilidad se activa 30 días después de confirmar el pago.</p>
               </div>
             </div>
             <div className="paymentList">
@@ -932,7 +972,7 @@ export function WorkerOnboarding() {
                   <span>{payment.providerPaymentId || payment.paymentId}</span>
                 </article>
               )) : (
-                <p className="emptyState">Cuando Mercado Pago confirme tu activacion, tu perfil quedara visible para empresas verificadas.</p>
+                <p className="emptyState">Sin pagos registrados aún. Una vez confirmado, tu perfil será visible.</p>
               )}
             </div>
           </section>
@@ -940,18 +980,39 @@ export function WorkerOnboarding() {
       </div>
 
       <aside className="summaryCard">
-        <span className="paymentBrand">
-          <MercadoPagoIcon />
-          Mercado Pago
-        </span>
-        <h2>Activacion</h2>
-        <p>Perfil visible por 30 dias.</p>
-        <strong>{profileState.subscriptionStatus === "active" ? "Activo" : "$999"}</strong>
-        <div className="previewBox">
-          <span className="profileCode">{profileCode}</span>
-          <h3>{form.headline}</h3>
-          <p>{form.skills}</p>
-        </div>
+        {/* Subida y análisis de CV */}
+        <section className="sidePanel">
+          <div className="sidePanelHeader">
+            <UploadCloud size={16} aria-hidden="true" />
+            <strong>CV con IA</strong>
+          </div>
+          <div className="uploadZone">
+            <input
+              accept=".pdf,.doc,.docx,.txt,application/pdf,text/plain"
+              type="file"
+              onChange={(event) => setCvFile(event.target.files?.[0] ?? null)}
+            />
+          </div>
+          {cvFile ? <p className="helperText">📄 {cvFile.name}</p> : null}
+          <button className="button secondary full" type="button" onClick={handleCvAnalysis}>
+            <UploadCloud size={15} aria-hidden="true" />
+            Analizar con IA
+          </button>
+          {cvUrl ? <p className="helperText">CV cargado ✓</p> : null}
+        </section>
+
+        {/* Mejora de perfil con IA */}
+        <AiProfileAdvisor
+          headline={form.headline}
+          summary={form.summary}
+          skills={form.skills}
+          onApply={(nextSummary) => {
+            update("summary", nextSummary);
+            setStatus("Mejora aplicada. Guarda el perfil para conservarla.");
+          }}
+        />
+
+        {status ? <p className="statusText">{status}</p> : null}
       </aside>
     </section>
   );
@@ -975,3 +1036,4 @@ function mapSeniority(level: string): "junior" | "mid" | "senior" | "lead" {
   if (level.includes("Junior") || level.includes("Trainee") || level.includes("Sin Experiencia")) return "junior";
   return "mid";
 }
+

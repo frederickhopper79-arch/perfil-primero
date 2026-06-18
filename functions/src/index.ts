@@ -5,6 +5,8 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import Stripe from "stripe";
 import { GoogleGenAI, Type } from "@google/genai";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 
 initializeApp();
@@ -25,6 +27,7 @@ type CreateInvitationInput = {
   location: string;
   contractType: "full_time" | "part_time" | "contractor" | "temporary";
   message: string;
+  decisionDeadline?: string;
 };
 
 type ScheduleInterviewInput = {
@@ -868,6 +871,7 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
   const now = FieldValue.serverTimestamp();
   const expiresAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 10);
 
+  const companyData = company.data()!;
   await invitationRef.set({
     invitationId: invitationRef.id,
     companyId,
@@ -885,7 +889,9 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
     status: "sent",
     expiresAt,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    companyHiredCount: companyData.hiredCount ?? 0,
+    companyVerified: true
   });
 
   await writeAudit(companyId, "company", "invitation_sent", "worker", data.workerId, {
@@ -934,6 +940,15 @@ export const acceptInvitation = onCall<{ invitationId: string }>(async (request)
       );
     }
   });
+
+  // Si la empresa está verificada, incrementar contador de "invitado por empresa verificada"
+  const companySnap = await db.collection("companyProfiles").doc(String(invitationData.companyId)).get();
+  if (companySnap.exists && companySnap.data()?.verificationStatus === "verified") {
+    await db.collection("workerPrivateProfiles").doc(workerId).set(
+      { verifiedInviteCount: FieldValue.increment(1) },
+      { merge: true }
+    );
+  }
 
   await writeAudit(workerId, "worker", "invitation_accepted", "invitation", invitationRef.id, {
     invitationId: invitationRef.id
@@ -1150,6 +1165,14 @@ export const updateInvitationStatus = onCall<{ invitationId: string; status: str
     status: request.data.status,
     updatedAt: FieldValue.serverTimestamp()
   });
+
+  // Cuando se marca como contratado, incrementar el contador de cierres de la empresa
+  if (request.data.status === "hired") {
+    await db.collection("companyProfiles").doc(companyId).set(
+      { hiredCount: FieldValue.increment(1) },
+      { merge: true }
+    );
+  }
 
   await writeAudit(companyId, "company", "invitation_status_updated", "invitation", invitationRef.id, {
     status: request.data.status
@@ -1565,6 +1588,24 @@ export const analyzeCvWithAi = onCall<{
     throw new HttpsError("invalid-argument", "Falta el archivo del CV.");
   }
 
+  // Extraer texto del PDF para usar quota de texto (no multimodal)
+  let cvText = "";
+  try {
+    const buffer = Buffer.from(base64, "base64");
+    if (mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) {
+      const parsed = await pdfParse(buffer);
+      cvText = parsed.text?.trim() ?? "";
+    } else {
+      cvText = buffer.toString("utf-8").trim();
+    }
+  } catch {
+    // Si falla la extraccion, igual intentamos con el archivo
+  }
+
+  const cvContent = cvText
+    ? `Texto extraido del CV:\n${cvText.slice(0, 12000)}`
+    : `Nombre archivo: ${fileName} (no se pudo extraer texto, infiere desde el nombre)`;
+
   const prompt = [
     "Eres un analista laboral chileno. Extrae informacion de un curriculum.",
     "No inventes datos. Si un dato no existe, usa una inferencia prudente o valor neutro.",
@@ -1573,22 +1614,18 @@ export const analyzeCvWithAi = onCall<{
     "skills y sectors deben ser arrays de strings. Salarios en CLP como numeros.",
     "formattedCv debe ser un curriculum profesional breve con secciones: Perfil, Experiencia, Habilidades, Educacion/Certificaciones si existen.",
     "El resumen no debe incluir nombre, telefono, correo ni datos privados.",
-    `Nombre archivo: ${fileName}`
+    cvContent
   ].join("\n");
 
   let parsed: Record<string, unknown>;
   let aiStatus: "completed" | "quota_exceeded" = "completed";
 
   try {
-    parsed = await generateJsonWithGemini(prompt, cvAnalysisSchema(), {
-      mimeType,
-      base64
-    });
+    parsed = await generateJsonWithGemini(prompt, cvAnalysisSchema());
   } catch (error) {
     if (!isGeminiRecoverableError(error)) {
       throw error;
     }
-
     aiStatus = "quota_exceeded";
     parsed = buildCvQuotaFallback(fileName);
   }
@@ -2525,6 +2562,10 @@ function buildGeminiError(error: unknown, model: string) {
     );
   }
 
+  if (status === 404 || lower.includes("not found") || lower.includes("not supported")) {
+    return new HttpsError("not-found", `Modelo ${model} no disponible en esta version de la API. Contacta soporte.`);
+  }
+
   if (status === 400 || lower.includes("invalid")) {
     return new HttpsError("invalid-argument", "Google IA rechazo el archivo. Sube un PDF o TXT legible y vuelve a intentar.");
   }
@@ -2535,6 +2576,250 @@ function buildGeminiError(error: unknown, model: string) {
 
   return new HttpsError("internal", "Google IA no pudo responder en este momento. Intenta nuevamente mas tarde.");
 }
+
+// ── Reset weekly impressions (lunes 0:00 AM Chile) ────────────────────────────
+
+export const resetWeeklyImpressions = onSchedule("every monday 03:00", async () => {
+  const snap = await db.collection("workerPublicProfiles")
+    .where("visibilityStatus", "==", "visible")
+    .select()
+    .get();
+  const CHUNK = 400;
+  for (let i = 0; i < snap.docs.length; i += CHUNK) {
+    const batch = db.batch();
+    snap.docs.slice(i, i + CHUNK).forEach((d) => {
+      batch.update(d.ref, { "analytics.weekImpressions": 0 });
+    });
+    await batch.commit();
+  }
+});
+
+// ── OMIL commission tracking ───────────────────────────────────────────────────
+
+export const recordOmilCommission = onCall<{ invitationId: string }>(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Se requiere autenticación.");
+  const { invitationId } = request.data;
+  const invSnap = await db.collection("invitations").doc(invitationId).get();
+  if (!invSnap.exists) throw new HttpsError("not-found", "Invitación no encontrada.");
+  const inv = invSnap.data()!;
+
+  // Only track commission if the worker's profile was created by an OMIL
+  const profileSnap = await db.collection("workerPublicProfiles").doc(inv.workerId).get();
+  if (!profileSnap.exists || profileSnap.data()!.profileSource !== "omil") return { recorded: false };
+
+  const omilId = profileSnap.data()!.createdByOmilId as string | undefined;
+  if (!omilId) return { recorded: false };
+
+  const commissionAmount = Math.round((inv.salaryMin ?? 999) * 0.2);
+  await db.collection("accountingEntries").add({
+    type: "omil_commission",
+    omilId,
+    invitationId,
+    workerId: inv.workerId,
+    companyId: inv.companyId,
+    amount: commissionAmount,
+    currency: "CLP",
+    status: "pending_payment",
+    createdAt: FieldValue.serverTimestamp()
+  });
+  return { recorded: true, amount: commissionAmount };
+});
+
+// ── ATS Public API ─────────────────────────────────────────────────────────────
+// Authenticated via X-API-Key header. Keys stored in configuracion_sistema/atsApiKeys.
+
+async function validateAtsApiKey(key: string): Promise<boolean> {
+  if (!key) return false;
+  const snap = await db.collection("configuracion_sistema").doc("atsApiKeys").get();
+  if (!snap.exists) return false;
+  const keys = snap.data()!.keys as string[] | undefined;
+  return Array.isArray(keys) && keys.includes(key);
+}
+
+export const atsListProfiles = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
+
+  const apiKey = req.headers["x-api-key"] as string | undefined;
+  if (!await validateAtsApiKey(apiKey ?? "")) {
+    res.status(401).json({ error: "API key inválida o ausente." });
+    return;
+  }
+
+  const pageSize = Math.min(50, Number(req.query.pageSize ?? 20));
+  const region = req.query.region as string | undefined;
+  const area = req.query.area as string | undefined;
+
+  const constraints: FirebaseFirestore.Query = db.collection("workerPublicProfiles")
+    .where("visibilityStatus", "==", "visible")
+    .where("subscriptionStatus", "==", "active");
+
+  let q = region ? constraints.where("region", "==", region) : constraints;
+  if (area) q = q.where("sectors", "array-contains", area);
+  q = q.limit(pageSize);
+
+  const snap = await q.get();
+  const profiles = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      profileCode: data.profileCode,
+      headline: data.headline,
+      region: data.region,
+      sectors: data.sectors,
+      skills: data.skills,
+      workModes: data.workModes,
+      expectedSalaryMin: data.expectedSalaryMin,
+      expectedSalaryMax: data.expectedSalaryMax,
+      availability: data.availability,
+      assessmentScores: data.assessmentScores ?? null
+    };
+  });
+
+  res.json({ profiles, total: profiles.length, pageSize });
+});
+
+export const atsCreateInvitation = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
+  if (req.method !== "POST") { res.status(405).json({ error: "Método no permitido." }); return; }
+
+  const apiKey = req.headers["x-api-key"] as string | undefined;
+  if (!await validateAtsApiKey(apiKey ?? "")) {
+    res.status(401).json({ error: "API key inválida o ausente." });
+    return;
+  }
+
+  const { profileCode, opportunityTitle, salaryMin, salaryMax, workMode, location, message, companyId } = req.body as Record<string, string | number>;
+  if (!profileCode || !opportunityTitle || !companyId) {
+    res.status(400).json({ error: "Faltan campos requeridos: profileCode, opportunityTitle, companyId." });
+    return;
+  }
+
+  const profileSnap = await db.collection("workerPublicProfiles")
+    .where("profileCode", "==", profileCode)
+    .limit(1)
+    .get();
+
+  if (profileSnap.empty) {
+    res.status(404).json({ error: "Perfil no encontrado." });
+    return;
+  }
+
+  const profile = profileSnap.docs[0];
+  const invRef = db.collection("invitations").doc();
+  await invRef.set({
+    invitationId: invRef.id,
+    workerId: profile.id,
+    companyId,
+    opportunityTitle,
+    opportunitySummary: message ?? "",
+    salaryMin: Number(salaryMin) || 0,
+    salaryMax: Number(salaryMax) || 0,
+    currency: "CLP",
+    workMode: workMode ?? "hybrid",
+    location: location ?? "",
+    contractType: "full_time",
+    message: message ?? "",
+    status: "sent",
+    source: "ats_api",
+    createdAt: FieldValue.serverTimestamp()
+  });
+
+  res.json({ invitationId: invRef.id, status: "sent" });
+});
+
+// ── Public stats (landing counter) ────────────────────────────────────────────
+
+export const updatePublicStats = onSchedule("every 60 minutes", async () => {
+  const [workersSnap, companiesSnap] = await Promise.all([
+    db.collection("workerPublicProfiles").where("visibilityStatus", "==", "visible").count().get(),
+    db.collection("companyProfiles").where("verificationStatus", "==", "verified").count().get()
+  ]);
+  await db.collection("publicStats").doc("main").set({
+    workers: workersSnap.data().count,
+    companies: companiesSnap.data().count,
+    updatedAt: FieldValue.serverTimestamp()
+  });
+});
+
+// ── Email transaccional (SendGrid) ────────────────────────────────────────────
+
+async function sendEmail(to: string, subject: string, html: string) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL ?? "contacto@perfil-primero.cl";
+  if (!apiKey) return; // email disabled if key not set
+  await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: fromEmail, name: "Perfil Primero" },
+      subject,
+      content: [{ type: "text/html", value: html }]
+    })
+  });
+}
+
+// Notifica al postulante cuando recibe una nueva invitación
+export const onInvitationCreated = onCall<{ invitationId: string }>(async (request) => {
+  // This is called internally after createInvitation succeeds.
+  // Kept as a no-op until SENDGRID_API_KEY is configured.
+  const { invitationId } = request.data;
+  const invSnap = await db.collection("invitations").doc(invitationId).get();
+  if (!invSnap.exists) return;
+  const inv = invSnap.data()!;
+  const privateSnap = await db.collection("workerPrivateProfiles").doc(inv.workerId).get();
+  if (!privateSnap.exists) return;
+  const email: string = privateSnap.data()!.email;
+  await sendEmail(
+    email,
+    "Tienes una nueva invitación en Perfil Primero",
+    `<p>Hola,</p>
+     <p>Una empresa verificada te envió una invitación para el cargo <strong>${inv.opportunityTitle}</strong>
+     con rango de sueldo $${inv.salaryMin?.toLocaleString("es-CL")} – $${inv.salaryMax?.toLocaleString("es-CL")} CLP.</p>
+     <p>Entra a <a href="${appUrl}/postulante">tu panel</a> para aceptar o rechazar.</p>
+     <p>— Equipo Perfil Primero</p>`
+  );
+});
+
+// Notifica a la empresa cuando el postulante acepta
+export const onInvitationAccepted = onCall<{ invitationId: string }>(async (request) => {
+  const { invitationId } = request.data;
+  const invSnap = await db.collection("invitations").doc(invitationId).get();
+  if (!invSnap.exists) return;
+  const inv = invSnap.data()!;
+  const companyPrivSnap = await db.collection("companyProfiles").doc(inv.companyId).get();
+  if (!companyPrivSnap.exists) return;
+  const companyEmail: string = companyPrivSnap.data()!.email ?? companyPrivSnap.data()!.contactEmail;
+  if (!companyEmail) return;
+  await sendEmail(
+    companyEmail,
+    "El postulante aceptó tu invitación",
+    `<p>Hola,</p>
+     <p>El postulante al que invitaste para <strong>${inv.opportunityTitle}</strong> aceptó tu invitación.</p>
+     <p>Entra a <a href="${appUrl}/empresa">tu panel</a> para continuar el proceso.</p>
+     <p>— Equipo Perfil Primero</p>`
+  );
+});
+
+// Recordatorio de perfil por vencer (llamado desde expireOmilProfiles o manualmente)
+export const sendExpiryReminder = onCall<{ workerId: string }>(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Se requiere autenticación.");
+  const { workerId } = request.data;
+  const privateSnap = await db.collection("workerPrivateProfiles").doc(workerId).get();
+  if (!privateSnap.exists) return;
+  const email: string = privateSnap.data()!.email;
+  await sendEmail(
+    email,
+    "Tu perfil en Perfil Primero vence pronto",
+    `<p>Hola,</p>
+     <p>Tu perfil activo vence en los próximos 7 días. Renueva tu suscripción por $999 CLP para seguir visible.</p>
+     <p>Entra a <a href="${appUrl}/postulante">tu panel</a> para renovar.</p>
+     <p>— Equipo Perfil Primero</p>`
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function generateJsonWithGemini(
   prompt: string,

@@ -65,6 +65,7 @@ Avanzar simultaneamente sobre administracion, contabilidad, pagos, panel postula
 
 - Integracion productiva con proveedor OpenFactura/SII por API real.
 - Envio real de correos por Gmail/SendGrid/Cloud Tasks.
-- Cursor completo de paginacion visual en buscador de talento y mensajeria.
+- ~~Mensajeria en tiempo real~~ implementada con `onSnapshot` en sesion 2026-06-17.
+- ~~Filtros compuestos buscador~~ implementados con indices Firestore productivos en sesion 2026-06-17. Falta cursor UI real para paginas adicionales (mas de 50 resultados).
 - Prueba completa Mercado Pago con pago real/sandbox aprobado por el proveedor.
 - Revision legal por abogado chileno antes de operar con datos reales masivos.

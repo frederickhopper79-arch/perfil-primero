@@ -37,6 +37,16 @@ export interface WorkerPublicProfile {
     spanish: number;
     personality: number;
   };
+  testAttemptCounts?: {
+    english: number;
+    spanish: number;
+    personality: number;
+  };
+  analytics?: {
+    totalImpressions: number;
+    weekImpressions: number;
+    weekResetsAt?: Date;
+  };
   cvAnalysisSummary?: string;
   formattedCv?: string;
   coverLetter?: string;
@@ -55,6 +65,19 @@ export interface WorkerPublicProfile {
   profileSource?: "direct" | "omil";
   createdByOmilId?: string;
   profileExpiresAt: Date;
+}
+
+export interface WorkerPrivateProfile {
+  workerId: string;
+  legalName: string;
+  preferredName: string;
+  email: string;
+  phone: string;
+  portfolioLinks: string[];
+  formattedCv?: string;
+  cvAnalysisSummary?: string;
+  coverLetter?: string;
+  verifiedInviteCount?: number;
 }
 
 export interface Invitation {
@@ -79,6 +102,9 @@ export interface Invitation {
   };
   chatLockedForPayment?: boolean;
   paymentRequiredAt?: Date;
+  companyHiredCount?: number;
+  companyVerified?: boolean;
+  decisionDeadline?: Date | string;
 }
 
 export interface JobOffer {
@@ -143,6 +169,7 @@ export interface CompanyProfile {
   reputationScore: number;
   responseRate: number;
   averageResponseTimeHours: number | null;
+  hiredCount?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
