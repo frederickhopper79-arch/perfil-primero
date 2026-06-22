@@ -63,7 +63,7 @@ export default function ParaPostulantesPage() {
       <main>
       {/* Hero */}
       <section className="on-dark" style={{
-        background: "linear-gradient(135deg, var(--green-dark) 0%, var(--green) 100%)",
+        background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)",
         color: "#fff",
         padding: "5rem 1rem 4rem",
         textAlign: "center",

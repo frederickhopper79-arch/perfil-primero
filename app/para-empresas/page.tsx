@@ -63,7 +63,7 @@ export default function ParaEmpresasPage() {
       <main>
       {/* Hero */}
       <section className="on-dark" style={{
-        background: "linear-gradient(135deg, var(--color-dark) 0%, var(--blue-dark) 100%)",
+        background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)",
         color: "#fff",
         padding: "5rem 1rem 4rem",
         textAlign: "center",
