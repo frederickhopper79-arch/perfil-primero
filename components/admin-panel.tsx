@@ -206,32 +206,41 @@ export function AdminPanel() {
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !password) {
+      setStatus("Ingresa tu email y contraseña.");
+      return;
+    }
     setStatus("Validando acceso interno...");
 
     try {
-      const user = await loginWithEmail(email, password);
+      const user = await loginWithEmail(trimmedEmail, password);
       setUid(user.uid);
       await loadDashboard();
     } catch (error) {
       const code = (error as { code?: string }).code ?? "";
+      const serverResponse = (error as { customData?: { _tokenResponse?: unknown } }).customData?._tokenResponse;
+      console.error("[AdminPanel] auth error:", { code, message: (error as Error).message, serverResponse, fullError: error });
       const msg =
         code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found"
           ? "Credenciales incorrectas. Revisa email y contraseña."
           : code === "auth/too-many-requests"
-          ? "Demasiados intentos fallidos. Espera unos minutos o restablece tu contraseña."
+          ? "Demasiados intentos fallidos. Espera unos minutos."
           : code === "auth/user-disabled"
-          ? "Esta cuenta está deshabilitada. Contacta al administrador del sistema."
+          ? "Esta cuenta está deshabilitada."
           : code === "auth/network-request-failed"
-          ? "Sin conexión a internet. Revisa tu red e intenta de nuevo."
+          ? "Sin conexión a internet. Revisa tu red."
+          : code === "auth/invalid-email"
+          ? "El formato del email no es válido."
           : code === "auth/internal-error"
-          ? "Error interno de Firebase Auth. Verifica que Email/Password esté habilitado en Firebase Console → Authentication → Sign-in methods."
-          : (error instanceof Error ? error.message : "No se pudo entrar al panel interno.");
+          ? `Error interno Firebase (${code}). Abre DevTools → Consola para ver detalles. Verifica que Email/Password esté habilitado en Firebase Console → Authentication → Sign-in methods.`
+          : `[${code || "error"}] ${(error instanceof Error ? error.message : "No se pudo entrar.")}`;
       setStatus(msg);
     }
   }
 
   async function handleGoogleLogin() {
-    setStatus("Abriendo Google...");
+    setStatus("Abriendo ventana de Google...");
     try {
       const { signInWithPopup, GoogleAuthProvider } = await import("firebase/auth");
       const { auth } = await import("@/lib/firebase/client");
@@ -240,11 +249,15 @@ export function AdminPanel() {
       await loadDashboard();
     } catch (error) {
       const code = (error as { code?: string }).code ?? "";
+      console.error("[AdminPanel] Google auth error:", { code, message: (error as Error).message, fullError: error });
       const msg =
-        code === "auth/popup-closed-by-user" ? "Se cerró la ventana de Google sin iniciar sesión." :
-        code === "auth/popup-blocked" ? "El navegador bloqueó la ventana emergente. Permite popups para este sitio." :
-        code === "auth/internal-error" ? "Error interno de Firebase Auth. Verifica la configuración del proyecto." :
-        (error instanceof Error ? error.message : "No se pudo entrar con Google.");
+        code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request"
+          ? "Ventana cerrada sin completar el acceso."
+          : code === "auth/popup-blocked"
+          ? "El navegador bloqueó el popup. Permite ventanas emergentes para este sitio."
+          : code === "auth/operation-not-allowed"
+          ? "Google Sign-In no está habilitado en Firebase Console → Authentication → Sign-in methods."
+          : `[${code || "error"}] ${(error instanceof Error ? error.message : "No se pudo entrar con Google.")} — Revisa DevTools → Consola.`;
       setStatus(msg);
     }
   }
