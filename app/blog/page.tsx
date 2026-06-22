@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Blog | Perfil Primero",
@@ -53,7 +54,9 @@ const posts = [
 
 export default function BlogPage() {
   return (
-    <main style={{ maxWidth: 860, margin: "60px auto", padding: "0 24px" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 860, margin: "60px auto", padding: "0 24px" }}>
       <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8 }}>Blog</h1>
       <p style={{ color: "#647488", marginBottom: 40 }}>
         Consejos de empleabilidad, datos del mercado y novedades de Perfil Primero.
@@ -113,5 +116,6 @@ export default function BlogPage() {
         ))}
       </div>
     </main>
+    </>
   );
 }

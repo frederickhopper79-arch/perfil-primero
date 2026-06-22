@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Contacto · Perfil Primero",
@@ -65,7 +66,9 @@ const CHANNELS: ContactChannel[] = [
 
 export default function ContactoPage() {
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(contactJsonLd) }}
@@ -132,5 +135,6 @@ export default function ContactoPage() {
         </dl>
       </div>
     </main>
+    </>
   );
 }

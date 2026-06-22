@@ -62,10 +62,10 @@
       "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
     },
     {
-      "name": "Estado del servicio",
-      "short_name": "Estado",
-      "description": "Ver el estado operacional de la plataforma",
-      "url": "/estado",
+      "name": "Cómo funciona",
+      "short_name": "Cómo funciona",
+      "description": "Aprende cómo funciona Perfil Primero",
+      "url": "/como-funciona",
       "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
     }
   ],

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Página no encontrada",
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="notFoundPage">
+    <>
+      <SiteTopbar />
+      <main className="notFoundPage">
       <a className="brand" href="/">
         <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
         <span>Perfil Primero</span>
@@ -22,5 +25,6 @@ export default function NotFound() {
         </div>
       </div>
     </main>
+    </>
   );
 }

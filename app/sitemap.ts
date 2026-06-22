@@ -25,8 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/blog/como-negociar-tu-sueldo-en-chile`, lastModified: new Date("2026-06-01"), changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/blog/modelo-invertido-explicado`, lastModified: new Date("2026-05-15"), changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/blog/transparencia-salarial-chile`, lastModified: new Date("2026-05-01"), changeFrequency: "monthly", priority: 0.7 },
-    // Estado y legal
-    { url: `${base}/estado`, lastModified: now, changeFrequency: "hourly", priority: 0.3 },
+    // Legal
     { url: `${base}/legal/privacidad`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
     { url: `${base}/legal/terminos`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
   ];

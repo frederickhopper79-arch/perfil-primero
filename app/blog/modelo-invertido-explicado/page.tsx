@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "El modelo de empleo invertido: por qué funciona | Blog Perfil Primero",
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 
 export default function BlogPostModeloInvertido() {
   return (
-    <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px" }}>
       <a href="/blog" style={{ color: "#0a66c2", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
       <div style={{ marginTop: 24, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
         <span style={{ background: "#dce6f1", color: "#0a66c2", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Plataforma</span>
@@ -53,5 +56,6 @@ export default function BlogPostModeloInvertido() {
         ]},
       ]).replace(/</g, "\\u003c") }} />
     </main>
+    </>
   );
 }

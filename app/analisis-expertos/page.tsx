@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import ExpertPanel from "@/components/expert-panel";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Panel de Expertos | Perfil Primero",
@@ -7,6 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function AnalisisExpertosPage() {
-  return <ExpertPanel />;
+  return (
+    <>
+      <SiteTopbar />
+      <ExpertPanel />
+    </>
+  );
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Perfil Primero para Empresas · Contrata sin intermediarios",
@@ -57,7 +58,9 @@ const steps = [
 
 export default function ParaEmpresasPage() {
   return (
-    <main>
+    <>
+      <SiteTopbar />
+      <main>
       {/* Hero */}
       <section style={{
         background: "linear-gradient(135deg, var(--color-dark) 0%, var(--blue-dark) 100%)",
@@ -209,5 +212,6 @@ export default function ParaEmpresasPage() {
         </a>
       </section>
     </main>
+    </>
   );
 }

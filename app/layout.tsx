@@ -10,7 +10,7 @@ import { AppInit } from "@/components/app-init";
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0094d4" },
+    { media: "(prefers-color-scheme: light)", color: "#3aaee0" },
     { media: "(prefers-color-scheme: dark)",  color: "#0d1b2e" },
   ],
   width: "device-width",
@@ -162,7 +162,6 @@ export default function RootLayout({
             <a href="/blog">Blog</a>
             <a href="/ayuda">Ayuda</a>
             <a href="/contacto">Contacto</a>
-            <a href="/estado">Estado</a>
             <a href="/legal/privacidad">Privacidad</a>
             <a href="/legal/terminos">Términos</a>
           </nav>

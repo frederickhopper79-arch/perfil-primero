@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Centro de Ayuda · Perfil Primero",
@@ -67,7 +68,9 @@ const categories = [
 
 export default function AyudaPage() {
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
@@ -160,5 +163,6 @@ export default function AyudaPage() {
         </a>
       </div>
     </main>
+    </>
   );
 }

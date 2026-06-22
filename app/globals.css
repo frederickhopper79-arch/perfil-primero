@@ -1,7 +1,7 @@
 :root {
-  /* Paleta corporativa — nivel LinkedIn/Computrabajo */
-  --color-primary: #0a66c2;
-  --color-dark: #0d1b2a;
+  /* Paleta corporativa — colores institucionales del logo Perfil Primero */
+  --color-primary: #3aaee0;
+  --color-dark: #1a2f5e;
   --color-neutral: #647488;
   --bg: #f0f2f5;
   --bg-page: #f0f2f5;
@@ -9,7 +9,7 @@
   --surface: #ffffff;
   --surface-muted: #f4f6f9;
   --text: #1c2837;
-  --heading: #0d1b2a;
+  --heading: #1a2f5e;
   --muted: #647488;
   --muted-strong: #344a5e;
   --line: #d2d9e4;
@@ -17,9 +17,9 @@
   --green: #057642;
   --green-dark: #04583a;
   --green-soft: #e7f3ee;
-  --blue: #0a66c2;
-  --blue-dark: #004182;
-  --blue-soft: #dce6f1;
+  --blue: #3aaee0;
+  --blue-dark: #1a2f5e;
+  --blue-soft: #e8f6fc;
   --coral: #cc1016;
   --amber: #f5a623;
   --mint: #4ade80;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Perfil Primero para Postulantes · Publica tu perfil gratis",
@@ -57,7 +58,9 @@ const howItWorks = [
 
 export default function ParaPostulantesPage() {
   return (
-    <main>
+    <>
+      <SiteTopbar />
+      <main>
       {/* Hero */}
       <section style={{
         background: "linear-gradient(135deg, var(--green-dark) 0%, var(--green) 100%)",
@@ -191,5 +194,6 @@ export default function ParaPostulantesPage() {
         </a>
       </section>
     </main>
+    </>
   );
 }

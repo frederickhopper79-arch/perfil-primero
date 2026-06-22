@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "¿Cómo negociar tu sueldo en Chile en 2026? | Blog Perfil Primero",
@@ -17,7 +18,9 @@ export const metadata: Metadata = {
 
 export default function BlogPostNegociacion() {
   return (
-    <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px", fontFamily: "sans-serif" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px", fontFamily: "sans-serif" }}>
       <a href="/blog" style={{ color: "#0a66c2", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
       <div style={{ marginTop: 24, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
         <span style={{ background: "#dce6f1", color: "#0a66c2", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Empleabilidad</span>
@@ -83,5 +86,6 @@ export default function BlogPostNegociacion() {
         }}
       />
     </main>
+    </>
   );
 }

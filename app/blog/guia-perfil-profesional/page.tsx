@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Cómo crear un perfil profesional que destaque · Perfil Primero",
@@ -31,7 +32,9 @@ const articleJsonLd = {
 
 export default function GuiaPerfilPage() {
   return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
@@ -146,5 +149,6 @@ export default function GuiaPerfilPage() {
         </p>
       </footer>
     </main>
+    </>
   );
 }

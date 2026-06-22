@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteTopbar } from "@/components/site-topbar";
 
 export const metadata: Metadata = {
   title: "Cómo contratar mejor en Chile usando Perfil Primero · Blog",
@@ -29,7 +30,9 @@ const articleJsonLd = {
 
 export default function ComoContratarPage() {
   return (
-    <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>
+      <SiteTopbar />
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
@@ -126,5 +129,6 @@ export default function ComoContratarPage() {
         </p>
       </footer>
     </main>
+    </>
   );
 }
