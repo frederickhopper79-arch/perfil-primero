@@ -26,7 +26,7 @@ export function CompanyInvoicesPanel() {
     listCompanyBillingDocuments()
       .then((result) => {
         setDocuments(result.documents);
-        setStatus(result.documents.length ? "" : "Aun no hay documentos de pago confirmados.");
+        setStatus(result.documents.length ? "" : "Aún no hay documentos de pago confirmados.");
       })
       .catch((error) => {
         setStatus(error instanceof Error ? error.message : "No se pudieron cargar documentos.");

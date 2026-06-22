@@ -1,10 +1,20 @@
 export default function TermsPage() {
   return (
-    <main className="legalPage">
-      <a className="brand" href="/">
-        <img className="brandLogo" src="/logo-perfil-primero.svg" alt="" />
-        <span>Perfil Primero</span>
-      </a>
+    <>
+      <header className="topbar siteTopbar">
+        <a className="brand" href="/">
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
+          <span className="brandName">Perfil Primero</span>
+        </a>
+        <nav aria-label="Principal">
+          <a href="/como-funciona" className="navLink">Cómo funciona</a>
+          <a href="/precios" className="navLink">Precios</a>
+          <a href="/ayuda" className="navLink">Ayuda</a>
+          <a className="navButton navPostulant" href="/postulante">Soy postulante</a>
+          <a className="navAction navButton" href="/empresa">Soy empresa</a>
+        </nav>
+      </header>
+      <main className="legalPage">
       <p className="eyebrow">Condiciones de uso · Versión 1.0 · Junio 2026</p>
       <h1>Términos de uso</h1>
       <p>
@@ -23,7 +33,7 @@ export default function TermsPage() {
       <p>
         El postulante controla su perfil, puede editar información, subir CV, completar tests opcionales, aceptar o
         rechazar invitaciones y mantener sus datos privados mientras no acepte avanzar bajo las reglas de la plataforma.
-        La visibilidad del perfil requiere pago de suscripción mensual de $999 CLP.
+        La visibilidad del perfil es gratuita durante el período de lanzamiento.
       </p>
 
       <h2>3. Empresas</h2>
@@ -56,8 +66,8 @@ export default function TermsPage() {
 
       <h2>7. Modelo de pago</h2>
       <p>
-        El postulante paga $999 CLP para activar visibilidad mensual de su perfil. La empresa paga cuando corresponde
-        desbloquear contacto o cierre de trato. El pago aprobado activa visibilidad, desbloqueo, comprobantes y
+        Durante el lanzamiento, el postulante activa visibilidad sin costo. La empresa paga $9.990 CLP cuando
+        desbloquea el contacto de un postulante. El pago aprobado activa visibilidad, desbloqueo, comprobantes y
         registros contables según el tipo de servicio. Durante período de lanzamiento los precios pueden variar.
       </p>
 
@@ -125,5 +135,6 @@ export default function TermsPage() {
         La plataforma fue desarrollada por Hopper Tech E.I.R.L. para Perfil Primero SpA.
       </p>
     </main>
+    </>
   );
 }

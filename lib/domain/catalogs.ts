@@ -20,30 +20,30 @@ export const chileRegions = [
 export const jobAreas = [
   "Comercial, Ventas y Negocios",
   "Oficios y Otros",
-  "Abastecimiento y Logistica",
-  "Administracion, Contabilidad y Finanzas",
+  "Abastecimiento y Logística",
+  "Administración, Contabilidad y Finanzas",
   "Salud, Medicina y Farmacia",
   "Produccion y Manufactura",
-  "Atencion al Cliente, Call Center y Telemarketing",
-  "Gastronomia y Turismo",
-  "Tecnologia, Sistemas y Telecomunicaciones",
+  "Atención al Cliente, Call Center y Telemarketing",
+  "Gastronomía y Turismo",
+  "Tecnología, Sistemas y Telecomunicaciones",
   "Ingenierias",
-  "Recursos Humanos y Capacitacion",
-  "Educacion, Docencia e Investigacion",
+  "Recursos Humanos y Capacitación",
+  "Educación, Docencia e Investigación",
   "Mineria, Petroleo y Gas",
-  "Ingenieria Civil y Construccion",
+  "Ingeniería Civil y Construcción",
   "Marketing y Publicidad",
   "Departamento Tecnico",
-  "Secretarias y Recepcion",
+  "Secretarias y Recepción",
   "Seguros",
-  "Comunicacion, Relaciones Institucionales y Publicas",
-  "Diseno",
+  "Comunicación, Relaciones Institucionales y Públicas",
+  "Diseño",
   "Legales",
   "Aduana y Comercio Exterior",
   "Sociologia / Trabajo Social",
-  "Gerencia y Direccion General",
+  "Gerencia y Dirección General",
   "Naviero, Maritimo, Portuario",
-  "Enfermeria"
+  "Enfermería"
 ];
 
 export const seniorityLevels = [
@@ -54,7 +54,7 @@ export const seniorityLevels = [
   "Senior / Semi-Senior",
   "Senior",
   "Jefe / Supervisor / Responsable",
-  "Gerencia / Alta Gerencia / Direccion",
+  "Gerencia / Alta Gerencia / Dirección",
   "Otro"
 ];
 
@@ -70,9 +70,9 @@ export const popularSearches = [
   "Gerente",
   "Secretaria",
   "Recepcionista",
-  "Logistica",
+  "Logística",
   "Recursos Humanos",
-  "Psicologo",
+  "Psicólogo",
   "Operario"
 ];
 
@@ -847,30 +847,32 @@ export const testQuestions = {
 export const invitationTemplates = [
   {
     id: "formal",
-    name: "Invitacion formal",
-    title: "Invitacion a proceso laboral",
-    summary: "Queremos invitarte a conversar sobre una vacante compatible con tu experiencia y pretension de renta.",
-    message: "Hola. Revisamos tu perfil anonimo y creemos que existe una buena compatibilidad con nuestra vacante. La oportunidad considera sueldo informado, modalidad clara y proceso trazable dentro de Perfil Primero. Si te interesa, acepta la invitacion para avanzar."
+    name: "Invitación formal",
+    title: "Invitación a proceso laboral",
+    summary: "Queremos invitarte a conversar sobre una vacante compatible con tu experiencia y pretensión de renta.",
+    message: "Hola. Revisamos tu perfil anónimo y creemos que existe una buena compatibilidad con nuestra vacante. La oportunidad considera sueldo informado, modalidad clara y proceso trazable dentro de Perfil Primero. Si te interesa, acepta la invitación para avanzar."
   },
   {
     id: "tech",
-    name: "Perfil tecnologia/digital",
+    name: "Perfil tecnología/digital",
     title: "Oportunidad en equipo digital",
-    summary: "Buscamos un perfil con experiencia tecnica/digital para incorporarse a un equipo en crecimiento.",
-    message: "Hola. Tu experiencia y habilidades tecnicas calzan con una busqueda activa de nuestro equipo. Nos interesa conversar sobre responsabilidades, herramientas de trabajo, modalidad y rango de renta. Si las condiciones te hacen sentido, acepta la invitacion."
+    summary: "Buscamos un perfil con experiencia técnica/digital para incorporarse a un equipo en crecimiento.",
+    message: "Hola. Tu experiencia y habilidades técnicas calzan con una búsqueda activa de nuestro equipo. Nos interesa conversar sobre responsabilidades, herramientas de trabajo, modalidad y rango de renta. Si las condiciones te hacen sentido, acepta la invitación."
   },
   {
     id: "operations",
-    name: "Operacion/logistica",
+    name: "Operación/logística",
     title: "Oportunidad en operaciones",
-    summary: "Buscamos una persona con foco en ejecucion, coordinacion y cumplimiento operativo.",
-    message: "Hola. Tu perfil muestra experiencia compatible con una vacante operativa donde valoramos orden, responsabilidad y seguimiento de indicadores. La propuesta incluye condiciones visibles y una conversacion inicial dentro de la plataforma."
+    summary: "Buscamos una persona con foco en ejecución, coordinación y cumplimiento operativo.",
+    message: "Hola. Tu perfil muestra experiencia compatible con una vacante operativa donde valoramos orden, responsabilidad y seguimiento de indicadores. La propuesta incluye condiciones visibles y una conversación inicial dentro de la plataforma."
   },
   {
     id: "junior",
     name: "Talento inicial",
-    title: "Invitacion para cargo junior",
+    title: "Invitación para cargo junior",
     summary: "Tenemos una oportunidad para una persona en etapa inicial con potencial de aprendizaje.",
-    message: "Hola. Vimos tu perfil y creemos que puede calzar con una oportunidad de entrada o desarrollo. Queremos conocer tu disponibilidad, motivacion y condiciones esperadas antes de avanzar."
+    message: "Hola. Vimos tu perfil y creemos que puede calzar con una oportunidad de entrada o desarrollo. Queremos conocer tu disponibilidad, motivación y condiciones esperadas antes de avanzar."
   }
 ];
+
+export const FREEMIUM_WORKER_LIMIT = 3;

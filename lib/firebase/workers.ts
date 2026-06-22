@@ -28,6 +28,7 @@ export type WorkerProfileDraft = {
     workerId: string;
     legalName: string;
     preferredName: string;
+    rut?: string;
     email: string;
     phone: string;
     portfolioLinks: string[];
@@ -41,18 +42,43 @@ export async function saveWorkerProfile(
   draft: WorkerProfileDraft,
   previousScores?: { english: number; spanish: number; personality: number }
 ) {
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+  // Validate salary range
+  const salaryMin = Number(draft.publicProfile.expectedSalaryMin) || 0;
+  const salaryMax = Number(draft.publicProfile.expectedSalaryMax) || 0;
+  if (salaryMin > 0 && salaryMax > 0 && salaryMin > salaryMax) {
+    throw new Error("La renta mínima no puede ser mayor que la renta máxima.");
+  }
+  if (salaryMin > 0 && salaryMin < 350_000) {
+    throw new Error("La renta mínima no puede ser inferior al sueldo mínimo legal.");
+  }
+
   const publicRef = doc(db, "workerPublicProfiles", draft.publicProfile.workerId);
 
-  await setDoc(
-    publicRef,
-    {
-      ...draft.publicProfile,
-      profileExpiresAt: expiresAt,
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
+  // Preserve existing expiry if still active, otherwise reset to 30 days
+  const existing = await getDoc(publicRef).catch(() => null);
+  const existingExpiry = existing?.exists()
+    ? (existing.data().profileExpiresAt as { toDate?: () => Date } | Date | undefined)
+    : null;
+  const existingExpiryDate = existingExpiry instanceof Date
+    ? existingExpiry
+    : typeof (existingExpiry as { toDate?: () => Date })?.toDate === "function"
+      ? (existingExpiry as { toDate: () => Date }).toDate()
+      : null;
+  const expiresAt = existingExpiryDate && existingExpiryDate > new Date()
+    ? existingExpiryDate
+    : new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+
+  const publicData = {
+    ...draft.publicProfile,
+    expectedSalaryMin: salaryMin,
+    expectedSalaryMax: salaryMax,
+    // formattedCv trimmed to avoid approaching Firestore 1MB doc limit
+    formattedCv: (draft.publicProfile.formattedCv ?? "").slice(0, 12_000),
+    profileExpiresAt: expiresAt,
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(publicRef, publicData, { merge: true });
 
   // Increment attempt counts for tests that were retaken (score changed or first attempt)
   const scores = draft.publicProfile.assessmentScores;
@@ -129,16 +155,18 @@ export async function listVisibleWorkers(options?: {
     workers = workers.filter((w) => w.expectedSalaryMin <= options.salaryMax!);
   }
 
-  const realWorkers = snap.docs.map((d) => d.id);
-  if (realWorkers.length) {
-    const batch = writeBatch(db);
-    snap.docs.forEach((d) => {
-      batch.update(d.ref, {
-        "analytics.totalImpressions": increment(1),
-        "analytics.weekImpressions": increment(1)
+  if (snap.docs.length) {
+    const CHUNK = 400;
+    for (let i = 0; i < snap.docs.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      snap.docs.slice(i, i + CHUNK).forEach((d) => {
+        batch.update(d.ref, {
+          "analytics.totalImpressions": increment(1),
+          "analytics.weekImpressions": increment(1)
+        });
       });
-    });
-    batch.commit().catch(() => {});
+      batch.commit().catch(() => {});
+    }
   }
 
   return workers.length ? workers : demoPostulants;
@@ -150,10 +178,26 @@ export async function createWorkerSubscriptionCheckout(couponCode?: string) {
   return result.data as { url: string };
 }
 
+const ALLOWED_CV_MIME_TYPES = ["application/pdf", "text/plain", "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const MAX_CV_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export async function uploadWorkerCv(workerId: string, file: File) {
+  // Validate by both MIME type and extension to prevent renamed files
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const allowedExts = ["pdf", "txt", "doc", "docx"];
+  if (!ALLOWED_CV_MIME_TYPES.includes(file.type) || !allowedExts.includes(ext)) {
+    throw new Error("Tipo de archivo no permitido. Sube un PDF, TXT o DOCX.");
+  }
+  if (file.size > MAX_CV_BYTES) {
+    throw new Error("El archivo supera el límite de 5 MB.");
+  }
+  if (file.size === 0) {
+    throw new Error("El archivo está vacío.");
+  }
   const fileRef = ref(storage, `workers/${workerId}/cv/${Date.now()}-${file.name}`);
   await uploadBytes(fileRef, file, {
-    contentType: file.type || "application/octet-stream"
+    contentType: file.type
   });
   return getDownloadURL(fileRef);
 }
@@ -177,6 +221,32 @@ export async function analyzeCvWithAi(input: {
     formattedCv: string;
     aiStatus?: "completed" | "quota_exceeded";
   };
+}
+
+export async function syncFavoritesToFirestore(companyId: string, favoriteWorkerIds: string[]) {
+  await setDoc(doc(db, "users", companyId), { favoriteWorkers: favoriteWorkerIds }, { merge: true });
+}
+
+export async function listOmilWorkers(omilId: string, pageSize = 50) {
+  const q = query(
+    collection(db, "workerPublicProfiles"),
+    where("createdByOmilId", "==", omilId),
+    orderBy("profileExpiresAt", "desc"),
+    limit(pageSize)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as WorkerPublicProfile);
+}
+
+export async function savePushSubscription(subscription: PushSubscriptionJSON) {
+  const callable = httpsCallable(functions, "savePushSubscription");
+  await callable({ subscription });
+}
+
+export async function reactivateWorkerProfile(workerId?: string) {
+  const callable = httpsCallable(functions, "reactivateWorkerProfile");
+  const result = await callable({ workerId });
+  return result.data as { ok: boolean; expiresAt: string };
 }
 
 export async function getProfileAiAdvice(profile: {

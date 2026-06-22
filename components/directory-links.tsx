@@ -4,7 +4,7 @@ export function DirectoryLinks() {
   return (
     <section className="directoryBand" aria-label="Explorar perfiles">
       <DirectoryColumn title="Provincia" items={chileRegions.map((region) => region.name)} />
-      <DirectoryColumn title="Area" items={jobAreas} />
+      <DirectoryColumn title="Área" items={jobAreas} />
       <DirectoryColumn title="Nivel laboral" items={seniorityLevels} />
       <DirectoryColumn title="Puestos mas buscados" items={popularSearches} />
     </section>

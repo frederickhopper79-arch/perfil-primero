@@ -1,5 +1,6 @@
 import { httpsCallable } from "firebase/functions";
-import { functions } from "./client";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { functions, storage } from "./client";
 import type { CompanyProfile, CompanyVerificationStatus } from "@/lib/domain/types";
 
 export type AdminDashboard = {
@@ -79,11 +80,26 @@ export async function updateCompanyVerification(input: {
   return result.data as { companyId: string; status: CompanyVerificationStatus };
 }
 
+export async function uploadMunicipalityLogo(file: File): Promise<string> {
+  const ext = file.name.split(".").pop() ?? "png";
+  const path = `municipality-logos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return getDownloadURL(storageRef);
+}
+
 export async function createManagedUser(input: {
   email: string;
   password: string;
   role: "worker" | "company" | "admin" | "omil";
   status?: "active" | "suspended";
+  omilMetadata?: {
+    municipalityName: string;
+    contactPersonName: string;
+    contactPersonRut: string;
+    contactPersonRole: string;
+    municipalityLogoUrl?: string;
+  };
 }) {
   const callable = httpsCallable(functions, "createManagedUser");
   const result = await callable(input);

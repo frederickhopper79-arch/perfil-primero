@@ -5,7 +5,7 @@ export default function AdminConsolePage() {
     <main className="workspace adminWorkspace">
       <section className="workspaceHeader">
         <div className="brand">
-          <img className="brandLogo" src="/logo-perfil-primero.svg" alt="" />
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="" />
           <span>Perfil Primero</span>
         </div>
         <div>

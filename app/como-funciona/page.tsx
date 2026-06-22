@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cómo funciona | Perfil Primero",
+  title: "Cómo funciona",
   description: "Descubre cómo funciona la plataforma laboral invertida de Chile. El postulante publica primero, la empresa llega con sueldo y condiciones claras.",
+  alternates: { canonical: "https://perfil-primero.web.app/como-funciona" },
+  openGraph: {
+    title: "Cómo funciona Perfil Primero | Plataforma laboral invertida",
+    description: "El postulante publica su perfil anónimo. Las empresas verificadas llegan con sueldo y condiciones claras desde el primer contacto.",
+    url: "https://perfil-primero.web.app/como-funciona",
+    images: [{ url: "/hero-marketplace.png", width: 1200, height: 630, alt: "Perfil Primero — Cómo funciona" }],
+  },
 };
 
 import {
@@ -79,7 +86,7 @@ const companyBenefits = [
 const faqs = [
   {
     q: "¿Es gratis para postulantes?",
-    a: "El perfil se crea sin costo. La visibilidad activa —que las empresas te encuentren— requiere una suscripción de $999 CLP al mes."
+    a: "Sí, durante el lanzamiento es completamente gratis. Publica tu perfil y recibe invitaciones sin costo. Avisamos con 30 días de anticipación antes de cualquier cambio."
   },
   {
     q: "¿Cómo se verifica una empresa?",
@@ -143,7 +150,7 @@ export default function ComoFuncionaPage() {
     <main>
       <header className="topbar siteTopbar">
         <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.svg" alt="Perfil Primero" />
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
         </a>
         <nav aria-label="Principal">
           <a href="/como-funciona" aria-current="page">Cómo funciona</a>
@@ -265,6 +272,18 @@ export default function ComoFuncionaPage() {
             ¿Tienes otra duda? Escríbenos a{" "}
             <a href="mailto:contacto@perfil-primero.cl">contacto@perfil-primero.cl</a>
           </p>
+        </section>
+
+        {/* CTA final */}
+        <section style={{ background: "var(--surface)", borderTop: "1px solid var(--line)", marginTop: 0, padding: "56px 24px", textAlign: "center" }}>
+          <h2 style={{ fontSize: 28, marginBottom: 12 }}>¿Listo para publicar tu perfil?</h2>
+          <p style={{ color: "var(--muted)", marginBottom: 32, maxWidth: 480, marginInline: "auto" }}>
+            Gratis para postulantes. Sin enviar CVs al vacío. Recibe ofertas con sueldo visible desde el primer contacto.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <a className="button primary" href="/postulante">Publicar mi perfil gratis</a>
+            <a className="button secondary" href="/empresa">Soy empresa</a>
+          </div>
         </section>
       </div>
 

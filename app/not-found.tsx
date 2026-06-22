@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Página no encontrada",
+  robots: { index: false, follow: false },
+};
+
 export default function NotFound() {
   return (
     <main className="notFoundPage">
       <a className="brand" href="/">
-        <img className="brandLogo" src="/logo-perfil-primero.svg" alt="Perfil Primero" />
+        <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
         <span>Perfil Primero</span>
       </a>
       <div className="notFoundBody">

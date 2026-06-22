@@ -31,7 +31,7 @@ export function getCompletenessHints(profile: CompletenessProfile): Completeness
 
 export function calculateMatchScore(
   worker: WorkerPublicProfile,
-  filters: { query: string; region: string; area: string; salaryMax: string }
+  filters: { query: string; region: string; area: string; salaryMax: string; workMode?: string }
 ): number {
   let matched = 0;
   let total = 0;
@@ -42,17 +42,26 @@ export function calculateMatchScore(
   }
   if (filters.area) {
     total += 25;
-    if (worker.sectors.some((s) => s === filters.area)) matched += 25;
+    const workerSectorsLower = worker.sectors.map((s) => s.toLowerCase());
+    if (workerSectorsLower.some((s) => s === filters.area.toLowerCase() || s.includes(filters.area.toLowerCase()))) matched += 25;
   }
   if (filters.salaryMax && Number(filters.salaryMax) > 0) {
-    total += 25;
-    if (worker.expectedSalaryMin <= Number(filters.salaryMax)) matched += 25;
+    total += 20;
+    const max = Number(filters.salaryMax);
+    if (worker.expectedSalaryMin <= max) {
+      matched += worker.expectedSalaryMax <= max ? 20 : 10;
+    }
   }
   if (filters.query) {
     total += 25;
     const q = filters.query.toLowerCase();
-    const haystack = [worker.headline, ...worker.skills, worker.summary ?? ""].join(" ").toLowerCase();
+    const haystack = [worker.headline, worker.displayName, ...worker.skills, worker.summary ?? ""].join(" ").toLowerCase();
     if (haystack.includes(q)) matched += 25;
+    else if (worker.skills.some((s) => s.toLowerCase().startsWith(q.split(" ")[0]))) matched += 12;
+  }
+  if (filters.workMode) {
+    total += 5;
+    if (worker.workModes.includes(filters.workMode as "remote" | "hybrid" | "onsite")) matched += 5;
   }
 
   const quality = calculateProfileCompleteness({
@@ -65,9 +74,60 @@ export function calculateMatchScore(
     cvAnalysisSummary: worker.cvAnalysisSummary
   });
 
-  if (total === 0) return quality;
+  // Boost por tests y badges
+  const testBonus = worker.assessmentScores
+    ? Math.min(10, Object.values(worker.assessmentScores).filter((v) => v > 60).length * 3)
+    : 0;
+
+  if (total === 0) return Math.min(100, quality + testBonus);
   const filterScore = Math.round((matched / total) * 100);
-  return Math.round(filterScore * 0.6 + quality * 0.4);
+  return Math.min(100, Math.round(filterScore * 0.6 + quality * 0.35 + testBonus * 0.05));
+}
+
+export type WorkerBadge =
+  | "perfil_completo"
+  | "cv_validado"
+  | "tests_completos"
+  | "busca_activamente"
+  | "senior"
+  | "multimodalidad";
+
+export function calculateBadges(profile: WorkerPublicProfile): WorkerBadge[] {
+  const badges: WorkerBadge[] = [];
+  const completeness = calculateProfileCompleteness({
+    skills: profile.skills,
+    summary: profile.summary ?? "",
+    workModes: profile.workModes,
+    expectedSalaryMin: profile.expectedSalaryMin,
+    expectedSalaryMax: profile.expectedSalaryMax,
+    assessmentScores: profile.assessmentScores,
+    cvAnalysisSummary: profile.cvAnalysisSummary
+  });
+  if (completeness >= 90) badges.push("perfil_completo");
+  if (profile.cvAnalysisSummary) badges.push("cv_validado");
+  if (
+    profile.assessmentScores &&
+    (profile.assessmentScores.english ?? 0) > 0 &&
+    (profile.assessmentScores.spanish ?? 0) > 0 &&
+    (profile.assessmentScores.personality ?? 0) > 0
+  ) badges.push("tests_completos");
+  if (profile.availability === "actively_looking") badges.push("busca_activamente");
+  if (profile.experienceLevel === "senior" || profile.experienceLevel === "lead") badges.push("senior");
+  if (profile.workModes.length >= 2) badges.push("multimodalidad");
+  return badges;
+}
+
+const badgeLabels: Record<WorkerBadge, string> = {
+  perfil_completo: "Perfil completo",
+  cv_validado: "CV validado IA",
+  tests_completos: "Tests completos",
+  busca_activamente: "Búsqueda activa",
+  senior: "Senior/Lead",
+  multimodalidad: "Multimodalidad"
+};
+
+export function badgeLabel(badge: WorkerBadge): string {
+  return badgeLabels[badge];
 }
 
 export function profileAvailabilityLabel(profile: Pick<WorkerPublicProfile, "availability" | "visibilityStatus">) {

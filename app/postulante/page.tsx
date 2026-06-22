@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { WorkerOnboarding } from "@/components/worker-onboarding";
+import { WorkerTour } from "@/components/worker-tour";
 
 export const metadata: Metadata = {
   title: "Panel Postulante | Perfil Primero",
@@ -12,7 +13,7 @@ export default function PostulantPage() {
     <main className="workspace">
       <section className="workspaceHeader">
         <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.svg" alt="" />
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="" />
           <span>Perfil Primero</span>
         </a>
         <div className="workspaceHeaderMeta">
@@ -23,6 +24,7 @@ export default function PostulantPage() {
       </section>
 
       <WorkerOnboarding />
+      <WorkerTour />
     </main>
   );
 }

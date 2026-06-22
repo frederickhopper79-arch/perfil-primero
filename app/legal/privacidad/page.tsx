@@ -1,10 +1,20 @@
 export default function PrivacyPage() {
   return (
-    <main className="legalPage">
-      <a className="brand" href="/">
-        <img className="brandLogo" src="/logo-perfil-primero.svg" alt="" />
-        <span>Perfil Primero</span>
-      </a>
+    <>
+      <header className="topbar siteTopbar">
+        <a className="brand" href="/">
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
+          <span className="brandName">Perfil Primero</span>
+        </a>
+        <nav aria-label="Principal">
+          <a href="/como-funciona" className="navLink">Cómo funciona</a>
+          <a href="/precios" className="navLink">Precios</a>
+          <a href="/ayuda" className="navLink">Ayuda</a>
+          <a className="navButton navPostulant" href="/postulante">Soy postulante</a>
+          <a className="navAction navButton" href="/empresa">Soy empresa</a>
+        </nav>
+      </header>
+      <main className="legalPage">
       <p className="eyebrow">Documento operativo · Versión 1.0 · Junio 2026</p>
       <h1>Política de privacidad</h1>
       <p>
@@ -97,5 +107,6 @@ export default function PrivacyPage() {
         La plataforma fue desarrollada por Hopper Tech E.I.R.L. para Perfil Primero SpA.
       </p>
     </main>
+    </>
   );
 }

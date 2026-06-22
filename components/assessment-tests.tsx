@@ -34,6 +34,8 @@ function scoreLabel(key: keyof Scores, score: number): string {
   return `${score}%`;
 }
 
+const MAX_ATTEMPTS = 3;
+
 export function AssessmentTests({
   scores,
   attemptCounts,
@@ -86,7 +88,7 @@ export function AssessmentTests({
   return (
     <section className="assessmentSuite">
       <div className="formHeader">
-        <div className="miniIconText">T</div>
+        <div className="miniIconText" aria-label="Tests de validación" role="img">T</div>
         <div>
           <h2>Tests de validación</h2>
           <p>Resultados visibles para empresas verificadas, sin exponer tu identidad.</p>
@@ -125,17 +127,20 @@ export function AssessmentTests({
                   <ul>
                     <li>Resultado visible solo dentro del perfil</li>
                     <li>Sirve como señal inicial, no como certificación formal</li>
-                    <li>Puedes repetirlo para mejorar tu resultado</li>
+                    <li>Máximo {MAX_ATTEMPTS} intentos para mejorar tu resultado</li>
                   </ul>
                 </div>
                 <div className="launcherActions">
-                  <button className="button primary" type="button" onClick={() => setActiveTest(item.key)}>
+                  <button className="button primary" type="button" onClick={() => setActiveTest(item.key)} disabled={count >= MAX_ATTEMPTS && completed}>
                     {completed ? "Continuar test" : "Realizar test"}
                   </button>
-                  {completed && (
+                  {completed && count < MAX_ATTEMPTS && (
                     <button className="button secondary" type="button" onClick={() => resetTest(item.key)}>
                       Reintentar desde cero
                     </button>
+                  )}
+                  {completed && count >= MAX_ATTEMPTS && (
+                    <p className="helperText" style={{ fontSize: "12px", color: "var(--muted)" }}>Límite de {MAX_ATTEMPTS} intentos alcanzado. Resultado final.</p>
                   )}
                 </div>
               </article>

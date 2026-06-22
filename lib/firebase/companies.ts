@@ -17,6 +17,9 @@ export type CompanyProfileDraft = {
   city?: string;
   industry: string;
   size: string;
+  culture?: string;
+  benefits?: string;
+  remotePolicy?: string;
 };
 
 export type InvitationDraft = Omit<Invitation, "invitationId" | "status" | "expiresAt">;
@@ -59,22 +62,30 @@ export async function createInvitation(draft: InvitationDraft) {
 }
 
 export async function saveJobOffer(draft: JobOfferDraft) {
-  const offerRef = doc(db, "jobOffers", draft.jobOfferId || crypto.randomUUID());
+  const offerRef = doc(db, "jobOffers", draft.jobOfferId || doc(collection(db, "jobOffers")).id);
+  const existing = await getDoc(offerRef);
   await setDoc(
     offerRef,
     {
       ...draft,
       jobOfferId: offerRef.id,
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
+      // Preserve original createdAt on updates; only set on new docs
+      ...(existing.exists() ? {} : { createdAt: serverTimestamp() }),
     },
     { merge: true }
   );
   return offerRef.id;
 }
 
-export async function listCompanyJobOffers(companyId: string) {
-  const q = query(collection(db, "jobOffers"), where("companyId", "==", companyId), limit(80));
+export async function listCompanyJobOffers(companyId: string, pageSize = 50) {
+  const safePageSize = Math.max(1, Math.min(100, pageSize));
+  const q = query(
+    collection(db, "jobOffers"),
+    where("companyId", "==", companyId),
+    orderBy("createdAt", "desc"),
+    limit(safePageSize)
+  );
   const snap = await getDocs(q);
   const offers = snap.docs.map((item) => item.data() as JobOffer);
   return offers.length ? offers : demoJobOffers.filter((offer) => offer.companyId === companyId);
@@ -90,6 +101,29 @@ export async function acceptInterviewRules(invitationId: string) {
   const callable = httpsCallable(functions, "acceptInterviewRules");
   const result = await callable({ invitationId });
   return result.data as { accepted: boolean; role: "company" | "worker" };
+}
+
+export async function createCompanyMonthlyCheckout() {
+  const callable = httpsCallable(functions, "createCompanyMonthlyCheckout");
+  const result = await callable();
+  return result.data as { url: string };
+}
+
+export async function createCompanyUnlimitedCheckout() {
+  const callable = httpsCallable(functions, "createCompanyUnlimitedCheckout");
+  const result = await callable();
+  return result.data as { url: string };
+}
+
+export async function saveCompanyAlertPreferences(prefs: {
+  enabled: boolean;
+  areas: string[];
+  regions: string[];
+  salaryMax: number;
+  workModes: string[];
+}) {
+  const callable = httpsCallable(functions, "saveCompanyAlertPreferences");
+  await callable(prefs);
 }
 
 export async function createCompanyUnlockCheckout(invitationId: string, couponCode?: string) {
@@ -227,12 +261,56 @@ export async function listCompanyPayments(companyId: string) {
   return snap.docs.map((item) => item.data() as { paymentId: string; status: string; amount: number; paymentType: string });
 }
 
+const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2 MB
+
 export async function uploadCompanyLogo(companyId: string, file: File) {
-  const fileRef = ref(storage, `companies/${companyId}/logo/${Date.now()}-${file.name}`);
-  await uploadBytes(fileRef, file, {
-    contentType: file.type || "application/octet-stream"
-  });
+  if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+    throw new Error("El logo debe ser PNG, JPG, WebP o SVG.");
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error("El logo no puede superar 2 MB.");
+  }
+  if (file.size === 0) {
+    throw new Error("El archivo está vacío.");
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "png";
+  const fileRef = ref(storage, `companies/${companyId}/logo/${Date.now()}.${ext}`);
+  await uploadBytes(fileRef, file, { contentType: file.type });
   return getDownloadURL(fileRef);
+}
+
+export async function semanticWorkerSearch(query: string): Promise<{
+  filters: { region?: string; area?: string; salaryMax?: string; query?: string };
+}> {
+  const callable = httpsCallable(functions, "semanticWorkerSearch");
+  const result = await callable({ query });
+  return result.data as { filters: { region?: string; area?: string; salaryMax?: string; query?: string } };
+}
+
+export async function recordProfileImpression(workerId: string) {
+  const callable = httpsCallable(functions, "recordProfileImpression");
+  await callable({ workerId });
+}
+
+export async function submitEmployerReview(input: {
+  invitationId: string;
+  score: number;
+  comment: string;
+}) {
+  const callable = httpsCallable(functions, "submitEmployerReview");
+  const result = await callable(input);
+  return result.data as { reviewId: string };
+}
+
+export async function recordSearchAnalytics(filters: {
+  region?: string;
+  area?: string;
+  salaryMax?: number;
+  query?: string;
+}): Promise<void> {
+  const callable = httpsCallable(functions, "recordSearchAnalytics");
+  await callable(filters).catch(() => {});
 }
 
 export async function getCandidateMatchAdvice(input: {
@@ -244,6 +322,16 @@ export async function getCandidateMatchAdvice(input: {
   const callable = httpsCallable(functions, "getCandidateMatchAdvice");
   const result = await callable(input);
   return result.data as { score: number; verdict: string; reasons: string[]; risks: string[] };
+}
+
+export async function addCompanyTeamMember(email: string, role: "viewer" | "recruiter" | "admin") {
+  const callable = httpsCallable(functions, "addCompanyTeamMember");
+  return (await callable({ email, role })).data as { ok: boolean; memberCount: number };
+}
+
+export async function removeCompanyTeamMember(memberUid: string) {
+  const callable = httpsCallable(functions, "removeCompanyTeamMember");
+  return (await callable({ memberUid })).data as { ok: boolean };
 }
 
 export async function listWorkerInvitations(workerId: string) {

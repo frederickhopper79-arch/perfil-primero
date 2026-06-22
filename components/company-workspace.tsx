@@ -47,16 +47,19 @@ function toPersonalityLabel(score: number): string {
   return "Independiente";
 }
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useDeferredSearch } from "@/lib/hooks/useDeferredSearch";
 import { onAuthStateChanged } from "firebase/auth";
-import { BadgeDollarSign, BriefcaseBusiness, Check, CheckCircle2, Filter, Loader2, MessageSquare, Search, Send } from "lucide-react";
+import { BadgeDollarSign, Bell, BriefcaseBusiness, Check, CheckCircle2, CreditCard, Filter, Loader2, MessageSquare, Search, Send } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { MercadoPagoIcon } from "./brand-icons";
 import { CompanyInvoicesPanel } from "./company-invoices-panel";
-import { chileRegions, invitationTemplates, jobAreas } from "@/lib/domain/catalogs";
+import { chileRegions, FREEMIUM_WORKER_LIMIT, invitationTemplates, jobAreas } from "@/lib/domain/catalogs";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import {
+  createCompanyMonthlyCheckout,
+  createCompanyUnlimitedCheckout,
   createCompanyUnlockCheckout,
   createInvitation,
   acceptInterviewRules,
@@ -65,18 +68,26 @@ import {
   getUnlockedWorkerContact,
   listCompanyJobOffers,
   listCompanyPayments,
+  recordProfileImpression,
+  recordSearchAnalytics,
+  saveCompanyAlertPreferences,
   saveCompanyProfile,
   saveJobOffer,
   scheduleInterview,
+  semanticWorkerSearch,
   sendConversationMessage,
+  submitEmployerReview,
   submitPlatformReview,
   subscribeToCompanyInvitations,
   subscribeToMessages,
   updateInvitationStatus,
-  uploadCompanyLogo
+  uploadCompanyLogo,
+  addCompanyTeamMember,
+  removeCompanyTeamMember
 } from "@/lib/firebase/companies";
-import { listVisibleWorkers } from "@/lib/firebase/workers";
+import { listVisibleWorkers, syncFavoritesToFirestore } from "@/lib/firebase/workers";
 import { calculateMatchScore } from "@/lib/domain/matching-engine";
+import { trackEvent } from "@/lib/firebase/analytics";
 import type { CompanyProfile, ConversationMessage, Invitation, JobOffer, WorkerPublicProfile } from "@/lib/domain/types";
 
 const pipelineStatuses = [
@@ -87,14 +98,99 @@ const pipelineStatuses = [
   { key: "hired", label: "Contratado" }
 ];
 
+function TeamMembersPanel({ uid }: { uid: string }) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"viewer" | "recruiter" | "admin">("viewer");
+  const [members, setMembers] = useState<Array<{ uid: string; email: string; role: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    if (!uid) return;
+    import("@/lib/firebase/client").then(({ db }) => {
+      import("firebase/firestore").then(({ doc, getDoc }) => {
+        getDoc(doc(db, "companyProfiles", uid)).then((snap) => {
+          if (snap.exists()) setMembers((snap.data().teamMembers as Array<{ uid: string; email: string; role: string }>) ?? []);
+        });
+      });
+    });
+  }, [uid]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    try {
+      const r = await addCompanyTeamMember(email.trim(), role);
+      setMsg(`Miembro agregado. Total: ${r.memberCount}`);
+      setEmail("");
+    } catch (err: unknown) {
+      setMsg((err as Error).message || "Error al agregar miembro.");
+    } finally { setLoading(false); }
+  };
+
+  const handleRemove = async (memberUid: string) => {
+    try {
+      await removeCompanyTeamMember(memberUid);
+      setMembers((prev) => prev.filter((m) => m.uid !== memberUid));
+    } catch (err: unknown) {
+      setMsg((err as Error).message || "Error al eliminar miembro.");
+    }
+  };
+
+  return (
+    <section className="formSurface" style={{ marginTop: 12 }}>
+      <div className="formHeader">
+        <CheckCircle2 size={22} aria-hidden="true" />
+        <div>
+          <h2>Equipo de reclutamiento</h2>
+          <p>Agrega personas de tu empresa para que accedan al panel como reclutadores o administradores.</p>
+        </div>
+      </div>
+      <form className="formGrid" onSubmit={handleAdd} style={{ marginBottom: 12 }}>
+        <label>
+          Email del colaborador
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@empresa.cl" required />
+        </label>
+        <label>
+          Rol
+          <select value={role} onChange={(e) => setRole(e.target.value as "viewer" | "recruiter" | "admin")}>
+            <option value="viewer">Visualizador</option>
+            <option value="recruiter">Reclutador</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <div className="actions">
+          <button type="submit" className="button secondary" disabled={loading}>{loading ? "Agregando…" : "Agregar miembro"}</button>
+        </div>
+      </form>
+      {msg && <p className="statusText">{msg}</p>}
+      {members.length > 0 && (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+          {members.map((m) => (
+            <li key={m.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--border, #e5e7eb)" }}>
+              <span style={{ fontSize: 13 }}>{m.email} <span style={{ color: "var(--muted)", fontSize: 11 }}>({m.role})</span></span>
+              <button type="button" className="button ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => handleRemove(m.uid)}>Eliminar</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {members.length === 0 && <p className="emptyState">Sin miembros del equipo aún.</p>}
+    </section>
+  );
+}
+
 export function CompanyWorkspace() {
   const [uid, setUid] = useState("");
   const [workers, setWorkers] = useState<WorkerPublicProfile[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<WorkerPublicProfile | null>(null);
+  const COMPARE_CACHE_KEY = "pp_compareWorkers_v2";
   const [compareWorkers, setCompareWorkers] = useState<WorkerPublicProfile[]>(() => {
     try {
-      const saved = sessionStorage.getItem("pp_compareWorkers");
-      return saved ? (JSON.parse(saved) as WorkerPublicProfile[]) : [];
+      const saved = sessionStorage.getItem(COMPARE_CACHE_KEY);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved) as WorkerPublicProfile[];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -106,13 +202,15 @@ export function CompanyWorkspace() {
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [messageBody, setMessageBody] = useState("");
-  const [activeView, setActiveView] = useState<"dashboard" | "jobs" | "talent" | "interview" | "billing">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "jobs" | "talent" | "interview" | "kanban" | "billing">("dashboard");
   const [filters, setFilters] = useState({
     query: "",
     region: "",
     area: "",
-    salaryMax: ""
+    salaryMax: "",
+    semanticQuery: ""
   });
+  const { deferred: deferredQuery, isPending: searchPending, set: setDeferredQuery } = useDeferredSearch(filters.query);
   const [payments, setPayments] = useState<Array<{ paymentId: string; status: string; amount: number; paymentType: string }>>([]);
   const [unlockedContact, setUnlockedContact] = useState<{
     legalName: string;
@@ -132,7 +230,10 @@ export function CompanyWorkspace() {
     region: "Región Metropolitana",
     city: "Santiago",
     industry: "",
-    size: "1-10"
+    size: "1-10",
+    culture: "",
+    benefits: "",
+    remotePolicy: ""
   });
   const [invite, setInvite] = useState({
     jobOfferId: "",
@@ -144,7 +245,8 @@ export function CompanyWorkspace() {
     workMode: "hybrid",
     contractType: "full_time" as "full_time" | "part_time" | "contractor" | "temporary",
     location: "",
-    message: ""
+    message: "",
+    decisionDeadline: ""
   });
   const [jobOffer, setJobOffer] = useState({
     title: "",
@@ -167,9 +269,89 @@ export function CompanyWorkspace() {
   const [activeInvitationId, setActiveInvitationId] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [loadingWorkers, setLoadingWorkers] = useState(false);
+  const [loadingSemanticSearch, setLoadingSemanticSearch] = useState(false);
   const [wizardStep, setWizardStep] = useState<0 | 1 | 2 | 3>(0);
+  const [invitationStatusFilter, setInvitationStatusFilter] = useState("all");
+  const [favoriteWorkers, setFavoriteWorkers] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("pp_favorites_v1") ?? "[]") as string[]; } catch { return []; }
+  });
+  const [copiedCalendar, setCopiedCalendar] = useState(false);
+  const [copiedInvId, setCopiedInvId] = useState(false);
+  const [workerModeFilter, setWorkerModeFilter] = useState("");
+  const [workerAvailFilter, setWorkerAvailFilter] = useState("");
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const [workerNotes, setWorkerNotes] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("pp_worker_notes_v1") ?? "{}") as Record<string, string>; } catch { return {}; }
+  });
+  const [workerStars, setWorkerStars] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("pp_worker_stars_v1") ?? "{}") as Record<string, number>; } catch { return {}; }
+  });
+  const [workerLabels, setWorkerLabels] = useState<Record<string, "hot" | "warm" | "cold">>(() => {
+    try { return JSON.parse(localStorage.getItem("pp_worker_labels_v1") ?? "{}") as Record<string, "hot" | "warm" | "cold">; } catch { return {}; }
+  });
+  const [senioryFilter, setSenioryFilter] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [rutValid, setRutValid] = useState<boolean | null>(null);
+  const [monthlyPlan, setMonthlyPlan] = useState<{ active: boolean; contactCreditsTotal: number; contactCreditsUsed: number; renewsAt?: { seconds: number } } | null>(null);
+  const [unlimitedPlan, setUnlimitedPlan] = useState<{ active: boolean; renewsAt?: { seconds: number } } | null>(null);
+  const [alertPrefs, setAlertPrefs] = useState({ enabled: false, areas: [] as string[], regions: [] as string[], salaryMax: 0, workModes: [] as string[] });
+  const [savingAlerts, setSavingAlerts] = useState(false);
+  const [invitationComments, setInvitationComments] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("pp_inv_comments_v1") ?? "{}") as Record<string, string>; } catch { return {}; }
+  });
+  const [budgetAlert, setBudgetAlert] = useState<number>(() => {
+    try { return Number(localStorage.getItem("pp_budget_alert_v1") ?? "0"); } catch { return 0; }
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  function saveInvitationComment(invId: string, comment: string) {
+    setInvitationComments((prev) => {
+      const next = { ...prev, [invId]: comment };
+      try { localStorage.setItem("pp_inv_comments_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function saveBudgetAlert(amount: number) {
+    setBudgetAlert(amount);
+    try { localStorage.setItem("pp_budget_alert_v1", String(amount)); } catch {}
+  }
+
+  function saveWorkerNote(workerId: string, note: string) {
+    setWorkerNotes((prev) => {
+      const next = { ...prev, [workerId]: note };
+      try { localStorage.setItem("pp_worker_notes_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function saveWorkerStar(workerId: string, stars: number) {
+    setWorkerStars((prev) => {
+      const next = { ...prev, [workerId]: stars };
+      try { localStorage.setItem("pp_worker_stars_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function saveWorkerLabel(workerId: string, label: "hot" | "warm" | "cold" | "") {
+    setWorkerLabels((prev) => {
+      const next = { ...prev };
+      if (!label) { delete next[workerId]; } else { next[workerId] = label; }
+      try { localStorage.setItem("pp_worker_labels_v1", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function exportPaymentsCsv() {
+    const rows = [["ID","Tipo","Monto CLP","Estado"]].concat(
+      payments.map((p) => [p.paymentId, p.paymentType, String(p.amount), p.status])
+    );
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `pagos_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
 
   useEffect(() => {
     const checkout = new URLSearchParams(window.location.search).get("checkout");
@@ -220,14 +402,61 @@ export function CompanyWorkspace() {
   function fetchWorkers(overrideFilters?: typeof filters) {
     const f = overrideFilters ?? filters;
     setLoadingWorkers(true);
+    recordSearchAnalytics({
+      region: f.region || undefined,
+      area: f.area || undefined,
+      salaryMax: f.salaryMax ? Number(f.salaryMax) : undefined,
+      query: f.query || undefined
+    });
     listVisibleWorkers({
       region: f.region || undefined,
       sector: f.area || undefined,
       salaryMax: f.salaryMax ? Number(f.salaryMax) : undefined
     })
-      .then(setWorkers)
+      .then((results) => { setWorkers(results); setRefreshedAt(new Date()); trackEvent("search_performed", { results: results.length }); })
       .catch(() => setStatus("No se pudieron cargar los perfiles."))
       .finally(() => setLoadingWorkers(false));
+  }
+
+  function toggleFavorite(workerId: string) {
+    setFavoriteWorkers((prev) => {
+      const next = prev.includes(workerId) ? prev.filter((id) => id !== workerId) : [...prev, workerId];
+      try { localStorage.setItem("pp_favorites_v1", JSON.stringify(next)); } catch {}
+      if (uid) syncFavoritesToFirestore(uid, next).catch(() => {});
+      return next;
+    });
+  }
+
+  async function copyCalendarUrl() {
+    try { await navigator.clipboard.writeText(calendarUrl); setCopiedCalendar(true); setTimeout(() => setCopiedCalendar(false), 2000); } catch {}
+  }
+
+  async function copyInvId() {
+    if (!activeInvitation) return;
+    try { await navigator.clipboard.writeText(activeInvitation.invitationId); setCopiedInvId(true); setTimeout(() => setCopiedInvId(false), 2000); } catch {}
+  }
+
+  async function handleSemanticSearch() {
+    if (!filters.semanticQuery.trim()) return;
+    setLoadingSemanticSearch(true);
+    try {
+      const result = await semanticWorkerSearch(filters.semanticQuery);
+      const extracted = result.filters;
+      const merged = {
+        ...filters,
+        region: extracted.region ?? filters.region,
+        area: extracted.area ?? filters.area,
+        salaryMax: extracted.salaryMax ?? filters.salaryMax,
+        query: extracted.query ?? filters.query
+      };
+      setFilters(merged);
+      trackEvent("semantic_search_performed");
+      fetchWorkers(merged);
+    } catch {
+      setStatus("No se pudo procesar la búsqueda con IA.");
+    } finally {
+      setLoadingSemanticSearch(false);
+    }
   }
 
   useEffect(() => {
@@ -238,6 +467,21 @@ export function CompanyWorkspace() {
         setCompanyProfile(profile);
         if (!profile || !profile.legalName || !profile.taxId) {
           setWizardStep(1);
+        }
+        if (profile?.monthlyPlan) {
+          setMonthlyPlan(profile.monthlyPlan as { active: boolean; contactCreditsTotal: number; contactCreditsUsed: number; renewsAt?: { seconds: number } });
+        }
+        if (profile?.unlimitedPlan) {
+          setUnlimitedPlan(profile.unlimitedPlan as { active: boolean; renewsAt?: { seconds: number } });
+        }
+        if (profile?.alertPreferences) {
+          setAlertPrefs({
+            enabled: profile.alertPreferences.enabled ?? false,
+            areas: profile.alertPreferences.areas ?? [],
+            regions: profile.alertPreferences.regions ?? [],
+            salaryMax: profile.alertPreferences.salaryMax ?? 0,
+            workModes: profile.alertPreferences.workModes ?? []
+          });
         }
       })
       .catch(() => setStatus("No se pudo cargar el perfil de empresa."));
@@ -265,7 +509,10 @@ export function CompanyWorkspace() {
       region: companyProfile.region ?? "Región Metropolitana",
       city: companyProfile.city ?? "Santiago",
       industry: companyProfile.industry ?? "",
-      size: companyProfile.size ?? "1-10"
+      size: companyProfile.size ?? "1-10",
+      culture: companyProfile.culture ?? "",
+      benefits: companyProfile.benefits ?? "",
+      remotePolicy: companyProfile.remotePolicy ?? ""
     });
   }, [companyProfile]);
 
@@ -324,22 +571,28 @@ export function CompanyWorkspace() {
       ? invitations.find((invitation) => invitation.workerId === selectedWorker.workerId) ?? null
       : null;
   const isVerified = companyProfile?.verificationStatus === "verified";
-  const FREEMIUM_LIMIT = 3;
-
   const scoredWorkers = useMemo(() => {
-    const base = filters.query
+    let base = deferredQuery
       ? workers.filter((worker) => {
           const haystack = `${worker.headline} ${worker.summary ?? ""} ${worker.skills.join(" ")} ${worker.sectors.join(" ")}`.toLowerCase();
-          return haystack.includes(filters.query.toLowerCase());
+          return haystack.includes(deferredQuery.toLowerCase());
         })
       : workers;
+    if (workerModeFilter) {
+      base = base.filter((w) => w.workModes.includes(workerModeFilter as "remote" | "hybrid" | "onsite"));
+    }
+    if (workerAvailFilter) {
+      base = base.filter((w) => w.availability === workerAvailFilter);
+    }
+    if (senioryFilter) {
+      base = base.filter((w) => w.experienceLevel === senioryFilter);
+    }
     return base.map((w) => ({ worker: w, matchScore: calculateMatchScore(w, filters) }))
       .sort((a, b) => b.matchScore - a.matchScore);
-  }, [workers, filters]);
+  }, [workers, deferredQuery, filters, workerModeFilter, workerAvailFilter, senioryFilter]);
 
-  const filteredWorkers = scoredWorkers.map((item) => item.worker);
-  const visibleScoredWorkers = isVerified ? scoredWorkers : scoredWorkers.slice(0, FREEMIUM_LIMIT);
-  const lockedCount = isVerified ? 0 : Math.max(0, scoredWorkers.length - FREEMIUM_LIMIT);
+  const visibleScoredWorkers = isVerified ? scoredWorkers : scoredWorkers.slice(0, FREEMIUM_WORKER_LIMIT);
+  const lockedCount = isVerified ? 0 : Math.max(0, scoredWorkers.length - FREEMIUM_WORKER_LIMIT);
   const interviewReady = Boolean(activeInvitation?.interviewRulesAccepted?.company && activeInvitation?.interviewRulesAccepted?.worker);
 
   function updateFilter(key: keyof typeof filters, value: string) {
@@ -350,7 +603,7 @@ export function CompanyWorkspace() {
     event.preventDefault();
 
     if (!uid) {
-      setStatus("Primero crea o inicia sesion como empresa.");
+      setStatus("Primero crea o inicia sesión como empresa.");
       return;
     }
 
@@ -366,7 +619,7 @@ export function CompanyWorkspace() {
       await saveCompanyProfile({ ...company, logoUrl, companyId: uid });
       const profile = await getCompanyProfile(uid);
       setCompanyProfile(profile);
-      setStatus("Empresa enviada a revision. Un admin debe verificarla para habilitar invitaciones reales.");
+      setStatus("Empresa enviada a revisión. Un admin debe verificarla para habilitar invitaciones reales.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar la empresa.");
     }
@@ -410,7 +663,8 @@ export function CompanyWorkspace() {
         workMode: invite.workMode as "remote" | "hybrid" | "onsite",
         location: invite.location,
         contractType: invite.contractType,
-        message: invite.message
+        message: invite.message,
+        decisionDeadline: invite.decisionDeadline || undefined
       });
       setLastInvitationId(result.invitationId);
       setActiveInvitationId(result.invitationId);
@@ -429,7 +683,7 @@ export function CompanyWorkspace() {
       return;
     }
 
-    setStatus("Guardando publicacion...");
+    setStatus("Guardando publicación...");
 
     try {
       const salaryMin = Number(jobOffer.salaryMin);
@@ -437,7 +691,7 @@ export function CompanyWorkspace() {
       const vacanciesTotal = Number(jobOffer.vacanciesTotal);
 
       if (!jobOffer.title.trim() || !jobOffer.description.trim() || !jobOffer.requirements.trim()) {
-        setStatus("Completa cargo, descripcion y requisitos antes de guardar la publicacion.");
+        setStatus("Completa cargo, descripción y requisitos antes de guardar la publicación.");
         return;
       }
 
@@ -447,7 +701,7 @@ export function CompanyWorkspace() {
       }
 
       if (!Number.isInteger(vacanciesTotal) || vacanciesTotal < 1 || vacanciesTotal > 100) {
-        setStatus("Revisa las vacantes: debe ser un numero entero entre 1 y 100.");
+        setStatus("Revisa las vacantes: debe ser un número entero entre 1 y 100.");
         return;
       }
 
@@ -470,9 +724,9 @@ export function CompanyWorkspace() {
       });
       const nextOffers = await listCompanyJobOffers(uid);
       setJobOffers(nextOffers);
-      setStatus("Publicacion guardada. Puedes usarla como base para invitar postulantes.");
+      setStatus("Publicación guardada. Puedes usarla como base para invitar postulantes.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo guardar la publicacion.");
+      setStatus(error instanceof Error ? error.message : "No se pudo guardar la publicación.");
     }
   }
 
@@ -480,7 +734,7 @@ export function CompanyWorkspace() {
     const payableInvitationId = activeInvitation?.invitationId ?? lastInvitationId;
 
     if (!payableInvitationId) {
-      setStatus("Primero crea una invitacion, cierra el trato con el postulante y luego registra el pago.");
+      setStatus("Primero crea una invitación, cierra el trato con el postulante y luego registra el pago.");
       return;
     }
 
@@ -536,7 +790,7 @@ export function CompanyWorkspace() {
       const next = current.some((item) => item.workerId === worker.workerId)
         ? current.filter((item) => item.workerId !== worker.workerId)
         : [...current, worker].slice(0, 3);
-      try { sessionStorage.setItem("pp_compareWorkers", JSON.stringify(next)); } catch {}
+      try { sessionStorage.setItem(COMPARE_CACHE_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
   }
@@ -554,6 +808,19 @@ export function CompanyWorkspace() {
       setStatus(error instanceof Error ? error.message : "No se pudo actualizar el proceso.");
     }
   }
+
+  // Ctrl+K atajo de teclado para enfocar búsqueda
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setActiveView("talent");
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -574,7 +841,7 @@ export function CompanyWorkspace() {
 
   async function handleAcceptInterviewRules() {
     if (!activeInvitation) {
-      setStatus("Primero selecciona un candidato con invitacion.");
+      setStatus("Primero selecciona un candidato con invitación.");
       return;
     }
 
@@ -655,12 +922,12 @@ export function CompanyWorkspace() {
           <h2>Entra para verificar tu empresa, publicar vacantes y contactar postulantes reales.</h2>
           <p>
             La búsqueda, comparación, entrevistas, pagos y trazabilidad viven dentro de la cuenta.
-            Antes de iniciar sesion solo mostramos la propuesta comercial.
+            Antes de iniciar sesión solo mostramos la propuesta comercial.
           </p>
           <div className="portalStatGrid">
             <div><strong>Verificación</strong><span>control interno</span></div>
             <div><strong>IA</strong><span>matching asistido</span></div>
-            <div><strong>$999</strong><span>desbloqueo de contacto</span></div>
+            <div><strong>$9.990</strong><span>desbloqueo de contacto</span></div>
           </div>
         </div>
         <AuthCard role="company" onReady={(nextUid) => setUid(nextUid)} />
@@ -839,8 +1106,8 @@ export function CompanyWorkspace() {
             <MercadoPagoIcon />
             <strong>Pago por éxito</strong>
           </div>
-          <strong className="activationPrice">$999</strong>
-          <p className="helperText">La empresa paga solo cuando cierra el trato con un postulante.</p>
+          <strong className="activationPrice">$9.990 CLP</strong>
+          <p className="helperText">La empresa paga solo cuando desbloquea el contacto de un postulante.</p>
           <div className="miniRule">
             <BadgeDollarSign size={15} aria-hidden="true" />
             <span>Sin cobro por mirar perfiles ni invitar.</span>
@@ -866,6 +1133,7 @@ export function CompanyWorkspace() {
             ["jobs", "Publicaciones"],
             ["talent", "Buscar talento"],
             ["interview", "Entrevista"],
+            ["kanban", "Pipeline"],
             ["billing", "Pagos"]
           ].map(([key, label]) => (
             <button
@@ -898,8 +1166,18 @@ export function CompanyWorkspace() {
               <input value={company.legalName} onChange={(event) => updateCompany("legalName", event.target.value)} />
             </label>
             <label>
-              RUT / ID fiscal
-              <input value={company.taxId} onChange={(event) => updateCompany("taxId", event.target.value)} />
+              RUT empresa
+              <input
+                value={company.taxId}
+                onChange={(event) => {
+                  updateCompany("taxId", event.target.value);
+                  setRutValid(event.target.value.length >= 8 ? validateRut(event.target.value) : null);
+                }}
+                className={rutValid === false ? "inputError" : rutValid === true ? "inputOk" : ""}
+                placeholder="12.345.678-9"
+              />
+              {rutValid === false && <span className="fieldError">RUT inválido — revisa el dígito verificador</span>}
+              {rutValid === true && <span className="fieldOk">✓ RUT válido</span>}
             </label>
             <label>
               Sitio web
@@ -942,6 +1220,37 @@ export function CompanyWorkspace() {
                 setLogoFile(file);
               }} />
             </label>
+            <label className="wide">
+              Cultura y valores
+              <textarea
+                value={company.culture}
+                onChange={(event) => updateCompany("culture", event.target.value)}
+                placeholder="Ej: Startup con mentalidad ágil, trabajo colaborativo, foco en resultados."
+                rows={2}
+              />
+            </label>
+            <label className="wide">
+              Beneficios
+              <textarea
+                value={company.benefits}
+                onChange={(event) => updateCompany("benefits", event.target.value)}
+                placeholder="Ej: Seguro complementario, horario flexible, bono anual."
+                rows={2}
+              />
+            </label>
+            <label>
+              Política de trabajo remoto
+              <select
+                value={company.remotePolicy}
+                onChange={(event) => updateCompany("remotePolicy", event.target.value)}
+              >
+                <option value="">No especificada</option>
+                <option value="full_remote">100% Remoto</option>
+                <option value="hybrid_flexible">Híbrido flexible</option>
+                <option value="hybrid_fixed">Híbrido fijo (días en oficina)</option>
+                <option value="onsite">Presencial</option>
+              </select>
+            </label>
           </div>
           <div className="actions">
             <button className="button primary" type="submit">Guardar empresa</button>
@@ -950,12 +1259,48 @@ export function CompanyWorkspace() {
         </form>
         ) : null}
 
+        {activeView === "dashboard" && companyProfile && companyProfile.verificationStatus !== "verified" ? (
+          <section className="formSurface onboardingChecklist">
+            <div className="formHeader">
+              <CheckCircle2 size={22} aria-hidden="true" />
+              <div>
+                <h2>Checklist de activación</h2>
+                <p>Completa estos pasos para operar en la plataforma.</p>
+              </div>
+            </div>
+            <ul className="checklistItems">
+              <li className={company.companyName && company.legalName && company.taxId ? "checkDone" : "checkPending"}>
+                <Check size={16} /> Datos básicos de empresa (nombre, razón social, RUT)
+              </li>
+              <li className={company.industry ? "checkDone" : "checkPending"}>
+                <Check size={16} /> Rubro o industria seleccionado
+              </li>
+              <li className={company.website ? "checkDone" : "checkPending"}>
+                <Check size={16} /> Sitio web ingresado
+              </li>
+              <li className="checkPending">
+                <Check size={16} /> Verificación aprobada por el equipo Perfil Primero
+              </li>
+            </ul>
+          </section>
+        ) : null}
+
         {activeView === "dashboard" ? (
           <section className="dashboardGrid">
             <article>
               <span className="smallLabel">Perfiles activos</span>
               <strong>{workers.length}</strong>
               <p>perfiles activos con pago confirmado.</p>
+            </article>
+            <article>
+              <span className="smallLabel">Tasa de aceptación</span>
+              <strong>{invitations.length > 0 ? `${Math.round((invitations.filter((i) => ["accepted","in_process","offer_sent","hired"].includes(i.status)).length / invitations.length) * 100)}%` : "—"}</strong>
+              <p>invitaciones aceptadas por postulantes.</p>
+            </article>
+            <article>
+              <span className="smallLabel">Contratados</span>
+              <strong>{invitations.filter((i) => i.status === "hired").length}</strong>
+              <p>postulantes contratados a través de la plataforma.</p>
             </article>
             <article>
               <span className="smallLabel">Procesos</span>
@@ -978,6 +1323,10 @@ export function CompanyWorkspace() {
               <p>{visibleOffers} visibles con vacantes abiertas.</p>
             </article>
           </section>
+        ) : null}
+
+        {activeView === "dashboard" && uid ? (
+          <TeamMembersPanel uid={uid} />
         ) : null}
 
         {activeView === "jobs" ? (
@@ -1065,7 +1414,7 @@ export function CompanyWorkspace() {
                     Usar en invitación
                   </button>
                 </article>
-              )) : <p className="emptyState">Aún no tienes publicaciones creadas.</p>}
+              )) : <p className="emptyState">Aún no tienes publicaciones creadas aún.</p>}
             </div>
           </section>
         ) : null}
@@ -1081,9 +1430,13 @@ export function CompanyWorkspace() {
             </div>
           </div>
           <div className="formGrid">
+            <label className="wide">
+              Búsqueda con IA
+              <input value={filters.semanticQuery ?? ""} onChange={(event) => updateFilter("semanticQuery", event.target.value)} placeholder="Ej: quiero un contador con Excel avanzado en Santiago, renta hasta $1.400.000" />
+            </label>
             <label>
               Palabra clave
-              <input value={filters.query} onChange={(event) => updateFilter("query", event.target.value)} placeholder="Ventas, Excel, logística" />
+              <input ref={searchInputRef} value={filters.query} onChange={(event) => { updateFilter("query", event.target.value); setDeferredQuery(event.target.value); }} placeholder="Ventas, Excel, logística (Ctrl+K)" style={searchPending ? { opacity: 0.7 } : undefined} />
             </label>
             <label>
               Región
@@ -1101,12 +1454,65 @@ export function CompanyWorkspace() {
             </label>
             <label>
               Renta máxima disponible
-              <input value={filters.salaryMax} onChange={(event) => updateFilter("salaryMax", event.target.value)} placeholder="1.200.000" />
+              <input value={filters.salaryMax} onChange={(event) => updateFilter("salaryMax", event.target.value)} placeholder="1.200.000" inputMode="numeric" />
+            </label>
+            <label>
+              Modalidad
+              <select value={workerModeFilter} onChange={(e) => setWorkerModeFilter(e.target.value)}>
+                <option value="">Cualquiera</option>
+                <option value="remote">Remoto</option>
+                <option value="hybrid">Híbrido</option>
+                <option value="onsite">Presencial</option>
+              </select>
+            </label>
+            <label>
+              Disponibilidad
+              <select value={workerAvailFilter} onChange={(e) => setWorkerAvailFilter(e.target.value)}>
+                <option value="">Cualquiera</option>
+                <option value="actively_looking">Buscando activamente</option>
+                <option value="listening">Escucha ofertas</option>
+              </select>
+            </label>
+            <label>
+              Seniority
+              <select value={senioryFilter} onChange={(e) => setSenioryFilter(e.target.value)}>
+                <option value="">Cualquiera</option>
+                <option value="junior">Junior / Trainee</option>
+                <option value="mid">Semi-Senior</option>
+                <option value="senior">Senior</option>
+                <option value="lead">Gerencia / Lead</option>
+              </select>
             </label>
           </div>
-          <button className="button primary" type="button" onClick={() => fetchWorkers()}>
-            <Search size={16} aria-hidden="true" /> Buscar
-          </button>
+          {refreshedAt && (
+            <p className="helperText" style={{ fontSize: 11 }}>
+              Última búsqueda: {refreshedAt.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })} · {scoredWorkers.length} perfil{scoredWorkers.length !== 1 ? "es" : ""} encontrado{scoredWorkers.length !== 1 ? "s" : ""}
+            </p>
+          )}
+          <div className="searchActions">
+            <button className="button secondary" type="button" onClick={handleSemanticSearch} disabled={loadingSemanticSearch}>
+              {loadingSemanticSearch ? <><Loader2 size={14} className="spinIcon" aria-hidden="true" /> Analizando...</> : "Buscar con IA"}
+            </button>
+            <button className="button primary" type="button" onClick={() => fetchWorkers()}>
+              <Search size={16} aria-hidden="true" /> Buscar
+            </button>
+            <button className="button secondary" type="button" onClick={() => {
+              setFilters({ query: "", region: "", area: "", salaryMax: "", semanticQuery: "" }); setDeferredQuery("");
+              setWorkerModeFilter("");
+              setWorkerAvailFilter("");
+              setSenioryFilter("");
+            }}>
+              Limpiar filtros
+            </button>
+            {favoriteWorkers.length > 0 && (
+              <button className="button ghost" type="button" onClick={() => {
+                const favWorkers = workers.filter((w) => favoriteWorkers.includes(w.workerId));
+                setCompareWorkers(favWorkers.slice(0, 3));
+              }} style={{ fontSize: 12 }}>
+                ★ Mis favoritos ({favoriteWorkers.length})
+              </button>
+            )}
+          </div>
         </section>
 
         <div className="results">
@@ -1127,6 +1533,13 @@ export function CompanyWorkspace() {
                     <p>
                       ${worker.expectedSalaryMin.toLocaleString("es-CL")} – ${worker.expectedSalaryMax.toLocaleString("es-CL")} · {worker.workModes.join(", ")}
                     </p>
+                    {worker.badges && worker.badges.length > 0 && (
+                      <div className="scorePills">
+                        {worker.badges.map((badge) => (
+                          <span className="scorePill validated" key={badge}>{badge.replace(/_/g, " ")}</span>
+                        ))}
+                      </div>
+                    )}
                     {((worker.assessmentScores?.english ?? 0) > 0 || (worker.assessmentScores?.spanish ?? 0) > 0 || (worker.assessmentScores?.personality ?? 0) > 0) && (
                       <div className="scorePills">
                         {(worker.assessmentScores?.english ?? 0) > 0 && (worker.assessmentScores?.spanish ?? 0) > 0 && (worker.assessmentScores?.personality ?? 0) > 0 && (
@@ -1138,14 +1551,27 @@ export function CompanyWorkspace() {
                       </div>
                     )}
                   </div>
-                  <button className="button secondary" type="button" onClick={() => setSelectedWorker(worker)}>
+                  <button className="button secondary" type="button" onClick={() => {
+                    setSelectedWorker(worker);
+                    recordProfileImpression(worker.workerId).catch(() => {});
+                    trackEvent("worker_selected", { matchScore: matchScore });
+                  }}>
                     Seleccionar <Send size={18} aria-hidden="true" />
                   </button>
                   <button className="button secondary" type="button" onClick={() => toggleCompare(worker)}>
-                    {compareWorkers.some((item) => item.workerId === worker.workerId) ? "Quitar" : "Comparar"}
+                    {compareWorkers.some((item) => item.workerId === worker.workerId) ? "✓ En comparación" : "Comparar"}
                   </button>
                   <button className="button secondary" type="button" onClick={() => handleMatchAdvice(worker)}>
                     Analizar con IA
+                  </button>
+                  <button
+                    className="button ghost"
+                    type="button"
+                    onClick={() => toggleFavorite(worker.workerId)}
+                    title={favoriteWorkers.includes(worker.workerId) ? "Quitar de favoritos" : "Guardar en favoritos"}
+                    style={{ fontSize: 16 }}
+                  >
+                    {favoriteWorkers.includes(worker.workerId) ? "★" : "☆"}
                   </button>
                 </article>
               ))}
@@ -1163,10 +1589,30 @@ export function CompanyWorkspace() {
               )}
             </>
           ) : (
-            <p className="emptyState">
-              Aún no hay postulantes activos con pago confirmado. Este panel no inventa candidatos:
-              primero deben existir perfiles reales visibles.
-            </p>
+            <div className="talentEmptyState">
+              <p className="talentEmptyTitle">Aún no hay postulantes activos en este filtro.</p>
+              <p className="talentEmptyDesc">Los perfiles aparecen cuando los postulantes activan su visibilidad. Mientras tanto, puedes ver cómo lucen:</p>
+              <div className="demoProfileGrid">
+                {[
+                  { code: "PP-8F29A1B2", title: "Especialista en marketing digital", skills: ["Google Ads", "GA4", "Meta Ads"], salary: "$1.200.000 – $1.800.000", mode: "Remoto o híbrido" },
+                  { code: "PP-41C73D9E", title: "Supervisor de operaciones", skills: ["Logística", "KPI", "Turnos"], salary: "$1.000.000 – $1.400.000", mode: "Presencial" },
+                  { code: "PP-73B1F20C", title: "Asistente administrativo", skills: ["Excel", "Facturación", "ERP"], salary: "$750.000 – $950.000", mode: "Híbrido" }
+                ].map((p) => (
+                  <article className="demoProfileCard" key={p.code}>
+                    <div className="resultCardTop">
+                      <span className="profileCode">{p.code}</span>
+                      <span className="demoTag">Ejemplo</span>
+                    </div>
+                    <h3>{p.title}</h3>
+                    <p>{p.salary} · {p.mode}</p>
+                    <div className="scorePills">
+                      {p.skills.map((s) => <span className="scorePill" key={s}>{s}</span>)}
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <p className="talentEmptyHint">¿Conoces una empresa que necesite talento? <a href="mailto:contacto@perfil-primero.cl">Cuéntanos</a> y la incorporamos.</p>
+            </div>
           )}
         </div>
 
@@ -1179,23 +1625,40 @@ export function CompanyWorkspace() {
                 <p>Máximo tres perfiles para decidir sin ruido.</p>
               </div>
             </div>
-            <div className="comparisonGrid">
-              {compareWorkers.map((worker) => (
-                <article key={worker.workerId}>
-                  <span className="profileCode">{worker.profileCode}</span>
-                  <h3>{worker.headline}</h3>
-                  <p>{worker.region} - {worker.city}</p>
-                  <strong>${worker.expectedSalaryMin.toLocaleString("es-CL")} - ${worker.expectedSalaryMax.toLocaleString("es-CL")}</strong>
-                  <div className="scorePills">
-                    {(worker.assessmentScores?.english ?? 0) > 0 && (worker.assessmentScores?.spanish ?? 0) > 0 && (worker.assessmentScores?.personality ?? 0) > 0 && (
-                      <span className="scorePill validated">Perfil validado ✓</span>
-                    )}
-                    {(worker.assessmentScores?.english ?? 0) > 0 && <span className="scorePill lang">Inglés {toEnglishLevel(worker.assessmentScores!.english)}</span>}
-                    {(worker.assessmentScores?.spanish ?? 0) > 0 && <span className="scorePill lang">Español {toSpanishLevel(worker.assessmentScores!.spanish)}</span>}
-                    {(worker.assessmentScores?.personality ?? 0) > 0 && <span className="scorePill conduct">Perfil {toPersonalityLabel(worker.assessmentScores!.personality)}</span>}
-                  </div>
-                </article>
-              ))}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--surface-alt, #f9fafb)" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid var(--border, #e5e7eb)", width: 140 }}>Atributo</th>
+                    {compareWorkers.map((w) => (
+                      <th key={w.workerId} style={{ padding: "8px 12px", textAlign: "center", borderBottom: "1px solid var(--border, #e5e7eb)" }}>
+                        <span className="profileCode" style={{ display: "block", marginBottom: 2 }}>{w.profileCode}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted)" }}>{w.experienceLevel}</span>
+                        <button type="button" className="button ghost" style={{ fontSize: 10, marginTop: 4 }} onClick={() => toggleCompare(w)}>✕ Quitar</button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: "Titular", fn: (w: WorkerPublicProfile) => w.headline },
+                    { label: "Región", fn: (w: WorkerPublicProfile) => `${w.region} – ${w.city}` },
+                    { label: "Sueldo pretendido", fn: (w: WorkerPublicProfile) => `$${w.expectedSalaryMin.toLocaleString("es-CL")} – $${w.expectedSalaryMax.toLocaleString("es-CL")}` },
+                    { label: "Disponibilidad", fn: (w: WorkerPublicProfile) => w.availability === "actively_looking" ? "Buscando activamente" : w.availability === "listening" ? "Abierto a propuestas" : "No disponible" },
+                    { label: "Inglés", fn: (w: WorkerPublicProfile) => (w.assessmentScores?.english ?? 0) > 0 ? toEnglishLevel(w.assessmentScores!.english) : "—" },
+                    { label: "Español", fn: (w: WorkerPublicProfile) => (w.assessmentScores?.spanish ?? 0) > 0 ? toSpanishLevel(w.assessmentScores!.spanish) : "—" },
+                    { label: "Perfil conducta", fn: (w: WorkerPublicProfile) => (w.assessmentScores?.personality ?? 0) > 0 ? toPersonalityLabel(w.assessmentScores!.personality) : "—" },
+                    { label: "Modo de trabajo", fn: (w: WorkerPublicProfile) => (w.workModes ?? []).includes("remote") ? "Remoto" : (w.workModes ?? []).includes("hybrid") ? "Híbrido" : "Presencial" },
+                  ].map((row) => (
+                    <tr key={row.label} style={{ borderBottom: "1px solid var(--border, #e5e7eb)" }}>
+                      <td style={{ padding: "7px 12px", fontWeight: 600, color: "var(--muted)" }}>{row.label}</td>
+                      {compareWorkers.map((w) => (
+                        <td key={w.workerId} style={{ padding: "7px 12px", textAlign: "center" }}>{row.fn(w)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         ) : null}
@@ -1211,19 +1674,64 @@ export function CompanyWorkspace() {
                 <p>Selecciona una invitación para ver entrevista, pagos, timeline y mensajería.</p>
               </div>
             </div>
+            {invitations.length > 0 && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                {["all", "sent", "accepted", "in_process", "offer_sent", "hired", "closed"].map((st) => {
+                  const count = st === "all" ? invitations.length : invitations.filter((i) => i.status === st).length;
+                  if (count === 0 && st !== "all") return null;
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      className={`button ${invitationStatusFilter === st ? "primary" : "secondary"}`}
+                      style={{ fontSize: 12, padding: "3px 10px" }}
+                      onClick={() => setInvitationStatusFilter(st)}
+                    >
+                      {st === "all" ? "Todas" : st} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="results compactResults">
-              {invitations.length ? invitations.map((invitation) => (
-                <article className="resultCard" key={invitation.invitationId}>
-                  <div>
-                    <span className="profileCode">{invitation.status}</span>
-                    <h2>{invitation.opportunityTitle}</h2>
-                    <p>{invitation.location} - ${invitation.salaryMin.toLocaleString("es-CL")} a ${invitation.salaryMax.toLocaleString("es-CL")}</p>
-                  </div>
-                  <button className="button secondary" type="button" onClick={() => selectInvitation(invitation)}>
-                    Abrir proceso
-                  </button>
-                </article>
-              )) : <p className="emptyState">Aún no hay invitaciones creadas.</p>}
+              {(() => {
+                const filtered = invitationStatusFilter === "all" ? invitations : invitations.filter((i) => i.status === invitationStatusFilter);
+                const slaLight = (inv: Invitation): { color: string; label: string } => {
+                  const SLA_DAYS: Record<string, number> = { sent: 3, accepted: 5, in_process: 14, offer_sent: 3 };
+                  const slaMax = SLA_DAYS[inv.status] ?? 30;
+                  const updatedAt = (inv as unknown as { updatedAt?: { seconds: number } }).updatedAt?.seconds;
+                  if (!updatedAt) return { color: "#9ca3af", label: "Sin fecha" };
+                  const elapsed = (Date.now() / 1000 - updatedAt) / 86400;
+                  if (elapsed < slaMax * 0.6) return { color: "#16a34a", label: "En plazo" };
+                  if (elapsed < slaMax) return { color: "#f59e0b", label: "Por vencer" };
+                  return { color: "#dc2626", label: "Vencido" };
+                };
+                return filtered.length ? filtered.map((invitation) => {
+                  const sla = slaLight(invitation);
+                  return (
+                  <article className="resultCard" key={invitation.invitationId}>
+                    <div>
+                      <div className="resultCardTop">
+                        <span className="profileCode">{invitation.status}</span>
+                        <span title={`SLA: ${sla.label}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: sla.color, fontWeight: 600 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: sla.color, display: "inline-block" }} />
+                          {sla.label}
+                        </span>
+                        {invitation.decisionDeadline && (() => {
+                          const days = Math.ceil((new Date(invitation.decisionDeadline as string).getTime() - Date.now()) / 86400000);
+                          return days > 0 && days <= 3 ? <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700 }}>⏱ {days}d</span> : null;
+                        })()}
+                      </div>
+                      <h2>{invitation.opportunityTitle}</h2>
+                      <p>{invitation.location} - ${invitation.salaryMin.toLocaleString("es-CL")} a ${invitation.salaryMax.toLocaleString("es-CL")}</p>
+                    </div>
+                    <button className="button secondary" type="button" onClick={() => selectInvitation(invitation)}>
+                      Abrir proceso
+                    </button>
+                  </article>
+                  );
+                }) : <p className="emptyState">Sin invitaciones en este estado.</p>;
+              })()}
             </div>
           </section>
         ) : null}
@@ -1234,8 +1742,40 @@ export function CompanyWorkspace() {
               <Filter size={22} aria-hidden="true" />
             <div>
               <h2>Detalle del candidato</h2>
-                <p>{selectedWorker.profileCode} - {selectedWorker.headline}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <p style={{ margin: 0 }}>{selectedWorker.profileCode} - {selectedWorker.headline}</p>
+                  {activeInvitation && (
+                    <button className="button ghost" type="button" onClick={copyInvId} style={{ fontSize: 11, padding: "2px 8px" }}>
+                      {copiedInvId ? "✓ ID copiado" : `ID: ${activeInvitation.invitationId.slice(0, 8)}…`}
+                    </button>
+                  )}
+                </div>
               </div>
+            </div>
+            {/* Etiqueta interna de calificación */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>Etiqueta interna:</span>
+              {(["hot", "warm", "cold"] as const).map((lbl) => (
+                <button
+                  key={lbl}
+                  type="button"
+                  className={workerLabels[selectedWorker.workerId] === lbl ? "button primary" : "button ghost"}
+                  style={{ fontSize: 11, padding: "2px 10px", borderRadius: 100, background: workerLabels[selectedWorker.workerId] === lbl ? (lbl === "hot" ? "#dc2626" : lbl === "warm" ? "#f59e0b" : "#64748b") : undefined, borderColor: "transparent" }}
+                  onClick={() => saveWorkerLabel(selectedWorker.workerId, workerLabels[selectedWorker.workerId] === lbl ? "" : lbl)}
+                >
+                  {lbl === "hot" ? "🔥 Prioritario" : lbl === "warm" ? "⭐ Interesante" : "❄️ Frío"}
+                </button>
+              ))}
+              <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>Mi puntuación:</span>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: (workerStars[selectedWorker.workerId] ?? 0) >= star ? "#f59e0b" : "#d1d5db", padding: "0 1px" }}
+                  aria-label={`${star} estrellas`}
+                  onClick={() => saveWorkerStar(selectedWorker.workerId, star)}
+                >★</button>
+              ))}
             </div>
             <p>{selectedWorker.summary}</p>
             {selectedWorker.formattedCv ? (
@@ -1259,6 +1799,31 @@ export function CompanyWorkspace() {
                 </button>
               ))}
             </div>
+            {activeInvitation && !["hired", "closed"].includes(activeInvitation.status) && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="button primary"
+                  style={{ background: "#16a34a", borderColor: "#16a34a" }}
+                  onClick={() => { if (confirm("¿Confirmar contratación? Esto marcará el proceso como cerrado exitosamente.")) handleStatus("hired"); }}
+                >
+                  ✓ Marcar como contratado
+                </button>
+                <button
+                  type="button"
+                  className="button ghost"
+                  style={{ color: "#dc2626" }}
+                  onClick={() => { if (confirm("¿Cerrar este proceso? No podrás reactivarlo desde aquí.")) handleStatus("closed"); }}
+                >
+                  Cerrar proceso
+                </button>
+              </div>
+            )}
+            {activeInvitation?.status === "hired" && (
+              <div style={{ padding: "8px 14px", background: "#dcfce7", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#16a34a", marginTop: 8 }}>
+                ✓ Proceso cerrado exitosamente — candidato contratado
+              </div>
+            )}
             <InterviewRulesCard
               accepted={Boolean(activeInvitation?.interviewRulesAccepted?.company)}
               otherAccepted={Boolean(activeInvitation?.interviewRulesAccepted?.worker)}
@@ -1274,7 +1839,39 @@ export function CompanyWorkspace() {
                 Programar para Google Calendar
               </button>
             </div>
-            {calendarUrl ? <a className="button secondary" href={calendarUrl} target="_blank" rel="noreferrer">Abrir Google Calendar</a> : null}
+            {calendarUrl ? (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a className="button secondary" href={calendarUrl} target="_blank" rel="noreferrer">Abrir Google Calendar</a>
+                <button className="button ghost" type="button" onClick={copyCalendarUrl}>
+                  {copiedCalendar ? "✓ Copiado" : "Copiar enlace"}
+                </button>
+              </div>
+            ) : null}
+            {/* Notas internas del equipo de RRHH */}
+            <label style={{ display: "block", marginTop: 12 }}>
+              <span style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}>Notas internas (solo visibles para tu equipo)</span>
+              <textarea
+                value={workerNotes[selectedWorker.workerId] ?? ""}
+                onChange={(e) => saveWorkerNote(selectedWorker.workerId, e.target.value)}
+                placeholder="Ej: Candidato fuerte en Excel, evaluar para el área de finanzas. Disponible desde enero."
+                rows={3}
+                style={{ width: "100%", fontSize: 13 }}
+              />
+            </label>
+            {/* Comentarios del proceso (por invitación, distinto de notas del candidato) */}
+            {activeInvitation && (
+              <label style={{ display: "block", marginTop: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}>Comentarios del proceso (por esta invitación)</span>
+                <textarea
+                  value={invitationComments[activeInvitation.invitationId] ?? ""}
+                  onChange={(e) => saveInvitationComment(activeInvitation.invitationId, e.target.value)}
+                  placeholder="Ej: Primera entrevista el lunes — candidato solicitó inicio en marzo. Revisar condiciones de contrato."
+                  rows={3}
+                  style={{ width: "100%", fontSize: 13 }}
+                />
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>Guardado localmente. Vinculado al ID de esta invitación.</span>
+              </label>
+            )}
             <div className="formGrid">
               <label>
                 Evaluación del postulante
@@ -1347,13 +1944,13 @@ export function CompanyWorkspace() {
           <div className="formHeader">
             <Send size={22} aria-hidden="true" />
             <div>
-              <h2>Invitacion laboral</h2>
+              <h2>Invitación laboral</h2>
               <p>{selectedWorker ? `Perfil seleccionado: ${selectedWorker.profileCode}` : "Selecciona un perfil anónimo antes de crear una invitación."}</p>
             </div>
           </div>
           <div className="formGrid">
             <label className="wide">
-              Plantilla de invitacion
+              Plantilla de invitación
               <select value={invite.templateId} onChange={(event) => applyTemplate(event.target.value)}>
                 <option value="manual">Manual / escribir desde cero</option>
                 {invitationTemplates.map((template) => (
@@ -1366,7 +1963,7 @@ export function CompanyWorkspace() {
               <input value={invite.opportunityTitle} onChange={(event) => updateInvite("opportunityTitle", event.target.value)} />
             </label>
             <label>
-              Ubicacion
+              Ubicación
               <input value={invite.location} onChange={(event) => updateInvite("location", event.target.value)} />
             </label>
             <label>
@@ -1402,18 +1999,22 @@ export function CompanyWorkspace() {
               Mensaje
               <textarea value={invite.message} onChange={(event) => updateInvite("message", event.target.value)} />
             </label>
+            <label>
+              Fecha límite de decisión
+              <input type="date" value={invite.decisionDeadline} onChange={(event) => updateInvite("decisionDeadline", event.target.value)} min={new Date().toISOString().split("T")[0]} />
+            </label>
           </div>
           <div className="actions">
             <button className="button primary" disabled={companyProfile?.verificationStatus !== "verified"} type="submit">
-              Enviar invitacion
+              Enviar invitación
             </button>
             <button className="button secondary" type="button" onClick={handleUnlock}>
               <MercadoPagoIcon />
-              Pagar $999
+              Pagar $9.990 CLP
             </button>
           </div>
           <label>
-            Cupon de descuento
+            Cupón de descuento
             <input value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="BIENVENIDA50" />
           </label>
         </form>
@@ -1441,14 +2042,287 @@ export function CompanyWorkspace() {
             <p className="paymentLockNotice">La entrevista se habilita cuando empresa y postulante aceptan las reglas.</p>
           ) : null}
           <div className="messageComposer">
-            <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} />
-            <button className="button primary" disabled={!interviewReady} type="button" onClick={handleMessage}>Enviar mensaje</button>
+            <textarea
+              aria-label="Escribe tu mensaje"
+              placeholder="Escribe tu mensaje aquí... (Ctrl+Enter para enviar)"
+              value={messageBody}
+              onChange={(event) => setMessageBody(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && interviewReady && messageBody.trim()) {
+                  event.preventDefault();
+                  handleMessage();
+                }
+              }}
+            />
+            <button className="button primary" disabled={!interviewReady || !messageBody.trim()} type="button" onClick={handleMessage}>Enviar mensaje</button>
           </div>
         </section>
         ) : null}
 
+        {activeView === "kanban" ? (
+          <section className="formSurface" style={{ overflowX: "auto" }}>
+            <div className="formHeader">
+              <BriefcaseBusiness size={22} aria-hidden="true" />
+              <div>
+                <h2>Pipeline de contratación</h2>
+                <p>Vista por etapas de todos tus procesos activos. Usa los botones para mover candidatos.</p>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${pipelineStatuses.length}, minmax(180px, 1fr))`, gap: 12, minWidth: 900 }}>
+              {pipelineStatuses.map((stage) => {
+                const stageInvs = invitations.filter((i) => i.status === stage.key);
+                return (
+                  <div key={stage.key} style={{ background: "var(--surface-alt, #f9fafb)", borderRadius: 10, padding: 12, minHeight: 200 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <strong style={{ fontSize: 13 }}>{stage.label}</strong>
+                      <span style={{ fontSize: 11, background: "var(--border, #e5e7eb)", borderRadius: 20, padding: "1px 8px", fontWeight: 600 }}>{stageInvs.length}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {stageInvs.map((inv) => {
+                        const stageIdx = pipelineStatuses.findIndex((s) => s.key === stage.key);
+                        const nextStage = pipelineStatuses[stageIdx + 1];
+                        const prevStage = pipelineStatuses[stageIdx - 1];
+                        return (
+                          <div key={inv.invitationId} style={{ background: "var(--surface, #fff)", borderRadius: 8, padding: "8px 10px", border: "1px solid var(--border, #e5e7eb)", fontSize: 12 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 2 }}>{inv.opportunityTitle}</div>
+                            <div style={{ color: "var(--muted)", marginBottom: 6 }}>${inv.salaryMin.toLocaleString("es-CL")} · {inv.location || "—"}</div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {prevStage && (
+                                <button type="button" className="button ghost" style={{ fontSize: 10, padding: "2px 6px" }}
+                                  onClick={() => updateInvitationStatus(inv.invitationId, prevStage.key).catch(() => {})}>
+                                  ← {prevStage.label}
+                                </button>
+                              )}
+                              {nextStage && (
+                                <button type="button" className="button secondary" style={{ fontSize: 10, padding: "2px 6px" }}
+                                  onClick={() => updateInvitationStatus(inv.invitationId, nextStage.key).catch(() => {})}>
+                                  {nextStage.label} →
+                                </button>
+                              )}
+                              <button type="button" className="button ghost" style={{ fontSize: 10, padding: "2px 6px", color: "#dc2626" }}
+                                onClick={() => updateInvitationStatus(inv.invitationId, "closed").catch(() => {})}>
+                                Cerrar
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {stageInvs.length === 0 && <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 20 }}>Sin candidatos</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {activeView === "billing" ? (
           <>
+          {/* ── Alerta de presupuesto ── */}
+          {(() => {
+            const totalSpent = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+            const overBudget = budgetAlert > 0 && totalSpent >= budgetAlert;
+            return (
+              <section className="formSurface" style={{ marginBottom: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flex: 1, minWidth: 220 }}>
+                    <span style={{ whiteSpace: "nowrap" }}>Alerta presupuesto (CLP):</span>
+                    <input
+                      type="number"
+                      value={budgetAlert || ""}
+                      onChange={(e) => saveBudgetAlert(Number(e.target.value))}
+                      placeholder="Ej: 50000"
+                      inputMode="numeric"
+                      style={{ width: 130, fontSize: 13 }}
+                    />
+                  </label>
+                  <span style={{ fontSize: 13, color: "var(--muted)" }}>Gastado: <strong style={{ color: overBudget ? "#dc2626" : "inherit" }}>${totalSpent.toLocaleString("es-CL")}</strong></span>
+                  {budgetAlert > 0 && (
+                    <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: overBudget ? "#fee2e2" : "#dcfce7", color: overBudget ? "#dc2626" : "#16a34a" }}>
+                      {overBudget ? "⚠ Presupuesto superado" : `${Math.round((totalSpent / budgetAlert) * 100)}% utilizado`}
+                    </span>
+                  )}
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* ── Planes empresa ── */}
+          <section className="formSurface">
+            <div className="formHeader">
+              <CreditCard size={22} aria-hidden="true" />
+              <div>
+                <h2>Planes empresa</h2>
+                <p>Elige el plan que mejor se adapte a tu ritmo de contratación</p>
+              </div>
+            </div>
+
+            {/* Plan Mensual */}
+            <div style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "1rem 1.25rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <strong style={{ fontSize: 15 }}>Plan Mensual</strong>
+                  <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--muted)" }}>5 contactos · $9.990 CLP/mes</p>
+                </div>
+                {monthlyPlan?.active && monthlyPlan.renewsAt && monthlyPlan.renewsAt.seconds * 1000 > Date.now() && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--green)", background: "rgba(0,150,80,0.1)", padding: "2px 8px", borderRadius: 20 }}>ACTIVO</span>
+                )}
+              </div>
+              {monthlyPlan?.active && monthlyPlan.renewsAt && monthlyPlan.renewsAt.seconds * 1000 > Date.now() ? (
+                <div className="monthlyPlanStats">
+                  <article>
+                    <span className="smallLabel">Contactos disponibles</span>
+                    <strong>{monthlyPlan.contactCreditsTotal - monthlyPlan.contactCreditsUsed} / {monthlyPlan.contactCreditsTotal}</strong>
+                  </article>
+                  <article>
+                    <span className="smallLabel">Vence</span>
+                    <strong>{new Date(monthlyPlan.renewsAt.seconds * 1000).toLocaleDateString("es-CL")}</strong>
+                  </article>
+                </div>
+              ) : (
+                <button
+                  className="button secondary"
+                  type="button"
+                  style={{ marginTop: 4 }}
+                  onClick={async () => {
+                    setStatus("Abriendo Mercado Pago...");
+                    try {
+                      const { url } = await createCompanyMonthlyCheckout();
+                      window.location.href = url;
+                    } catch (error) {
+                      setStatus(error instanceof Error ? error.message : "No se pudo iniciar el pago.");
+                    }
+                  }}
+                >
+                  Contratar plan mensual — $9.990 CLP
+                </button>
+              )}
+            </div>
+
+            {/* Plan Ilimitado */}
+            <div style={{ border: "1.5px solid #0094d4", borderRadius: 10, padding: "1rem 1.25rem", background: "rgba(0,148,212,0.04)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <strong style={{ fontSize: 15 }}>Plan Ilimitado ✦</strong>
+                  <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--muted)" }}>Contactos ilimitados · $29.990 CLP/mes</p>
+                </div>
+                {unlimitedPlan?.active && unlimitedPlan.renewsAt && unlimitedPlan.renewsAt.seconds * 1000 > Date.now() ? (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#0094d4", background: "rgba(0,148,212,0.12)", padding: "2px 8px", borderRadius: 20 }}>ACTIVO</span>
+                ) : (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#e28c00", background: "rgba(226,140,0,0.1)", padding: "2px 8px", borderRadius: 20 }}>RECOMENDADO</span>
+                )}
+              </div>
+              {unlimitedPlan?.active && unlimitedPlan.renewsAt && unlimitedPlan.renewsAt.seconds * 1000 > Date.now() ? (
+                <div className="monthlyPlanStats">
+                  <article>
+                    <span className="smallLabel">Contactos</span>
+                    <strong>Ilimitados</strong>
+                  </article>
+                  <article>
+                    <span className="smallLabel">Vence</span>
+                    <strong>{new Date(unlimitedPlan.renewsAt.seconds * 1000).toLocaleDateString("es-CL")}</strong>
+                  </article>
+                </div>
+              ) : (
+                <>
+                  <ul className="pricingFeatures" style={{ marginBottom: 12, fontSize: 13 }}>
+                    <li><CheckCircle2 size={14} aria-hidden="true" /> Desbloquea contactos sin límite durante 30 días</li>
+                    <li><CheckCircle2 size={14} aria-hidden="true" /> Sin pago extra por cada candidato aceptado</li>
+                    <li><CheckCircle2 size={14} aria-hidden="true" /> Ideal si contratas 4+ personas al mes</li>
+                  </ul>
+                  <button
+                    className="button primary"
+                    type="button"
+                    onClick={async () => {
+                      setStatus("Abriendo Mercado Pago...");
+                      try {
+                        const { url } = await createCompanyUnlimitedCheckout();
+                        window.location.href = url;
+                      } catch (error) {
+                        setStatus(error instanceof Error ? error.message : "No se pudo iniciar el pago.");
+                      }
+                    }}
+                  >
+                    Contratar plan ilimitado — $29.990 CLP
+                  </button>
+                  <p className="helperText" style={{ marginTop: 6 }}>Equivale a 3 contactos individuales. Desde el 4.° en adelante es gratis.</p>
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* ── Alertas de candidatos ── */}
+          <section className="formSurface">
+            <div className="formHeader">
+              <Bell size={22} aria-hidden="true" />
+              <div>
+                <h2>Alertas de candidatos</h2>
+                <p>Recibe un email diario cuando aparezcan perfiles que coincidan con tus criterios.</p>
+              </div>
+            </div>
+            <div className="formGrid">
+              <label className="wide" style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={alertPrefs.enabled}
+                  onChange={(e) => setAlertPrefs((p) => ({ ...p, enabled: e.target.checked }))}
+                  style={{ width: 16, height: 16, flexShrink: 0 }}
+                />
+                Activar alertas diarias por email
+              </label>
+              <label>
+                Áreas de interés (separadas por coma)
+                <input
+                  value={alertPrefs.areas.join(", ")}
+                  onChange={(e) => setAlertPrefs((p) => ({ ...p, areas: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))}
+                  placeholder="Tecnología, Ventas, Administración"
+                />
+              </label>
+              <label>
+                Renta máxima esperada (CLP)
+                <input
+                  value={alertPrefs.salaryMax || ""}
+                  onChange={(e) => setAlertPrefs((p) => ({ ...p, salaryMax: Number(e.target.value) || 0 }))}
+                  inputMode="numeric"
+                  placeholder="2000000"
+                />
+              </label>
+              <label>
+                Modalidad
+                <select
+                  value={alertPrefs.workModes[0] ?? ""}
+                  onChange={(e) => setAlertPrefs((p) => ({ ...p, workModes: e.target.value ? [e.target.value] : [] }))}
+                >
+                  <option value="">Cualquiera</option>
+                  <option value="onsite">Presencial</option>
+                  <option value="hybrid">Híbrida</option>
+                  <option value="remote">Remota</option>
+                </select>
+              </label>
+            </div>
+            <div className="actions">
+              <button
+                className="button primary"
+                type="button"
+                disabled={savingAlerts}
+                onClick={async () => {
+                  setSavingAlerts(true);
+                  try {
+                    await saveCompanyAlertPreferences(alertPrefs);
+                    setStatus("Preferencias de alerta guardadas.");
+                  } catch (error) {
+                    setStatus(error instanceof Error ? error.message : "No se pudo guardar.");
+                  } finally {
+                    setSavingAlerts(false);
+                  }
+                }}
+              >
+                {savingAlerts ? "Guardando..." : "Guardar preferencias"}
+              </button>
+            </div>
+          </section>
+
+          {/* ── Comprobantes ── */}
           <section className="comparisonTable">
             <div className="formHeader">
               <BadgeDollarSign size={22} aria-hidden="true" />
@@ -1457,14 +2331,44 @@ export function CompanyWorkspace() {
                 <p>Estados de cobro generados por cierre o intercambio de contacto.</p>
               </div>
             </div>
+            {payments.length > 0 && (
+              <div className="dashboardGrid" style={{ marginBottom: 12 }}>
+                <article>
+                  <span className="smallLabel">Total invertido</span>
+                  <strong>${payments.filter((p) => p.status === "paid").reduce((acc, p) => acc + p.amount, 0).toLocaleString("es-CL")}</strong>
+                  <p>CLP en contactos y planes</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Pagos confirmados</span>
+                  <strong>{payments.filter((p) => p.status === "paid").length}</strong>
+                  <p>de {payments.length} transacciones</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Costo por contratado</span>
+                  <strong>
+                    {invitations.filter((i) => i.status === "hired").length > 0
+                      ? `$${Math.round(payments.filter((p) => p.status === "paid").reduce((acc, p) => acc + p.amount, 0) / invitations.filter((i) => i.status === "hired").length).toLocaleString("es-CL")}`
+                      : "—"}
+                  </strong>
+                  <p>promedio por contratación</p>
+                </article>
+              </div>
+            )}
+            {payments.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                <button className="button ghost" type="button" onClick={exportPaymentsCsv} style={{ fontSize: 12 }}>
+                  ⬇ Exportar CSV
+                </button>
+              </div>
+            )}
             <div className="paymentList">
               {payments.length ? payments.map((payment) => (
                 <article key={payment.paymentId}>
                   <strong>${payment.amount.toLocaleString("es-CL")}</strong>
                   <span>{payment.paymentType}</span>
-                  <span>{payment.status}</span>
+                  <span className={payment.status === "paid" ? "statusBadgePaid" : ""}>{payment.status === "paid" ? "✓ Pagado" : payment.status}</span>
                 </article>
-              )) : <p className="emptyState">Aun no hay pagos registrados.</p>}
+              )) : <p className="emptyState">Aún no hay pagos registrados.</p>}
             </div>
           </section>
           <CompanyInvoicesPanel />
@@ -1511,8 +2415,8 @@ export function CompanyWorkspace() {
 
 function verificationLabel(status?: string) {
   if (status === "verified") return "Empresa verificada";
-  if (status === "pending") return "Revision pendiente";
-  if (status === "rejected") return "Revision rechazada";
+  if (status === "pending") return "Revisión pendiente";
+  if (status === "rejected") return "Revisión rechazada";
   if (status === "suspended") return "Empresa suspendida";
   return "Verificación requerida";
 }
@@ -1521,8 +2425,8 @@ function verificationText(status?: string) {
   if (status === "verified") return "Puedes enviar invitaciones con sueldo y condiciones claras.";
   if (status === "pending") return "El equipo interno revisara identidad, RUT y presencia web.";
   if (status === "rejected") return "Corrige los datos o agrega información verificable.";
-  if (status === "suspended") return "El acceso a contactos esta bloqueado por seguridad.";
-  return "Guarda la empresa para iniciar la revision interna.";
+  if (status === "suspended") return "El acceso a contactos está bloqueado por seguridad.";
+  return "Guarda la empresa para iniciar la revisión interna.";
 }
 
 export function InterviewRulesCard({
@@ -1543,11 +2447,11 @@ export function InterviewRulesCard({
         <h3>Antes de conversar, ambos aceptan estas condiciones.</h3>
       </div>
       <ul>
-        <li>La entrevista ocurre dentro de Perfil Primero y queda monitoreada por IA y reglas automaticas.</li>
-        <li>No se permite entregar correo, telefono, WhatsApp, LinkedIn ni datos externos antes del cierre.</li>
+        <li>La entrevista ocurre dentro de Perfil Primero y queda monitoreada por IA y reglas automáticas.</li>
+        <li>No se permite entregar correo, teléfono, WhatsApp, LinkedIn ni datos externos antes del cierre.</li>
         <li>Si aparece intento de intercambio de contacto, el chat se bloquea y se activa el pago de cierre a la empresa.</li>
         <li>El postulante vera que la empresa esta realizando el pago para cerrar trato.</li>
-        <li>Una vez confirmado el pago, se desbloquea el contacto privado y la conversacion puede continuar.</li>
+        <li>Una vez confirmado el pago, se desbloquea el contacto privado y la conversación puede continuar.</li>
       </ul>
       <div className="rulesStatus">
         <span className={accepted ? "ok" : ""}>{role === "company" ? "Empresa" : "Postulante"}: {accepted ? "aceptado" : "pendiente"}</span>

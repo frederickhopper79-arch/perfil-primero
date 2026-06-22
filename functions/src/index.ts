@@ -1,7 +1,10 @@
+import * as crypto from "crypto";
+import * as webpush from "web-push";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, Query, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import type { CallableOptions } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import Stripe from "stripe";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -14,6 +17,84 @@ initializeApp();
 const db = getFirestore();
 const appUrl = process.env.APP_URL ?? "https://perfil-primero.web.app";
 const launchPriceClp = 999;
+
+// Opciones de runtime para funciones de alta frecuencia
+export const CALL_OPTS_FAST: CallableOptions = { timeoutSeconds: 30, memory: "256MiB", minInstances: 0 };
+export const CALL_OPTS_HEAVY: CallableOptions = { timeoutSeconds: 120, memory: "512MiB", minInstances: 0 };
+
+// ── Structured logger ─────────────────────────────────────────────────────
+export function log(severity: "INFO" | "WARNING" | "ERROR", msg: string, data?: Record<string, unknown>) {
+  console.log(JSON.stringify({ severity, message: msg, ...data, timestamp: new Date().toISOString() }));
+}
+
+// ── Input sanitizer ───────────────────────────────────────────────────────
+export function sanitize(input: unknown, maxLen = 2000): string {
+  if (typeof input !== "string") return "";
+  return input.replace(/<[^>]*>/g, "").replace(/javascript:/gi, "").slice(0, maxLen).trim();
+}
+
+// ── Typed error helpers ───────────────────────────────────────────────────
+export function assertString(val: unknown, field: string): string {
+  if (typeof val !== "string" || !val.trim()) throw new HttpsError("invalid-argument", `${field} es requerido.`);
+  return sanitize(val);
+}
+
+export function assertPositiveInt(val: unknown, field: string): number {
+  const n = Number(val);
+  if (!Number.isInteger(n) || n <= 0) throw new HttpsError("invalid-argument", `${field} debe ser un número entero positivo.`);
+  return n;
+}
+
+// ── Validación RUT chileno (módulo 11) ────────────────────────────────────
+function validateRutCl(rut: string): boolean {
+  const clean = rut.replace(/[^0-9kK]/g, "").toUpperCase();
+  if (clean.length < 8) return false;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  let sum = 0;
+  let mult = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mult;
+    mult = mult === 7 ? 2 : mult + 1;
+  }
+  const remainder = 11 - (sum % 11);
+  const expected = remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
+  return dv === expected;
+}
+
+// ── Rate limiting in-memory (por UID) ─────────────────────────────────────
+const _rateLimitStore = new Map<string, number[]>();
+function checkRateLimit(uid: string, key: string, maxRequests: number, windowMs: number): void {
+  const storeKey = `${uid}:${key}`;
+  const now = Date.now();
+  const timestamps = (_rateLimitStore.get(storeKey) ?? []).filter(t => now - t < windowMs);
+  if (timestamps.length >= maxRequests) {
+    throw new HttpsError("resource-exhausted", "Demasiadas solicitudes. Espera un momento antes de intentarlo nuevamente.");
+  }
+  _rateLimitStore.set(storeKey, [...timestamps, now]);
+}
+
+// ── Mercado Pago: validar firma x-signature ───────────────────────────────
+function validateMercadoPagoSignature(
+  request: { headers: Record<string, string | string[] | undefined>; query: Record<string, string | string[] | undefined> }
+): boolean {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("MERCADOPAGO_WEBHOOK_SECRET no configurado — rechazando webhook por seguridad");
+    return false;
+  }
+  const xSignature = String(request.headers["x-signature"] ?? "");
+  const xRequestId = String(request.headers["x-request-id"] ?? "");
+  const dataId = String(request.query["data.id"] ?? "");
+  if (!xSignature || !xRequestId) return false;
+  const parts = xSignature.split(",");
+  const tsPart = parts.find(p => p.startsWith("ts="))?.split("=")[1] ?? "";
+  const v1Part = parts.find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
+  if (!tsPart || !v1Part) return false;
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${tsPart};`;
+  const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Part));
+}
 
 type CreateInvitationInput = {
   workerId: string;
@@ -94,7 +175,7 @@ type PricingConfig = {
 
 async function assertAdmin(uid?: string) {
   if (!uid) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const user = await db.collection("users").doc(uid).get();
@@ -132,7 +213,7 @@ export const updateCompanyVerification = onCall<{
   const { companyId, status, notes } = request.data;
 
   if (!companyId || !["verified", "rejected", "suspended"].includes(status)) {
-    throw new HttpsError("invalid-argument", "Estado de empresa invalido.");
+    throw new HttpsError("invalid-argument", "Estado de empresa inválido.");
   }
 
   const companyRef = db.collection("companyProfiles").doc(companyId);
@@ -142,6 +223,20 @@ export const updateCompanyVerification = onCall<{
     throw new HttpsError("not-found", "La empresa no existe.");
   }
 
+  const trialUpdate =
+    status === "verified"
+      ? {
+          "monthlyPlan.active": true,
+          "monthlyPlan.contactCreditsTotal": 3,
+          "monthlyPlan.contactCreditsUsed": 0,
+          "monthlyPlan.trial": true,
+          "monthlyPlan.activatedAt": FieldValue.serverTimestamp(),
+          "monthlyPlan.renewsAt": Timestamp.fromDate(
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          )
+        }
+      : {};
+
   await companyRef.set(
     {
       verificationStatus: status,
@@ -150,10 +245,27 @@ export const updateCompanyVerification = onCall<{
       rejectedAt: status === "rejected" ? FieldValue.serverTimestamp() : null,
       suspendedAt: status === "suspended" ? FieldValue.serverTimestamp() : null,
       reviewedBy: adminId,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: FieldValue.serverTimestamp(),
+      ...trialUpdate
     },
     { merge: true }
   );
+
+  if (status === "verified") {
+    const companyData = company.data();
+    const email: string | undefined = companyData?.contactEmail ?? companyData?.email;
+    if (email) {
+      await sendEmail(
+        email,
+        "¡Tu empresa fue verificada en Perfil Primero!",
+        `<p>Hola equipo de <strong>${companyData?.companyName ?? "tu empresa"}</strong>,</p>
+         <p>Tu empresa fue <strong>verificada</strong>. Ya puedes buscar postulantes y enviar invitaciones.</p>
+         <p>Como regalo de bienvenida, tienes <strong>30 días de plan mensual gratis</strong> con 3 créditos de contacto incluidos.</p>
+         <p><a href="${appUrl}/empresa" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Buscar talento ahora →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+    }
+  }
 
   await writeAudit(adminId, "admin", `company_${status}`, "company", companyId, {
     companyId,
@@ -168,12 +280,29 @@ export const createManagedUser = onCall<{
   password: string;
   role: ManagedUserRole;
   status?: "active" | "suspended";
+  omilMetadata?: {
+    municipalityName: string;
+    contactPersonName: string;
+    contactPersonRut: string;
+    contactPersonRole: string;
+    municipalityLogoUrl?: string;
+  };
 }>(async (request) => {
   const adminId = await assertAdmin(request.auth?.uid);
-  const { email, password, role, status } = request.data;
+  const { email, password, role, status, omilMetadata } = request.data;
 
   if (!email || !password || password.length < 6 || !["worker", "company", "admin", "omil"].includes(role)) {
-    throw new HttpsError("invalid-argument", "Email, contrasena y rol son obligatorios.");
+    throw new HttpsError("invalid-argument", "Email, contraseña y rol son obligatorios.");
+  }
+
+  if (role === "omil") {
+    if (!omilMetadata?.municipalityName || !omilMetadata?.contactPersonName ||
+        !omilMetadata?.contactPersonRut || !omilMetadata?.contactPersonRole) {
+      throw new HttpsError("invalid-argument", "Municipalidad, persona a cargo, RUT y cargo son obligatorios para cuentas OMIL.");
+    }
+    if (!validateRutCl(omilMetadata.contactPersonRut)) {
+      throw new HttpsError("invalid-argument", "RUT inválido. Verifica el dígito verificador.");
+    }
   }
 
   let userId = "";
@@ -199,24 +328,34 @@ export const createManagedUser = onCall<{
     });
   }
 
-  await db.collection("users").doc(userId).set(
-    {
-      email,
-      role,
-      status: status ?? "active",
-      managedByAdmin: true,
-      billingExempt: role === "omil",
-      canCreateUnlimitedPostulants: role === "omil",
-      createdBy: adminId,
-      updatedAt: FieldValue.serverTimestamp(),
-      createdAt: FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
+  const userDoc: Record<string, unknown> = {
+    email,
+    role,
+    status: status ?? "active",
+    managedByAdmin: true,
+    billingExempt: role === "omil",
+    canCreateUnlimitedPostulants: role === "omil",
+    createdBy: adminId,
+    updatedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp()
+  };
+
+  if (role === "omil" && omilMetadata) {
+    userDoc.omil = {
+      municipalityName: omilMetadata.municipalityName.trim(),
+      contactPersonName: omilMetadata.contactPersonName.trim(),
+      contactPersonRut: omilMetadata.contactPersonRut.trim().toUpperCase(),
+      contactPersonRole: omilMetadata.contactPersonRole.trim(),
+      ...(omilMetadata.municipalityLogoUrl ? { municipalityLogoUrl: omilMetadata.municipalityLogoUrl } : {})
+    };
+  }
+
+  await db.collection("users").doc(userId).set(userDoc, { merge: true });
 
   await writeAudit(adminId, "admin", "managed_user_created", "user", userId, {
     email,
-    role
+    role,
+    ...(role === "omil" && omilMetadata ? { municipality: omilMetadata.municipalityName } : {})
   });
 
   return { userId, email, role, status: status ?? "active" };
@@ -248,6 +387,20 @@ export const createOmilPostulantProfile = onCall<{
     throw new HttpsError("permission-denied", "Esta cuenta no esta habilitada como OMIL.");
   }
 
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const omilMonthlyCount = await db.collection("workerPublicProfiles")
+    .where("createdByOmilId", "==", omilId)
+    .where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
+    .where("createdAt", "<", Timestamp.fromDate(startOfNextMonth))
+    .count()
+    .get();
+  if (omilMonthlyCount.data().count >= 100) {
+    throw new HttpsError("resource-exhausted", "Has alcanzado el límite de 100 perfiles por mes para esta OMIL.");
+  }
+
   const data = request.data;
   const legalName = String(data.legalName ?? "").trim();
   const email = String(data.email ?? "").trim().toLowerCase();
@@ -257,11 +410,13 @@ export const createOmilPostulantProfile = onCall<{
   const city = String(data.city ?? "").trim();
 
   if (!legalName || !email || !headline || !area || !region || !city) {
-    throw new HttpsError("invalid-argument", "Nombre, email, cargo, area, region y comuna son obligatorios.");
+    throw new HttpsError("invalid-argument", "Nombre, email, cargo, área, región y comuna son obligatorios.");
   }
 
   const workerRef = db.collection("workerPublicProfiles").doc();
-  const profileExpiresAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 30);
+  const OMIL_DAYS = 60;
+  const profileExpiresAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * OMIL_DAYS);
+  const preExpiryReminderAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * (OMIL_DAYS - 7));
   const cleanSkills = Array.isArray(data.skills)
     ? data.skills.map((skill) => String(skill).trim()).filter(Boolean).slice(0, 12)
     : [];
@@ -305,16 +460,15 @@ export const createOmilPostulantProfile = onCall<{
     createdAt: FieldValue.serverTimestamp()
   });
 
-  await db.collection("emailReminders").doc(`omil-${workerRef.id}`).set({
-    reminderId: `omil-${workerRef.id}`,
+  await db.collection("emailReminders").doc(`omil-preexpiry-${workerRef.id}`).set({
+    reminderId: `omil-preexpiry-${workerRef.id}`,
     workerId: workerRef.id,
     omilId,
     targetEmail: email,
     status: "queued",
-    channel: "gmail",
-    template: "omil_profile_expiry_subscription_offer",
-    subject: "Tu perfil gratuito OMIL vence pronto",
-    sendAt: profileExpiresAt,
+    type: "omil_pre_expiry",
+    sendAt: preExpiryReminderAt,
+    profileExpiresAt,
     createdAt: FieldValue.serverTimestamp()
   });
 
@@ -350,41 +504,31 @@ export const expireOmilProfiles = onSchedule(
       return;
     }
 
-    const privateRefs = snap.docs.map((doc) => db.collection("workerPrivateProfiles").doc(doc.id));
-    const privateSnaps = privateRefs.length ? await db.getAll(...privateRefs) : [];
-    const privateProfiles = new Map(privateSnaps.map((doc) => [doc.id, doc.data()]));
     const batch = db.batch();
 
     snap.docs.forEach((doc) => {
+      // Convierte a postulante normal: elimina flags OMIL para que pueda pagar como cualquier worker
       batch.set(
         doc.ref,
         {
           visibilityStatus: "expired",
           subscriptionStatus: "expired",
+          profileSource: "worker",
+          billingExempt: false,
+          createdByOmilId: FieldValue.delete(),
+          omilConvertedAt: FieldValue.serverTimestamp(),
           expiredAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
         },
         { merge: true }
       );
 
-      const reminderRef = db.collection("emailReminders").doc(`omil-expired-${doc.id}`);
-      const privateProfile = privateProfiles.get(doc.id);
-      batch.set(
-        reminderRef,
-        {
-          reminderId: reminderRef.id,
-          workerId: doc.id,
-          omilId: doc.data().createdByOmilId ?? null,
-          targetEmail: privateProfile?.email ?? null,
-          status: "pending_email_provider",
-          channel: "gmail",
-          template: "omil_profile_expired_subscription_offer",
-          subject: "Tu perfil gratuito OMIL vencio",
-          body: "Tu perfil gratuito cargado por OMIL cumplio 30 dias. Para seguir visible en Perfil Primero, inicia sesion y activa tu suscripcion.",
-          createdAt: FieldValue.serverTimestamp()
-        },
-        { merge: true }
-      );
+      const privateRef = db.collection("workerPrivateProfiles").doc(doc.id);
+      batch.set(privateRef, {
+        profileSource: "worker",
+        createdByOmilId: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
     });
 
     await batch.commit();
@@ -392,6 +536,52 @@ export const expireOmilProfiles = onSchedule(
     await writeAudit("system", "admin", "omil_profiles_expired", "worker", "bulk", {
       count: String(snap.size)
     });
+  }
+);
+
+export const sendOmilPreExpiryReminders = onSchedule(
+  {
+    schedule: "every day 09:00",
+    timeZone: "America/Santiago",
+    region: "us-central1"
+  },
+  async () => {
+    const now = Timestamp.now();
+    // Busca recordatorios OMIL pendientes cuyo sendAt ya llegó
+    const remSnap = await db.collection("emailReminders")
+      .where("type", "==", "omil_pre_expiry")
+      .where("status", "==", "queued")
+      .where("sendAt", "<=", now)
+      .limit(200)
+      .get();
+
+    if (remSnap.empty) return;
+
+    for (const remDoc of remSnap.docs) {
+      const rem = remDoc.data();
+      const email: string | undefined = rem.targetEmail;
+      if (!email) continue;
+
+      const expiresAt: Timestamp | undefined = rem.profileExpiresAt;
+      const expiresDate = expiresAt ? expiresAt.toDate().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" }) : "pronto";
+
+      try {
+        await sendEmail(
+          email,
+          "⏰ Tu perfil gratuito OMIL vence en 7 días — activa tu suscripción para seguir visible",
+          `<p>Hola,</p>
+           <p>Tu perfil laboral publicado a través de la OMIL <strong>vence el ${expiresDate}</strong>.</p>
+           <p>Cuando venza, tu perfil dejará de aparecer en las búsquedas de empresas. Si quieres seguir visible en <strong>Perfil Primero</strong>, solo necesitas activar tu propia suscripción mensual por <strong>$999 CLP</strong> — igual que cualquier otro postulante.</p>
+           <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Activar mi suscripción →</a></p>
+           <p>Si no deseas continuar, no necesitas hacer nada — tu perfil se desactivará automáticamente al vencer.</p>
+           <p>— Equipo Perfil Primero</p>`
+        );
+
+        await remDoc.ref.update({ status: "sent", sentAt: FieldValue.serverTimestamp() });
+      } catch {
+        await remDoc.ref.update({ status: "error_sending", updatedAt: FieldValue.serverTimestamp() });
+      }
+    }
   }
 );
 
@@ -804,7 +994,7 @@ export const listCompanyBillingDocuments = onCall(async (request) => {
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const snap = await db
@@ -814,26 +1004,32 @@ export const listCompanyBillingDocuments = onCall(async (request) => {
     .limit(80)
     .get();
 
-  const documents = await Promise.all(
-    snap.docs.map(async (paymentDoc) => {
-      const payment = paymentDoc.data();
-      const accounting = await db.collection("accountingEntries").doc(payment.paymentId).get();
-      const entry = accounting.data() ?? {};
-      return {
-        paymentId: payment.paymentId,
-        providerPaymentId: payment.providerPaymentId ?? "",
-        amount: payment.amount ?? 0,
-        currency: payment.currency ?? "CLP",
-        paymentType: payment.paymentType ?? "",
-        status: payment.status ?? "",
-        folioSii: entry.folioSii ?? "",
-        pdfUrl: entry.pdfUrl ?? "",
-        xmlUrl: entry.xmlUrl ?? "",
-        siiStatus: entry.siiStatus ?? "pending_provider",
-        createdAt: payment.createdAt?.toDate?.().toISOString?.() ?? ""
-      };
-    })
+  // Batch all accountingEntry reads in a single RPC (avoid N+1)
+  const accountingRefs = snap.docs.map((d) =>
+    db.collection("accountingEntries").doc(d.data().paymentId ?? d.id)
   );
+  const accountingSnaps = accountingRefs.length
+    ? await db.getAll(...accountingRefs)
+    : [];
+  const accountingMap = new Map(accountingSnaps.map((s) => [s.id, s.data() ?? {}]));
+
+  const documents = snap.docs.map((paymentDoc) => {
+    const payment = paymentDoc.data();
+    const entry = accountingMap.get(payment.paymentId ?? paymentDoc.id) ?? {};
+    return {
+      paymentId: payment.paymentId,
+      providerPaymentId: payment.providerPaymentId ?? "",
+      amount: payment.amount ?? 0,
+      currency: payment.currency ?? "CLP",
+      paymentType: payment.paymentType ?? "",
+      status: payment.status ?? "",
+      folioSii: (entry as Record<string, unknown>).folioSii ?? "",
+      pdfUrl: (entry as Record<string, unknown>).pdfUrl ?? "",
+      xmlUrl: (entry as Record<string, unknown>).xmlUrl ?? "",
+      siiStatus: (entry as Record<string, unknown>).siiStatus ?? "pending_provider",
+      createdAt: payment.createdAt?.toDate?.().toISOString?.() ?? ""
+    };
+  });
 
   return { documents };
 });
@@ -842,13 +1038,27 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
+
+  checkRateLimit(companyId, "createInvitation", 10, 60_000);
 
   const company = await db.collection("companyProfiles").doc(companyId).get();
 
   if (!company.exists || company.data()?.verificationStatus !== "verified") {
     throw new HttpsError("permission-denied", "La empresa debe estar verificada.");
+  }
+
+  // Límite de 20 invitaciones por empresa por día calendario
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const dailySnap = await db.collection("invitations")
+    .where("companyId", "==", companyId)
+    .where("createdAt", ">=", Timestamp.fromDate(startOfDay))
+    .count()
+    .get();
+  if (dailySnap.data().count >= 20) {
+    throw new HttpsError("resource-exhausted", "Límite de 20 invitaciones por día alcanzado. Reintenta mañana.");
   }
 
   const data = request.data;
@@ -858,13 +1068,13 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
   }
 
   if (!data.salaryMin || !data.salaryMax || data.salaryMax < data.salaryMin) {
-    throw new HttpsError("invalid-argument", "La invitacion requiere un rango salarial valido.");
+    throw new HttpsError("invalid-argument", "La invitación requiere un rango salarial válido.");
   }
 
   const worker = await db.collection("workerPublicProfiles").doc(data.workerId).get();
 
   if (!worker.exists || worker.data()?.visibilityStatus !== "visible") {
-    throw new HttpsError("failed-precondition", "El perfil no esta visible.");
+    throw new HttpsError("failed-precondition", "El perfil no está visible.");
   }
 
   const invitationRef = db.collection("invitations").doc();
@@ -891,12 +1101,30 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
     createdAt: now,
     updatedAt: now,
     companyHiredCount: companyData.hiredCount ?? 0,
-    companyVerified: true
+    companyVerified: true,
+    ...(data.decisionDeadline ? (() => {
+      const deadline = new Date(data.decisionDeadline!);
+      const daysUntil = Math.ceil((deadline.getTime() - Date.now()) / 86400000);
+      const urgencyLevel = daysUntil <= 2 ? "high" : daysUntil <= 5 ? "medium" : "low";
+      return {
+        decisionDeadline: Timestamp.fromDate(deadline),
+        urgencyLevel
+      };
+    })() : {})
   });
 
   await writeAudit(companyId, "company", "invitation_sent", "worker", data.workerId, {
     invitationId: invitationRef.id
   });
+
+  // Registrar primera invitación recibida (time-to-first-match)
+  await db.collection("workerPublicProfiles").doc(data.workerId).set(
+    { firstInvitationAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+
+  // Notificar al postulante (fire-and-forget — no bloquea la respuesta)
+  notifyWorkerInvitationReceived(invitationRef.id).catch(() => {});
 
   return { invitationId: invitationRef.id };
 });
@@ -905,21 +1133,31 @@ export const acceptInvitation = onCall<{ invitationId: string }>(async (request)
   const workerId = request.auth?.uid;
 
   if (!workerId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const invitationRef = db.collection("invitations").doc(request.data.invitationId);
   const invitation = await invitationRef.get();
 
   if (!invitation.exists || invitation.data()?.workerId !== workerId) {
-    throw new HttpsError("permission-denied", "No puedes aceptar esta invitacion.");
+    throw new HttpsError("permission-denied", "No puedes aceptar esta invitación.");
   }
 
   const invitationData = invitation.data() ?? {};
 
+  // Validar que la invitación no esté expirada
+  if (invitationData.status !== "sent") {
+    throw new HttpsError("failed-precondition", `Esta invitación ya fue ${invitationData.status === "expired" ? "expirada" : "procesada"}.`);
+  }
+  if (invitationData.expiresAt && invitationData.expiresAt.toMillis() < Date.now()) {
+    await invitationRef.update({ status: "expired", updatedAt: FieldValue.serverTimestamp() });
+    throw new HttpsError("deadline-exceeded", "Esta invitación ya expiró. Pide a la empresa que te envíe una nueva.");
+  }
+
   await db.runTransaction(async (transaction) => {
     transaction.update(invitationRef, {
       status: "accepted",
+      acceptedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
 
@@ -954,6 +1192,9 @@ export const acceptInvitation = onCall<{ invitationId: string }>(async (request)
     invitationId: invitationRef.id
   });
 
+  // Notificar a la empresa (fire-and-forget)
+  notifyCompanyInvitationAccepted(invitationRef.id).catch(() => {});
+
   return { status: "accepted" };
 });
 
@@ -961,7 +1202,7 @@ export const scheduleInterview = onCall<ScheduleInterviewInput>(async (request) 
   const actorId = request.auth?.uid;
 
   if (!actorId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const { invitationId, startsAt, durationMinutes = 45 } = request.data;
@@ -969,11 +1210,11 @@ export const scheduleInterview = onCall<ScheduleInterviewInput>(async (request) 
   const minStart = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
   if (!invitationId || Number.isNaN(start.getTime())) {
-    throw new HttpsError("invalid-argument", "Debes seleccionar una fecha valida.");
+    throw new HttpsError("invalid-argument", "Debes seleccionar una fecha válida.");
   }
 
   if (start < minStart) {
-    throw new HttpsError("failed-precondition", "La entrevista debe programarse al menos con un dia de anticipacion.");
+    throw new HttpsError("failed-precondition", "La entrevista debe programarse al menos con un día de anticipación.");
   }
 
   const invitationRef = db.collection("invitations").doc(invitationId);
@@ -1052,13 +1293,13 @@ export const submitPlatformReview = onCall<ReviewInput>(async (request) => {
   const actorId = request.auth?.uid;
 
   if (!actorId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const { invitationId, targetRole, score, comment, attendedInPerson } = request.data;
 
   if (!invitationId || !["company", "worker"].includes(targetRole) || score < 1 || score > 5) {
-    throw new HttpsError("invalid-argument", "Evaluacion invalida.");
+    throw new HttpsError("invalid-argument", "Evaluación inválida.");
   }
 
   const invitation = await db.collection("invitations").doc(invitationId).get();
@@ -1110,7 +1351,7 @@ export const acceptInterviewRules = onCall<{ invitationId: string }>(async (requ
   const actorId = request.auth?.uid;
 
   if (!actorId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const invitationRef = db.collection("invitations").doc(request.data.invitationId);
@@ -1147,18 +1388,18 @@ export const updateInvitationStatus = onCall<{ invitationId: string; status: str
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   if (!invitationFlowStatuses.includes(request.data.status as typeof invitationFlowStatuses[number])) {
-    throw new HttpsError("invalid-argument", "Estado de proceso invalido.");
+    throw new HttpsError("invalid-argument", "Estado de proceso inválido.");
   }
 
   const invitationRef = db.collection("invitations").doc(request.data.invitationId);
   const invitation = await invitationRef.get();
 
   if (!invitation.exists || invitation.data()?.companyId !== companyId) {
-    throw new HttpsError("permission-denied", "No puedes actualizar esta invitacion.");
+    throw new HttpsError("permission-denied", "No puedes actualizar esta invitación.");
   }
 
   await invitationRef.update({
@@ -1166,11 +1407,21 @@ export const updateInvitationStatus = onCall<{ invitationId: string; status: str
     updatedAt: FieldValue.serverTimestamp()
   });
 
-  // Cuando se marca como contratado, incrementar el contador de cierres de la empresa
   if (request.data.status === "hired") {
     await db.collection("companyProfiles").doc(companyId).set(
       { hiredCount: FieldValue.increment(1) },
       { merge: true }
+    );
+  }
+
+  if (request.data.status === "rejected") {
+    await writeAudit(
+      invitation.data()!.workerId,
+      "worker",
+      "invitation_rejected",
+      "invitation",
+      invitationRef.id,
+      { companyId, reason: "worker_rejected" }
     );
   }
 
@@ -1185,8 +1436,10 @@ export const sendConversationMessage = onCall<{ invitationId: string; body: stri
   const senderId = request.auth?.uid;
 
   if (!senderId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
+
+  checkRateLimit(senderId, "sendMessage", 30, 60_000);
 
   const body = String(request.data.body ?? "").trim();
 
@@ -1286,12 +1539,12 @@ export const sendConversationMessage = onCall<{ invitationId: string; body: stri
   return { messageId: messageRef.id };
 });
 
-export const unlockWorkerContact = onCall<{ invitationId: string; paymentId: string }>(
+export const unlockWorkerContact = onCall<{ invitationId: string; paymentId?: string; useUnlimitedPlan?: boolean }>(
   async (request) => {
     const companyId = request.auth?.uid;
 
     if (!companyId) {
-      throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
     }
 
     const invitationRef = db.collection("invitations").doc(request.data.invitationId);
@@ -1303,13 +1556,24 @@ export const unlockWorkerContact = onCall<{ invitationId: string; paymentId: str
     }
 
     if (invitationData.status !== "accepted") {
-      throw new HttpsError("failed-precondition", "La invitacion debe estar aceptada.");
+      throw new HttpsError("failed-precondition", "La invitación debe estar aceptada.");
     }
 
-    const payment = await db.collection("payments").doc(request.data.paymentId).get();
+    let resolvedPaymentId = request.data.paymentId ?? "";
 
-    if (!payment.exists || payment.data()?.status !== "paid") {
-      throw new HttpsError("failed-precondition", "El pago no esta confirmado.");
+    if (request.data.useUnlimitedPlan) {
+      const companySnap = await db.collection("companyProfiles").doc(companyId).get();
+      const plan = companySnap.data()?.unlimitedPlan;
+      if (!plan?.active || !plan.renewsAt || plan.renewsAt.toMillis() <= Date.now()) {
+        throw new HttpsError("failed-precondition", "No tienes un plan ilimitado activo.");
+      }
+      resolvedPaymentId = `unlimited:${plan.renewsAt.toMillis()}`;
+    } else {
+      if (!resolvedPaymentId) throw new HttpsError("invalid-argument", "Se requiere paymentId.");
+      const payment = await db.collection("payments").doc(resolvedPaymentId).get();
+      if (!payment.exists || payment.data()?.status !== "paid") {
+        throw new HttpsError("failed-precondition", "El pago no está confirmado.");
+      }
     }
 
     const unlockRef = db.collection("contactUnlocks").doc();
@@ -1320,7 +1584,8 @@ export const unlockWorkerContact = onCall<{ invitationId: string; paymentId: str
       companyId,
       workerId: invitationData.workerId,
       invitationId: invitationRef.id,
-      paymentId: request.data.paymentId,
+      paymentId: resolvedPaymentId,
+      usedUnlimitedPlan: request.data.useUnlimitedPlan ?? false,
       status: "active",
       createdAt: now,
       expiresAt: Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 30)
@@ -1333,7 +1598,8 @@ export const unlockWorkerContact = onCall<{ invitationId: string; paymentId: str
 
     await writeAudit(companyId, "company", "private_profile_unlocked", "worker", invitationData.workerId, {
       invitationId: invitationRef.id,
-      paymentId: request.data.paymentId
+      paymentId: resolvedPaymentId,
+      usedUnlimitedPlan: String(request.data.useUnlimitedPlan ?? false)
     });
 
     return { unlockId: unlockRef.id };
@@ -1344,7 +1610,7 @@ export const getUnlockedWorkerContact = onCall<{ invitationId: string }>(async (
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const invitation = await db.collection("invitations").doc(request.data.invitationId).get();
@@ -1363,7 +1629,7 @@ export const getUnlockedWorkerContact = onCall<{ invitationId: string }>(async (
     .get();
 
   if (unlockSnap.empty) {
-    throw new HttpsError("failed-precondition", "El contacto aun no esta desbloqueado por pago confirmado.");
+    throw new HttpsError("failed-precondition", "El contacto aún no está desbloqueado por pago confirmado.");
   }
 
   const privateProfile = await db.collection("workerPrivateProfiles").doc(invitationData.workerId).get();
@@ -1391,7 +1657,7 @@ export const createWorkerSubscriptionCheckout = onCall<CheckoutCouponInput | und
   const workerId = request.auth?.uid;
 
   if (!workerId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const paymentRef = db.collection("payments").doc();
@@ -1444,7 +1710,7 @@ export const createCompanyUnlockCheckout = onCall<{ invitationId: string; coupon
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const invitationRef = db.collection("invitations").doc(request.data.invitationId);
@@ -1452,7 +1718,7 @@ export const createCompanyUnlockCheckout = onCall<{ invitationId: string; coupon
   const invitationData = invitation.data();
 
   if (!invitation.exists || invitationData?.companyId !== companyId) {
-    throw new HttpsError("permission-denied", "No puedes pagar esta invitacion.");
+    throw new HttpsError("permission-denied", "No puedes pagar esta invitación.");
   }
 
   if (!["accepted", "in_process", "offer_sent", "hired", "closed"].includes(invitationData.status)) {
@@ -1492,8 +1758,14 @@ export const stripeWebhook = onRequest(async (request, response) => {
 });
 
 export const mercadoPagoWebhook = onRequest(async (request, response) => {
+  if (!validateMercadoPagoSignature(request as unknown as { headers: Record<string, string | string[] | undefined>; query: Record<string, string | string[] | undefined> })) {
+    response.status(401).json({ error: "Invalid signature" });
+    return;
+  }
+
   const type = String(request.query.type ?? request.query.topic ?? request.body?.type ?? "");
-  const paymentIdFromProvider = String(request.query["data.id"] ?? request.body?.data?.id ?? "");
+  const rawId = String(request.query["data.id"] ?? request.body?.data?.id ?? "").trim().slice(0, 64);
+  const paymentIdFromProvider = /^[a-zA-Z0-9\-_]+$/.test(rawId) ? rawId : "";
 
   if (type !== "payment" || !paymentIdFromProvider) {
     response.json({ received: true, ignored: true });
@@ -1519,13 +1791,13 @@ export const getProfileAiAdvice = onCall<{
   skills: string;
 }>(async (request) => {
   if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const { headline, summary, skills } = request.data;
 
   if (!headline || !summary || !skills) {
-    throw new HttpsError("invalid-argument", "Completa titulo, resumen y habilidades.");
+    throw new HttpsError("invalid-argument", "Completa título, resumen y habilidades.");
   }
 
   const prompt = [
@@ -1553,7 +1825,7 @@ export const getProfileAiAdvice = onCall<{
     parsed = {
       advice: [
         "Recomendaciones inmediatas:",
-        "1. Resume tu experiencia en una frase concreta con cargo, rubro y anos de experiencia.",
+        "1. Resume tu experiencia en una frase concreta con cargo, rubro y años de experiencia.",
         "2. Agrega habilidades verificables separadas por coma.",
         "3. Indica modalidad, comuna/region y rango de renta esperado.",
         "4. Evita datos privados en el resumen publico.",
@@ -1575,12 +1847,14 @@ export const analyzeCvWithAi = onCall<{
   fileName: string;
   mimeType: string;
   base64: string;
-}>(async (request) => {
+}>({ region: "us-central1", timeoutSeconds: 120 }, async (request) => {
   const workerId = request.auth?.uid;
 
   if (!workerId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
+
+  checkRateLimit(workerId, "analyzeCv", 5, 3_600_000);
 
   const { fileName, mimeType, base64 } = request.data;
 
@@ -1657,7 +1931,7 @@ export const getCandidateMatchAdvice = onCall<{
   const companyId = request.auth?.uid;
 
   if (!companyId) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesion.");
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
   const company = await db.collection("companyProfiles").doc(companyId).get();
@@ -1877,17 +2151,21 @@ async function validateCoupon(
   const data = coupon.data();
 
   if (!coupon.exists || !data?.active) {
-    throw new HttpsError("failed-precondition", "Cupon invalido o inactivo.");
+    throw new HttpsError("failed-precondition", "Cupón inválido o inactivo.");
   }
 
   const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
 
-  if (expiresAt && expiresAt.getTime() < Date.now()) {
-    throw new HttpsError("failed-precondition", "El cupon esta vencido.");
+  if (!expiresAt) {
+    throw new HttpsError("failed-precondition", "El cupón no tiene fecha de expiración válida.");
+  }
+
+  if (expiresAt.getTime() < Date.now()) {
+    throw new HttpsError("failed-precondition", "El cupón está vencido.");
   }
 
   if (Number(data.maxUses ?? 0) > 0 && Number(data.usedCount ?? 0) >= Number(data.maxUses)) {
-    throw new HttpsError("failed-precondition", "El cupon ya alcanzo su limite de uso.");
+    throw new HttpsError("failed-precondition", "El cupón ya alcanzó su límite de uso.");
   }
 
   const previousUse = await db
@@ -1898,7 +2176,7 @@ async function validateCoupon(
     .get();
 
   if (!previousUse.empty) {
-    throw new HttpsError("failed-precondition", "Este usuario ya uso este cupon.");
+    throw new HttpsError("failed-precondition", "Este usuario ya usó este cupón.");
   }
 
   const discountPercent = Math.max(0, Math.min(Number(data.discountPercent ?? 0), 100));
@@ -2048,17 +2326,29 @@ async function getPricingConfig(): Promise<PricingConfig> {
 }
 
 async function createMarketAnalyticsReport(period: "weekly_schedule" | "manual_admin", actorId: string) {
-  const [workersSnap, offersSnap, auditSnap, aiLogsSnap] = await Promise.all([
+  const [workersSnap, offersSnap, auditSnap, aiLogsSnap, paymentsSnap] = await Promise.all([
     db.collection("workerPublicProfiles").where("visibilityStatus", "==", "visible").limit(800).get(),
     db.collection("jobOffers").where("visibilityStatus", "==", "visible").limit(800).get(),
     db.collection("auditEvents").orderBy("createdAt", "desc").limit(800).get(),
-    db.collection("aiUsageLogs").orderBy("createdAt", "desc").limit(800).get()
+    db.collection("aiUsageLogs").orderBy("createdAt", "desc").limit(800).get(),
+    db.collection("payments").where("status", "==", "paid").where("paymentType", "==", "worker_subscription").limit(800).get()
   ]);
 
   const workers = workersSnap.docs.map((doc) => doc.data());
   const offers = offersSnap.docs.map((doc) => doc.data());
   const audits = auditSnap.docs.map((doc) => doc.data());
   const aiLogs = aiLogsSnap.docs.map((doc) => doc.data());
+  const paidPayments = paymentsSnap.docs.map((doc) => doc.data());
+
+  // Retención: usuarios con 2+ pagos = renovaron
+  const paymentsByUser = paidPayments.reduce<Record<string, number>>((acc, p) => {
+    const uid = String(p.userId ?? "");
+    if (uid) acc[uid] = (acc[uid] ?? 0) + 1;
+    return acc;
+  }, {});
+  const uniquePayers = Object.keys(paymentsByUser).length;
+  const renewedPayers = Object.values(paymentsByUser).filter((n) => n >= 2).length;
+  const retentionRate = uniquePayers > 0 ? Math.round((renewedPayers / uniquePayers) * 100) : 0;
   const salaryValues = workers
     .map((worker) => Number(worker.expectedSalaryMax ?? worker.expectedSalaryMin ?? 0))
     .filter((value) => value > 0);
@@ -2103,7 +2393,12 @@ async function createMarketAnalyticsReport(period: "weekly_schedule" | "manual_a
     chatEvasionBlocks: contactBlocks,
     aiCallsAnalyzed: aiLogs.length,
     aiFailures: failedAiCalls,
-    avgAiLatencyMs
+    avgAiLatencyMs,
+    retention: {
+      uniquePayers,
+      renewedPayers,
+      retentionRate
+    }
   };
 
   await reportRef.set({
@@ -2212,18 +2507,23 @@ async function handleProviderPaymentApproved(
   metadata: Record<string, string>
 ) {
   const paymentRef = db.collection("payments").doc(paymentId);
-  const payment = await paymentRef.get();
-  const paymentData = payment.data();
 
-  if (!payment.exists || paymentData?.status === "paid") {
-    return;
-  }
+  let paymentData: FirebaseFirestore.DocumentData | undefined;
 
-  await paymentRef.update({
-    status: "paid",
-    providerPaymentId,
-    updatedAt: FieldValue.serverTimestamp()
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(paymentRef);
+    if (!snap.exists || snap.data()?.status === "paid") return;
+    paymentData = snap.data();
+    tx.update(paymentRef, {
+      status: "paid",
+      providerPaymentId,
+      receiptUrl: `https://www.mercadopago.cl/activities/detail/${providerPaymentId}`,
+      receiptNumber: providerPaymentId,
+      updatedAt: FieldValue.serverTimestamp()
+    });
   });
+
+  if (!paymentData) return; // ya procesado o inexistente
 
   await markCouponUsed(paymentData?.couponCode, paymentData?.userId, paymentId);
   await writeAccountingEntry(paymentId, providerPaymentId, paymentData);
@@ -2242,6 +2542,66 @@ async function handleProviderPaymentApproved(
     await writeAudit(paymentData.relatedWorkerId, "worker", "worker_subscription_paid", "worker", paymentData.relatedWorkerId, {
       paymentId
     });
+  }
+
+  if (paymentData?.paymentType === "company_monthly_plan" && paymentData.relatedCompanyId) {
+    const renewsAt = Timestamp.fromDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
+    await db.collection("companyProfiles").doc(paymentData.relatedCompanyId as string).set(
+      {
+        monthlyPlan: {
+          active: true,
+          contactCreditsTotal: companyMonthlyContactCredits,
+          contactCreditsUsed: 0,
+          activatedAt: FieldValue.serverTimestamp(),
+          renewsAt,
+          paymentId
+        },
+        updatedAt: FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+    const companySnap = await db.collection("companyProfiles").doc(paymentData.relatedCompanyId as string).get();
+    const contactEmail: string = companySnap.data()?.email ?? companySnap.data()?.contactEmail ?? "";
+    if (contactEmail) {
+      await sendEmail(
+        contactEmail,
+        "Plan mensual activado — Perfil Primero",
+        `<p>¡Hola!</p>
+         <p>Tu plan empresa mensual está activo. Tienes <strong>${companyMonthlyContactCredits} contactos incluidos</strong> válidos por 30 días.</p>
+         <p><a href="${appUrl}/empresa">Buscar candidatos ahora →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+    }
+    await writeAudit(paymentData.relatedCompanyId as string, "company", "company_monthly_plan_activated", "company", paymentData.relatedCompanyId as string, { paymentId });
+  }
+
+  if (paymentData?.paymentType === "company_unlimited_plan" && paymentData.relatedCompanyId) {
+    const renewsAt = Timestamp.fromDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30));
+    await db.collection("companyProfiles").doc(paymentData.relatedCompanyId as string).set(
+      {
+        unlimitedPlan: {
+          active: true,
+          activatedAt: FieldValue.serverTimestamp(),
+          renewsAt,
+          paymentId
+        },
+        updatedAt: FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+    const companySnap = await db.collection("companyProfiles").doc(paymentData.relatedCompanyId as string).get();
+    const contactEmail: string = companySnap.data()?.email ?? companySnap.data()?.contactEmail ?? "";
+    if (contactEmail) {
+      await sendEmail(
+        contactEmail,
+        "Plan Ilimitado activado — Perfil Primero",
+        `<p>¡Hola!</p>
+         <p>Tu <strong>Plan Empresa Ilimitado</strong> está activo. Puedes desbloquear contactos sin límite durante los próximos 30 días.</p>
+         <p><a href="${appUrl}/empresa">Buscar candidatos ahora →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+    }
+    await writeAudit(paymentData.relatedCompanyId as string, "company", "company_unlimited_plan_activated", "company", paymentData.relatedCompanyId as string, { paymentId });
   }
 
   if (paymentData?.paymentType === "company_success_fee" && paymentData.relatedInvitationId) {
@@ -2287,7 +2647,10 @@ async function writeAccountingEntry(
   const gross = Number(paymentData.amount);
   const netRevenue = Number((gross / 1.19).toFixed(2));
   const iva = Number((gross - netRevenue).toFixed(2));
-  const mpCommission = Number((gross * 0.0399).toFixed(2));
+  // Tasa MP configurable en configuracion_sistema/pricing.mpCommissionRate; default 3.99%
+  const configSnap = await db.collection("configuracion_sistema").doc("pricing").get();
+  const mpRate = Number(configSnap.data()?.mpCommissionRate ?? 0.0399);
+  const mpCommission = Number((gross * mpRate).toFixed(2));
   const entryRef = db.collection("accountingEntries").doc(paymentId);
 
   await entryRef.set({
@@ -2350,19 +2713,31 @@ function buildGoogleCalendarUrl({
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const metadata = session.metadata ?? {};
-  const paymentId = metadata.paymentId;
+  const paymentId = metadata.paymentId ?? session.client_reference_id ?? "";
 
-  if (!paymentId) {
-    return;
-  }
+  if (!paymentId) return;
 
   const paymentRef = db.collection("payments").doc(paymentId);
 
-  await paymentRef.update({
-    status: "paid",
-    providerPaymentId: session.id,
-    updatedAt: FieldValue.serverTimestamp()
+  let alreadyProcessed = false;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(paymentRef);
+    if (!snap.exists || snap.data()?.status === "paid") { alreadyProcessed = true; return; }
+    const expectedAmount = Number(snap.data()?.amount ?? 0);
+    const receivedAmount = Math.round((session.amount_total ?? 0) / 100);
+    if (expectedAmount > 0 && Math.abs(receivedAmount - expectedAmount) > 5) {
+      throw new HttpsError("failed-precondition", `Monto Stripe no coincide: esperado ${expectedAmount}, recibido ${receivedAmount}`);
+    }
+    tx.update(paymentRef, {
+      status: "paid",
+      providerPaymentId: session.id,
+      receiptUrl: session.invoice as string ?? "",
+      receiptNumber: session.id,
+      updatedAt: FieldValue.serverTimestamp()
+    });
   });
+
+  if (alreadyProcessed) return;
 
   if (metadata.type === "worker_subscription" && metadata.workerId) {
     await db.collection("workerPublicProfiles").doc(metadata.workerId).set(
@@ -2424,7 +2799,7 @@ function buildCvQuotaFallback(fileName: string) {
 
   return {
     headline: "Perfil profesional disponible",
-    summary: "CV subido correctamente. La extraccion automatica con Google IA quedo pendiente por cuota disponible; completa o ajusta este resumen antes de publicar.",
+    summary: "CV subido correctamente. La extracción automática con Google IA quedó pendiente por cuota disponible; completa o ajusta este resumen antes de publicar.",
     skills: [],
     sectors: ["Servicios"],
     yearsOfExperience: 0,
@@ -2577,53 +2952,6 @@ function buildGeminiError(error: unknown, model: string) {
   return new HttpsError("internal", "Google IA no pudo responder en este momento. Intenta nuevamente mas tarde.");
 }
 
-// ── Reset weekly impressions (lunes 0:00 AM Chile) ────────────────────────────
-
-export const resetWeeklyImpressions = onSchedule("every monday 03:00", async () => {
-  const snap = await db.collection("workerPublicProfiles")
-    .where("visibilityStatus", "==", "visible")
-    .select()
-    .get();
-  const CHUNK = 400;
-  for (let i = 0; i < snap.docs.length; i += CHUNK) {
-    const batch = db.batch();
-    snap.docs.slice(i, i + CHUNK).forEach((d) => {
-      batch.update(d.ref, { "analytics.weekImpressions": 0 });
-    });
-    await batch.commit();
-  }
-});
-
-// ── OMIL commission tracking ───────────────────────────────────────────────────
-
-export const recordOmilCommission = onCall<{ invitationId: string }>(async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Se requiere autenticación.");
-  const { invitationId } = request.data;
-  const invSnap = await db.collection("invitations").doc(invitationId).get();
-  if (!invSnap.exists) throw new HttpsError("not-found", "Invitación no encontrada.");
-  const inv = invSnap.data()!;
-
-  // Only track commission if the worker's profile was created by an OMIL
-  const profileSnap = await db.collection("workerPublicProfiles").doc(inv.workerId).get();
-  if (!profileSnap.exists || profileSnap.data()!.profileSource !== "omil") return { recorded: false };
-
-  const omilId = profileSnap.data()!.createdByOmilId as string | undefined;
-  if (!omilId) return { recorded: false };
-
-  const commissionAmount = Math.round((inv.salaryMin ?? 999) * 0.2);
-  await db.collection("accountingEntries").add({
-    type: "omil_commission",
-    omilId,
-    invitationId,
-    workerId: inv.workerId,
-    companyId: inv.companyId,
-    amount: commissionAmount,
-    currency: "CLP",
-    status: "pending_payment",
-    createdAt: FieldValue.serverTimestamp()
-  });
-  return { recorded: true, amount: commissionAmount };
-});
 
 // ── ATS Public API ─────────────────────────────────────────────────────────────
 // Authenticated via X-API-Key header. Keys stored in configuracion_sistema/atsApiKeys.
@@ -2637,7 +2965,12 @@ async function validateAtsApiKey(key: string): Promise<boolean> {
 }
 
 export const atsListProfiles = onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
+  // Restrict CORS to known ATS integrators — wildcards not safe for authenticated APIs
+  const allowedOrigins = (process.env.ATS_ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const origin = req.headers.origin ?? "";
+  if (allowedOrigins.length && allowedOrigins.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
   if (req.method === "OPTIONS") { res.status(204).send(""); return; }
 
   const apiKey = req.headers["x-api-key"] as string | undefined;
@@ -2679,7 +3012,11 @@ export const atsListProfiles = onRequest(async (req, res) => {
 });
 
 export const atsCreateInvitation = onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
+  const allowedOrigins2 = (process.env.ATS_ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const origin2 = req.headers.origin ?? "";
+  if (allowedOrigins2.length && allowedOrigins2.includes(origin2)) {
+    res.set("Access-Control-Allow-Origin", origin2);
+  }
   if (req.method === "OPTIONS") { res.status(204).send(""); return; }
   if (req.method !== "POST") { res.status(405).json({ error: "Método no permitido." }); return; }
 
@@ -2692,6 +3029,13 @@ export const atsCreateInvitation = onRequest(async (req, res) => {
   const { profileCode, opportunityTitle, salaryMin, salaryMax, workMode, location, message, companyId } = req.body as Record<string, string | number>;
   if (!profileCode || !opportunityTitle || !companyId) {
     res.status(400).json({ error: "Faltan campos requeridos: profileCode, opportunityTitle, companyId." });
+    return;
+  }
+
+  // Verificar que la empresa existe y está verificada
+  const companyVerifySnap = await db.collection("companyProfiles").doc(String(companyId)).get();
+  if (!companyVerifySnap.exists || companyVerifySnap.data()?.verificationStatus !== "verified") {
+    res.status(403).json({ error: "Empresa no verificada o no encontrada." });
     return;
   }
 
@@ -2760,31 +3104,28 @@ async function sendEmail(to: string, subject: string, html: string) {
   });
 }
 
-// Notifica al postulante cuando recibe una nueva invitación
-export const onInvitationCreated = onCall<{ invitationId: string }>(async (request) => {
-  // This is called internally after createInvitation succeeds.
-  // Kept as a no-op until SENDGRID_API_KEY is configured.
-  const { invitationId } = request.data;
+// Notifica al postulante cuando recibe una nueva invitación (función interna — no callable)
+async function notifyWorkerInvitationReceived(invitationId: string): Promise<void> {
   const invSnap = await db.collection("invitations").doc(invitationId).get();
   if (!invSnap.exists) return;
   const inv = invSnap.data()!;
   const privateSnap = await db.collection("workerPrivateProfiles").doc(inv.workerId).get();
   if (!privateSnap.exists) return;
   const email: string = privateSnap.data()!.email;
+  if (!email) return;
   await sendEmail(
     email,
     "Tienes una nueva invitación en Perfil Primero",
     `<p>Hola,</p>
      <p>Una empresa verificada te envió una invitación para el cargo <strong>${inv.opportunityTitle}</strong>
      con rango de sueldo $${inv.salaryMin?.toLocaleString("es-CL")} – $${inv.salaryMax?.toLocaleString("es-CL")} CLP.</p>
-     <p>Entra a <a href="${appUrl}/postulante">tu panel</a> para aceptar o rechazar.</p>
+     <p>Entra a <a href="${appUrl}/postulante">tu panel</a> para aceptar o rechazar antes de que venza la invitación.</p>
      <p>— Equipo Perfil Primero</p>`
   );
-});
+}
 
-// Notifica a la empresa cuando el postulante acepta
-export const onInvitationAccepted = onCall<{ invitationId: string }>(async (request) => {
-  const { invitationId } = request.data;
+// Notifica a la empresa cuando el postulante acepta (función interna — no callable)
+async function notifyCompanyInvitationAccepted(invitationId: string): Promise<void> {
   const invSnap = await db.collection("invitations").doc(invitationId).get();
   if (!invSnap.exists) return;
   const inv = invSnap.data()!;
@@ -2794,15 +3135,113 @@ export const onInvitationAccepted = onCall<{ invitationId: string }>(async (requ
   if (!companyEmail) return;
   await sendEmail(
     companyEmail,
-    "El postulante aceptó tu invitación",
+    "El postulante aceptó tu invitación — Perfil Primero",
     `<p>Hola,</p>
      <p>El postulante al que invitaste para <strong>${inv.opportunityTitle}</strong> aceptó tu invitación.</p>
-     <p>Entra a <a href="${appUrl}/empresa">tu panel</a> para continuar el proceso.</p>
+     <p>Entra a <a href="${appUrl}/empresa">tu panel</a> para continuar el proceso y coordinar la entrevista.</p>
      <p>— Equipo Perfil Primero</p>`
   );
-});
+}
 
 // Recordatorio de perfil por vencer (llamado desde expireOmilProfiles o manualmente)
+export const dailyHealthCheck = onSchedule("every 24 hours", async () => {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Verificar claves de entorno críticas
+  if (!process.env.MERCADOPAGO_ACCESS_TOKEN) issues.push("MERCADOPAGO_ACCESS_TOKEN no configurada");
+  // GEMINI_API_KEY ya no es requerida — se usa Vertex AI con credenciales del service account
+  if (!process.env.SENDGRID_API_KEY) warnings.push("SENDGRID_API_KEY no configurada — emails desactivados");
+  if (!process.env.MERCADOPAGO_WEBHOOK_SECRET) warnings.push("MERCADOPAGO_WEBHOOK_SECRET no configurada — validación de firma omitida");
+
+  // 2. Cupones activos sin fecha de expiración
+  const couponsSnap = await db.collection("coupons").where("active", "==", true).get();
+  const couponsWithoutExpiry = couponsSnap.docs.filter(d => !d.data().expiresAt);
+  if (couponsWithoutExpiry.length > 0) {
+    issues.push(`${couponsWithoutExpiry.length} cupones activos sin expiración: ${couponsWithoutExpiry.map(d => d.id).join(", ")}`);
+  }
+
+  // 3. Workers con perfil visible pero suscripción vencida
+  const expiredSnap = await db.collection("workerPublicProfiles")
+    .where("visibilityStatus", "==", "visible")
+    .where("profileExpiresAt", "<", Timestamp.now())
+    .limit(20)
+    .get();
+  if (!expiredSnap.empty) {
+    warnings.push(`${expiredSnap.size} perfiles visibles con suscripción vencida`);
+  }
+
+  // 4. Pagos pendientes de más de 48 horas
+  const stalePendingSnap = await db.collection("payments")
+    .where("status", "==", "pending")
+    .where("createdAt", "<", Timestamp.fromMillis(Date.now() - 172_800_000))
+    .limit(10)
+    .get();
+  if (!stalePendingSnap.empty) {
+    warnings.push(`${stalePendingSnap.size} pagos en estado "pending" por más de 48h`);
+  }
+
+  const status = issues.length > 0 ? "degraded" : warnings.length > 0 ? "warning" : "healthy";
+
+  await db.collection("configuracion_sistema").doc("healthCheck").set({
+    status,
+    issues,
+    warnings,
+    lastCheckedAt: FieldValue.serverTimestamp(),
+    checksRan: 4
+  });
+
+  if (issues.length > 0) {
+    await writeAudit("system", "admin", "health_check_failed", "system", "healthCheck", {
+      issues: issues.join(" | ").slice(0, 500)
+    });
+  }
+});
+
+export const sendDeadlineReminders = onSchedule("every 60 minutes", async () => {
+  const now = Date.now();
+  const window48h = Timestamp.fromMillis(now + 1000 * 60 * 60 * 48);
+
+  const snap = await db.collection("invitations")
+    .where("decisionDeadline", "<=", window48h)
+    .where("decisionDeadline", ">=", Timestamp.fromMillis(now))
+    .where("status", "in", ["sent", "viewed"])
+    .get();
+
+  for (const doc of snap.docs) {
+    const reminderId = `deadline-${doc.id}`;
+    const reminderRef = db.collection("emailReminders").doc(reminderId);
+    const existing = await reminderRef.get();
+    if (existing.exists) continue;
+
+    const inv = doc.data();
+    const workerSnap = await db.collection("workerPrivateProfiles").doc(inv.workerId).get();
+    if (!workerSnap.exists) continue;
+
+    const email: string = workerSnap.data()!.email;
+    const deadline = (inv.decisionDeadline as Timestamp).toDate();
+    const daysLeft = Math.ceil((deadline.getTime() - now) / 86400000);
+    const urgency = daysLeft <= 1 ? "⚠️ Urgente" : "📅";
+
+    await sendEmail(
+      email,
+      `${urgency} Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para responder una invitación`,
+      `<p>Hola,</p>
+       <p>La empresa te invitó al cargo <strong>${inv.opportunityTitle}</strong> y la fecha límite para responder es el <strong>${deadline.toLocaleDateString("es-CL")}</strong>.</p>
+       <p>Entra a <a href="${appUrl}/postulante">tu panel</a> para aceptar o revisar la invitación antes de que venza.</p>
+       <p>— Equipo Perfil Primero</p>`
+    );
+
+    await reminderRef.set({
+      type: "deadline_reminder",
+      invitationId: doc.id,
+      workerId: inv.workerId,
+      sentAt: FieldValue.serverTimestamp(),
+      status: "sent"
+    });
+  }
+});
+
 export const sendExpiryReminder = onCall<{ workerId: string }>(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Se requiere autenticación.");
   const { workerId } = request.data;
@@ -2821,20 +3260,23 @@ export const sendExpiryReminder = onCall<{ workerId: string }>(async (request) =
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function getGeminiAI(): GoogleGenAI {
+  return new GoogleGenAI({
+    vertexai: true,
+    project: process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT ?? "perfil-primero",
+    location: "us-central1"
+  });
+}
+
 async function generateJsonWithGemini(
   prompt: string,
   responseSchema: JsonSchema,
   file?: { mimeType: string; base64: string }
 ) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
   const startedAt = Date.now();
 
-  if (!apiKey) {
-    throw new HttpsError("failed-precondition", "Falta GEMINI_API_KEY.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = getGeminiAI();
   const parts = file
     ? [
         { text: prompt },
@@ -2872,6 +3314,7 @@ async function generateJsonWithGemini(
       createdAt: FieldValue.serverTimestamp()
     });
   } catch (error) {
+    console.error("[Gemini] raw error:", JSON.stringify(error, Object.getOwnPropertyNames(error as object)));
     const geminiError = buildGeminiError(error, model);
     await db.collection("aiUsageLogs").doc().set({
       endpointApi: "gemini-json",
@@ -2888,12 +3331,1108 @@ async function generateJsonWithGemini(
   }
 
   if (!responseText) {
-    throw new HttpsError("internal", "Gemini no devolvio JSON.");
+    throw new HttpsError("internal", "Gemini no devolvió JSON.");
   }
 
   try {
     return JSON.parse(responseText) as Record<string, unknown>;
   } catch {
-    throw new HttpsError("internal", "La IA no devolvio un JSON valido.");
+    throw new HttpsError("internal", "La IA no devolvió un JSON válido.");
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PLAN EMPRESA MENSUAL — $9.990 CLP/mes · 5 contactos incluidos
+// ══════════════════════════════════════════════════════════════════════════════
+
+const companyMonthlyPriceClp = 9990;
+const companyMonthlyContactCredits = 5;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PLAN EMPRESA ILIMITADO — $29.990 CLP/mes · contactos ilimitados
+// ══════════════════════════════════════════════════════════════════════════════
+
+const companyUnlimitedPriceClp = 29990;
+
+export const createCompanyMonthlyCheckout = onCall(async (request) => {
+  const companyId = request.auth?.uid;
+  if (!companyId) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  checkRateLimit(companyId, "monthly_checkout", 3, 60_000);
+
+  const companySnap = await db.collection("companyProfiles").doc(companyId).get();
+  if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
+  const company = companySnap.data()!;
+  if (company.verificationStatus !== "verified") {
+    throw new HttpsError("failed-precondition", "Tu empresa debe estar verificada para contratar el plan mensual.");
+  }
+
+  const existingPlan = company.monthlyPlan;
+  if (existingPlan?.active && existingPlan.renewsAt?.toMillis?.() > Date.now()) {
+    throw new HttpsError("already-exists", "Ya tienes un plan mensual activo.");
+  }
+
+  const paymentId = db.collection("payments").doc().id;
+  const renewsAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+
+  await db.collection("payments").doc(paymentId).set({
+    paymentId,
+    userId: companyId,
+    relatedCompanyId: companyId,
+    amount: companyMonthlyPriceClp,
+    currency: "CLP",
+    paymentType: "company_monthly_plan",
+    status: "pending",
+    renewsAt: Timestamp.fromDate(renewsAt),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp()
+  });
+
+  const mp = getMercadoPagoClient();
+  const preference = new Preference(mp);
+  const result = await preference.create({
+    body: {
+      items: [{
+        id: paymentId,
+        title: "Plan Empresa Mensual — Perfil Primero",
+        quantity: 1,
+        unit_price: companyMonthlyPriceClp,
+        currency_id: "CLP"
+      }],
+      external_reference: paymentId,
+      back_urls: {
+        success: `${appUrl}/empresa?checkout=success`,
+        failure: `${appUrl}/empresa?checkout=failure`,
+        pending: `${appUrl}/empresa?checkout=pending`
+      },
+      auto_return: "approved",
+      notification_url: `${process.env.FUNCTIONS_BASE_URL ?? "https://us-central1-perfil-primero.cloudfunctions.net"}/mercadoPagoWebhook`
+    }
+  });
+
+  await db.collection("payments").doc(paymentId).update({ mpPreferenceId: result.id });
+  return { url: result.init_point ?? "" };
+});
+
+export const createCompanyUnlimitedCheckout = onCall(async (request) => {
+  const companyId = request.auth?.uid;
+  if (!companyId) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  checkRateLimit(companyId, "unlimited_checkout", 3, 60_000);
+
+  const companySnap = await db.collection("companyProfiles").doc(companyId).get();
+  if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
+  const company = companySnap.data()!;
+  if (company.verificationStatus !== "verified") {
+    throw new HttpsError("failed-precondition", "Tu empresa debe estar verificada para contratar el plan ilimitado.");
+  }
+
+  const existing = company.unlimitedPlan;
+  if (existing?.active && existing.renewsAt?.toMillis?.() > Date.now()) {
+    throw new HttpsError("already-exists", "Ya tienes un plan ilimitado activo.");
+  }
+
+  const paymentId = db.collection("payments").doc().id;
+  const renewsAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+
+  await db.collection("payments").doc(paymentId).set({
+    paymentId,
+    userId: companyId,
+    relatedCompanyId: companyId,
+    amount: companyUnlimitedPriceClp,
+    currency: "CLP",
+    paymentType: "company_unlimited_plan",
+    status: "pending",
+    renewsAt: Timestamp.fromDate(renewsAt),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp()
+  });
+
+  const mp = getMercadoPagoClient();
+  const preference = new Preference(mp);
+  const result = await preference.create({
+    body: {
+      items: [{
+        id: paymentId,
+        title: "Plan Empresa Ilimitado — Perfil Primero",
+        quantity: 1,
+        unit_price: companyUnlimitedPriceClp,
+        currency_id: "CLP"
+      }],
+      external_reference: paymentId,
+      back_urls: {
+        success: `${appUrl}/empresa?checkout=success`,
+        failure: `${appUrl}/empresa?checkout=failure`,
+        pending: `${appUrl}/empresa?checkout=pending`
+      },
+      auto_return: "approved",
+      notification_url: `${process.env.FUNCTIONS_BASE_URL ?? "https://us-central1-perfil-primero.cloudfunctions.net"}/mercadoPagoWebhook`
+    }
+  });
+
+  await db.collection("payments").doc(paymentId).update({ mpPreferenceId: result.id });
+  return { url: result.init_point ?? "" };
+});
+
+export const saveCompanyAlertPreferences = onCall<{
+  enabled: boolean;
+  areas: string[];
+  regions: string[];
+  salaryMax: number;
+  workModes: string[];
+}>(async (request) => {
+  const companyId = request.auth?.uid;
+  if (!companyId) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+
+  const { enabled, areas, regions, salaryMax, workModes } = request.data;
+  await db.collection("companyProfiles").doc(companyId).set(
+    {
+      alertPreferences: { enabled, areas, regions, salaryMax: Number(salaryMax) || 0, workModes },
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  return { saved: true };
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MATCHING DIARIO — notifica a empresas cuando aparecen candidatos afines
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const dailyMatchingAlerts = onSchedule(
+  { schedule: "every day 07:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const since = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 24);
+
+    const [newWorkersSnap, companiesSnap] = await Promise.all([
+      db.collection("workerPublicProfiles")
+        .where("visibilityStatus", "==", "visible")
+        .where("updatedAt", ">=", since)
+        .limit(200)
+        .get(),
+      db.collection("companyProfiles")
+        .where("verificationStatus", "==", "verified")
+        .limit(200)
+        .get()
+    ]);
+
+    if (newWorkersSnap.empty) return;
+    const workers = newWorkersSnap.docs.map(d => d.data());
+
+    for (const companyDoc of companiesSnap.docs) {
+      const company = companyDoc.data();
+      const prefs = company.alertPreferences;
+      if (!prefs?.enabled) continue;
+
+      const contactEmail: string = company.email ?? company.contactEmail ?? "";
+      if (!contactEmail) continue;
+
+      const matches = workers.filter(w => {
+        if (prefs.areas?.length && !prefs.areas.some((a: string) => w.sectors?.includes(a))) return false;
+        if (prefs.regions?.length && !prefs.regions.includes(w.region)) return false;
+        if (prefs.salaryMax && w.expectedSalaryMin > prefs.salaryMax) return false;
+        if (prefs.workModes?.length && !prefs.workModes.some((m: string) => w.workModes?.includes(m))) return false;
+        return true;
+      });
+
+      if (!matches.length) continue;
+
+      const rows = matches.slice(0, 5).map(w =>
+        `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${w.headline}</td>
+         <td style="padding:6px 8px;border-bottom:1px solid #eee">${w.region}</td>
+         <td style="padding:6px 8px;border-bottom:1px solid #eee">$${(w.expectedSalaryMin ?? 0).toLocaleString("es-CL")} – $${(w.expectedSalaryMax ?? 0).toLocaleString("es-CL")} CLP</td></tr>`
+      ).join("");
+
+      await sendEmail(
+        contactEmail,
+        `${matches.length} candidato${matches.length > 1 ? "s" : ""} nuevo${matches.length > 1 ? "s" : ""} en Perfil Primero`,
+        `<p>Hola ${company.companyName ?? ""},</p>
+         <p>Hoy encontramos <strong>${matches.length} perfil${matches.length > 1 ? "es" : ""}</strong> que coincide${matches.length === 1 ? "" : "n"} con tus criterios de búsqueda:</p>
+         <table style="width:100%;border-collapse:collapse;font-size:14px">
+           <thead><tr style="background:#f0f3f7">
+             <th style="padding:6px 8px;text-align:left">Cargo objetivo</th>
+             <th style="padding:6px 8px;text-align:left">Región</th>
+             <th style="padding:6px 8px;text-align:left">Renta esperada</th>
+           </tr></thead>
+           <tbody>${rows}</tbody>
+         </table>
+         ${matches.length > 5 ? `<p>...y ${matches.length - 5} más.</p>` : ""}
+         <p><a href="${appUrl}/empresa" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Ver candidatos →</a></p>
+         <p style="font-size:12px;color:#888">Para desactivar estas alertas entra a tu panel empresa → Configuración de alertas.</p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+    }
+  }
+);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NURTURING POSTULANTES — reactivación de perfiles vencidos/inactivos
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const workerReactivationNurturing = onSchedule(
+  { schedule: "every day 10:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const now = Date.now();
+    const sevenDaysAgo = Timestamp.fromMillis(now - 1000 * 60 * 60 * 24 * 7);
+    const fourteenDaysAgo = Timestamp.fromMillis(now - 1000 * 60 * 60 * 24 * 14);
+    const threeDaysAgo = Timestamp.fromMillis(now - 1000 * 60 * 60 * 24 * 3);
+
+    // Grupo 1: perfiles vencidos hace 3–14 días → reactivación
+    const expiredSnap = await db.collection("workerPublicProfiles")
+      .where("visibilityStatus", "==", "expired")
+      .where("profileExpiresAt", ">=", fourteenDaysAgo)
+      .where("profileExpiresAt", "<=", threeDaysAgo)
+      .limit(100)
+      .get();
+
+    for (const doc of expiredSnap.docs) {
+      const profile = doc.data();
+      const alreadySent = await db.collection("emailReminders")
+        .where("workerId", "==", doc.id)
+        .where("type", "==", "worker_reactivation")
+        .where("createdAt", ">=", sevenDaysAgo)
+        .limit(1)
+        .get();
+      if (!alreadySent.empty) continue;
+
+      const privateSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
+      if (!privateSnap.exists) continue;
+      const email: string = privateSnap.data()!.email;
+      if (!email) continue;
+
+      await sendEmail(
+        email,
+        "Tu perfil en Perfil Primero está inactivo — reactívalo hoy",
+        `<p>Hola,</p>
+         <p>Tu perfil <strong>${profile.headline || "en Perfil Primero"}</strong> venció hace unos días y ya no aparece en búsquedas de empresas verificadas.</p>
+         <p>Reactívalo por <strong>$999 CLP/mes</strong> y vuelve a ser visible.</p>
+         <p><a href="${appUrl}/postulante" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Reactivar mi perfil →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+
+      await db.collection("emailReminders").add({
+        workerId: doc.id,
+        type: "worker_reactivation",
+        email,
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+
+    // Grupo 2: perfiles ocultos (nunca activados) con más de 7 días sin activar
+    const hiddenSnap = await db.collection("workerPublicProfiles")
+      .where("visibilityStatus", "==", "hidden")
+      .where("subscriptionStatus", "==", "inactive")
+      .where("createdAt", "<=", sevenDaysAgo)
+      .limit(100)
+      .get();
+
+    for (const doc of hiddenSnap.docs) {
+      const profile = doc.data();
+      const alreadySent = await db.collection("emailReminders")
+        .where("workerId", "==", doc.id)
+        .where("type", "==", "worker_activation_nudge")
+        .limit(1)
+        .get();
+      if (!alreadySent.empty) continue;
+
+      const privateSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
+      if (!privateSnap.exists) continue;
+      const email: string = privateSnap.data()!.email;
+      if (!email) continue;
+
+      await sendEmail(
+        email,
+        "Tu perfil está listo — solo falta activarlo",
+        `<p>Hola,</p>
+         <p>Creaste tu perfil en Perfil Primero${profile.headline ? ` como <strong>${profile.headline}</strong>` : ""}, pero aún no está visible para empresas.</p>
+         <p>Con <strong>$999 CLP/mes</strong> tu perfil aparece en búsquedas de empresas verificadas que publican sueldo desde el primer contacto.</p>
+         <p><a href="${appUrl}/postulante" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Activar mi perfil →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+
+      await db.collection("emailReminders").add({
+        workerId: doc.id,
+        type: "worker_activation_nudge",
+        email,
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── resetWeeklyImpressions — lunes 00:00 Santiago: resetea contador semanal ───
+export const resetWeeklyImpressions = onSchedule(
+  { schedule: "every monday 00:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const snap = await db
+      .collection("workerPublicProfiles")
+      .where("visibilityStatus", "==", "visible")
+      .limit(500)
+      .get();
+
+    const batches: FirebaseFirestore.WriteBatch[] = [];
+    let batch = db.batch();
+    let count = 0;
+
+    for (const docSnap of snap.docs) {
+      batch.update(docSnap.ref, {
+        "analytics.weekImpressions": 0,
+        "analytics.weekResetsAt": FieldValue.serverTimestamp()
+      });
+      count++;
+      if (count % 400 === 0) {
+        batches.push(batch);
+        batch = db.batch();
+      }
+    }
+    if (count % 400 !== 0) batches.push(batch);
+    await Promise.all(batches.map((b) => b.commit()));
+  }
+);
+
+// ── calculateAndPersistBadges — calcula y persiste badges en todos los perfiles
+export const calculateAndPersistBadges = onSchedule(
+  { schedule: "every day 06:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const snap = await db
+      .collection("workerPublicProfiles")
+      .where("visibilityStatus", "in", ["visible", "paused"])
+      .limit(500)
+      .get();
+
+    const batches: FirebaseFirestore.WriteBatch[] = [];
+    let batch = db.batch();
+    let count = 0;
+
+    for (const docSnap of snap.docs) {
+      const p = docSnap.data();
+      const badges: string[] = [];
+      let completeness = 0;
+      if ((p.skills ?? []).length >= 3) completeness += 20;
+      if ((p.summary ?? "").length >= 80) completeness += 20;
+      if ((p.workModes ?? []).length) completeness += 15;
+      if ((p.expectedSalaryMin ?? 0) > 0) completeness += 15;
+      if (p.cvAnalysisSummary) completeness += 15;
+      if (p.assessmentScores && Object.values(p.assessmentScores as Record<string, number>).some((v) => v > 0)) completeness += 15;
+
+      if (completeness >= 90) badges.push("perfil_completo");
+      if (p.cvAnalysisSummary) badges.push("cv_validado");
+      const sc = p.assessmentScores as Record<string, number> | undefined;
+      if (sc && (sc.english ?? 0) > 0 && (sc.spanish ?? 0) > 0 && (sc.personality ?? 0) > 0) badges.push("tests_completos");
+      if (p.availability === "actively_looking") badges.push("busca_activamente");
+      if (p.experienceLevel === "senior" || p.experienceLevel === "lead") badges.push("senior");
+      if ((p.workModes ?? []).length >= 2) badges.push("multimodalidad");
+
+      batch.update(docSnap.ref, { badges });
+      count++;
+      if (count % 400 === 0) {
+        batches.push(batch);
+        batch = db.batch();
+      }
+    }
+    if (count % 400 !== 0) batches.push(batch);
+    await Promise.all(batches.map((b) => b.commit()));
+  }
+);
+
+// ── segmentWorkers — clasifica postulantes: inactive / active / hired ─────────
+export const segmentWorkers = onSchedule(
+  { schedule: "every day 05:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const [visibleSnap, hiddenSnap, hiredInvSnap] = await Promise.all([
+      db.collection("workerPublicProfiles").where("visibilityStatus", "==", "visible").limit(500).get(),
+      db.collection("workerPublicProfiles").where("visibilityStatus", "in", ["hidden", "paused", "expired"]).limit(500).get(),
+      db.collection("invitations").where("status", "==", "hired").limit(500).get()
+    ]);
+
+    const hiredWorkerIds = new Set(hiredInvSnap.docs.map((d) => d.data().workerId as string));
+
+    const batches: FirebaseFirestore.WriteBatch[] = [];
+    let batch = db.batch();
+    let count = 0;
+
+    const writeSegment = (ref: FirebaseFirestore.DocumentReference, segment: string) => {
+      batch.update(ref, { segment });
+      count++;
+      if (count % 400 === 0) {
+        batches.push(batch);
+        batch = db.batch();
+      }
+    };
+
+    for (const docSnap of visibleSnap.docs) {
+      writeSegment(docSnap.ref, hiredWorkerIds.has(docSnap.id) ? "hired" : "active");
+    }
+    for (const docSnap of hiddenSnap.docs) {
+      writeSegment(docSnap.ref, hiredWorkerIds.has(docSnap.id) ? "hired" : "inactive");
+    }
+
+    if (count % 400 !== 0) batches.push(batch);
+    await Promise.all(batches.map((b) => b.commit()));
+  }
+);
+
+// ── semanticWorkerSearch — Gemini extrae filtros desde lenguaje natural ────────
+export const semanticWorkerSearch = onCall(
+  { region: "us-central1", timeoutSeconds: 30 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    checkRateLimit(uid, "semanticSearch", 10, 60_000);
+
+    const query = String((request.data as { query?: string }).query ?? "").slice(0, 500);
+    if (!query) return { filters: {} };
+
+    const ai = getGeminiAI();
+    const schema = {
+      type: Type.OBJECT,
+      properties: {
+        region: { type: Type.STRING, description: "Región de Chile o vacío" },
+        area: { type: Type.STRING, description: "Área laboral o vacío" },
+        salaryMax: { type: Type.NUMBER, description: "Renta máxima CLP o 0" },
+        keywords: { type: Type.STRING, description: "Palabras clave de cargo o habilidades" }
+      }
+    };
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{
+        role: "user",
+        parts: [{ text: `Extrae filtros de búsqueda laboral en Chile del siguiente texto. Devuelve JSON.\n\nTexto: ${query}` }]
+      }],
+      config: { responseMimeType: "application/json", responseSchema: schema }
+    });
+
+    const parsed = JSON.parse(result.text ?? "{}") as { region?: string; area?: string; salaryMax?: number; keywords?: string };
+    return {
+      filters: {
+        region: parsed.region ?? "",
+        area: parsed.area ?? "",
+        salaryMax: parsed.salaryMax ? String(parsed.salaryMax) : "",
+        query: parsed.keywords ?? ""
+      }
+    };
+  }
+);
+
+// ── recordProfileImpression — incrementa contador de visitas semanales ────────
+export const recordProfileImpression = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    checkRateLimit(uid, "impression", 50, 60_000);
+
+    const workerId = String((request.data as { workerId?: string }).workerId ?? "");
+    if (!workerId) throw new HttpsError("invalid-argument", "workerId requerido.");
+
+    const profileRef = db.collection("workerPublicProfiles").doc(workerId);
+    await profileRef.update({
+      "analytics.totalImpressions": FieldValue.increment(1),
+      "analytics.weekImpressions": FieldValue.increment(1)
+    });
+
+    return { ok: true };
+  }
+);
+
+// ── recordSearchAnalytics — persiste los filtros de búsqueda de empresa ──────
+export const recordSearchAnalytics = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    checkRateLimit(uid, "searchAnalytics", 60, 60_000);
+
+    const { region, area, salaryMax, query: searchQuery } = request.data as {
+      region?: string; area?: string; salaryMax?: number; query?: string;
+    };
+
+    await db.collection("searchAnalytics").add({
+      companyId: uid,
+      region: region ?? "",
+      area: area ?? "",
+      salaryMax: Number(salaryMax ?? 0),
+      query: String(searchQuery ?? "").slice(0, 200),
+      createdAt: FieldValue.serverTimestamp()
+    });
+
+    return { ok: true };
+  }
+);
+
+// ── companyPlanExpiryReminders — avisa a empresas 3 días antes de vencimiento ─
+export const companyPlanExpiryReminders = onSchedule(
+  { schedule: "every day 09:30", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const in3Days = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 3);
+    const now = Timestamp.now();
+
+    const snap = await db.collection("companyProfiles")
+      .where("monthlyPlan.active", "==", true)
+      .where("monthlyPlan.renewsAt", ">=", now)
+      .where("monthlyPlan.renewsAt", "<=", in3Days)
+      .limit(100)
+      .get();
+
+    for (const doc of snap.docs) {
+      const company = doc.data();
+      const email: string = company.contactEmail ?? company.email ?? "";
+      if (!email) continue;
+
+      const reminderId = `company-plan-expiry-${doc.id}`;
+      const reminderRef = db.collection("emailReminders").doc(reminderId);
+      const existing = await reminderRef.get();
+      if (existing.exists) continue;
+
+      const renewsAt = (company.monthlyPlan?.renewsAt as Timestamp)?.toDate();
+      const dateStr = renewsAt?.toLocaleDateString("es-CL", { day: "2-digit", month: "long" }) ?? "pronto";
+
+      await sendEmail(
+        email,
+        `⏰ Tu plan Perfil Primero vence el ${dateStr} — renuévalo para no perder acceso`,
+        `<p>Hola equipo de <strong>${company.companyName}</strong>,</p>
+         <p>Tu plan mensual empresa vence el <strong>${dateStr}</strong>. Cuando venza, ya no podrás enviar nuevas invitaciones ni desbloquear contactos.</p>
+         <p>Renueva ahora para mantener el acceso continuo.</p>
+         <p><a href="${appUrl}/empresa" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Renovar plan →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+
+      await reminderRef.set({
+        type: "company_plan_expiry",
+        companyId: doc.id,
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── invitationNoResponseReminder — recuerda al postulante invitaciones sin ver ─
+export const invitationNoResponseReminder = onSchedule(
+  { schedule: "every day 10:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    // Invitaciones enviadas hace 3 días que siguen en estado "sent" (no "viewed")
+    const threeDaysAgo = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 24 * 3);
+    const sixDaysAgo  = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 24 * 6);
+
+    const snap = await db.collection("invitations")
+      .where("status", "==", "sent")
+      .where("createdAt", "<=", threeDaysAgo)
+      .where("createdAt", ">=", sixDaysAgo)
+      .limit(100)
+      .get();
+
+    for (const doc of snap.docs) {
+      const inv = doc.data();
+      const reminderId = `inv-noresponse-${doc.id}`;
+      const existing = await db.collection("emailReminders").doc(reminderId).get();
+      if (existing.exists) continue;
+
+      const privateSnap = await db.collection("workerPrivateProfiles").doc(inv.workerId).get();
+      if (!privateSnap.exists) continue;
+      const email: string = privateSnap.data()!.email;
+      if (!email) continue;
+
+      await sendEmail(
+        email,
+        "Tienes una invitación pendiente de respuesta — Perfil Primero",
+        `<p>Hola,</p>
+         <p>Hace 3 días recibiste una invitación para el cargo <strong>${inv.opportunityTitle}</strong>
+         con sueldo $${inv.salaryMin?.toLocaleString("es-CL")} – $${inv.salaryMax?.toLocaleString("es-CL")} CLP.</p>
+         <p>La invitación vence pronto. Entra a tu panel para aceptarla o rechazarla.</p>
+         <p><a href="${appUrl}/postulante" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Ver invitación →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+
+      await db.collection("emailReminders").doc(reminderId).set({
+        type: "invitation_no_response",
+        invitationId: doc.id,
+        workerId: inv.workerId,
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── workerWelcomeEmail — da bienvenida a trabajadores nuevos con checklist ────
+export const workerWelcomeEmail = onSchedule(
+  { schedule: "every 2 hours", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    // Perfiles creados entre 1h y 3h atrás que no han recibido bienvenida
+    const oneHourAgo   = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 1);
+    const threeHoursAgo = Timestamp.fromMillis(Date.now() - 1000 * 60 * 60 * 3);
+
+    const snap = await db.collection("workerPublicProfiles")
+      .where("createdAt", "<=", oneHourAgo)
+      .where("createdAt", ">=", threeHoursAgo)
+      .limit(50)
+      .get();
+
+    for (const doc of snap.docs) {
+      const reminderId = `worker-welcome-${doc.id}`;
+      const existing = await db.collection("emailReminders").doc(reminderId).get();
+      if (existing.exists) continue;
+
+      const privateSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
+      if (!privateSnap.exists) continue;
+      const email: string = privateSnap.data()!.email;
+      if (!email) continue;
+
+      const name: string = (privateSnap.data()!.preferredName ?? "").split(" ")[0] ?? "Hola";
+
+      await sendEmail(
+        email,
+        "Bienvenido/a a Perfil Primero — 3 pasos para recibir tu primera invitación",
+        `<p>Hola ${name},</p>
+         <p>Ya tienes tu perfil creado en <strong>Perfil Primero</strong>. Para que las empresas verificadas puedan encontrarte, sigue estos 3 pasos:</p>
+         <ol>
+           <li><strong>Completa tu perfil</strong> — agrega al menos 3 habilidades y un resumen de 80+ caracteres.</li>
+           <li><strong>Sube tu CV</strong> — la IA lo analiza y mejora tu perfil automáticamente.</li>
+           <li><strong>Activa la visibilidad</strong> — $999 CLP/mes. Sin visibilidad activa, las empresas no te encuentran.</li>
+         </ol>
+         <p><a href="${appUrl}/postulante" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Completar mi perfil →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+
+      await db.collection("emailReminders").doc(reminderId).set({
+        type: "worker_welcome",
+        workerId: doc.id,
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── submitEmployerReview — postulante reseña a la empresa como empleador ──────
+export const submitEmployerReview = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    checkRateLimit(uid, "employerReview", 3, 3_600_000);
+
+    const { invitationId, score, comment } = request.data as {
+      invitationId: string;
+      score: number;
+      comment: string;
+    };
+
+    if (!invitationId || !score) throw new HttpsError("invalid-argument", "Faltan datos.");
+    if (score < 1 || score > 5) throw new HttpsError("invalid-argument", "Puntaje inválido (1–5).");
+
+    const invSnap = await db.collection("invitations").doc(invitationId).get();
+    if (!invSnap.exists) throw new HttpsError("not-found", "Invitación no encontrada.");
+    const inv = invSnap.data()!;
+    if (inv.workerId !== uid) throw new HttpsError("permission-denied", "Solo el postulante puede reseñar.");
+    if (!["in_process", "offer_sent", "hired", "closed"].includes(inv.status)) {
+      throw new HttpsError("failed-precondition", "La invitación debe estar en proceso para reseñar.");
+    }
+
+    const reviewRef = db.collection("employerReviews").doc();
+    await reviewRef.set({
+      reviewId: reviewRef.id,
+      invitationId,
+      companyId: inv.companyId,
+      workerId: uid,
+      score: Number(score),
+      comment: String(comment ?? "").slice(0, 800),
+      createdAt: FieldValue.serverTimestamp()
+    });
+
+    return { reviewId: reviewRef.id };
+  }
+);
+
+// ── expireInvitations — cierra invitaciones vencidas ─────────────────────────
+export const expireInvitations = onSchedule(
+  { schedule: "every day 03:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const now = Timestamp.now();
+    const snap = await db.collection("invitations")
+      .where("status", "==", "sent")
+      .where("expiresAt", "<=", now)
+      .limit(200)
+      .get();
+
+    if (snap.empty) return;
+
+    const batches: FirebaseFirestore.WriteBatch[] = [];
+    let batch = db.batch();
+    let count = 0;
+    for (const doc of snap.docs) {
+      batch.update(doc.ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
+      count++;
+      if (count % 400 === 0) { batches.push(batch); batch = db.batch(); }
+    }
+    if (count % 400 !== 0) batches.push(batch);
+    await Promise.all(batches.map((b) => b.commit()));
+
+    await writeAudit("system", "admin", "invitations_expired_batch", "invitation", "bulk", { count: String(snap.size) });
+  }
+);
+
+// ── expireContactUnlocks — retira acceso a datos de contacto vencidos ─────────
+export const expireContactUnlocks = onSchedule(
+  { schedule: "every day 03:30", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const now = Timestamp.now();
+    const snap = await db.collection("contactUnlocks")
+      .where("status", "==", "active")
+      .where("expiresAt", "<=", now)
+      .limit(200)
+      .get();
+
+    if (snap.empty) return;
+
+    const batches: FirebaseFirestore.WriteBatch[] = [];
+    let batch = db.batch();
+    let count = 0;
+    for (const doc of snap.docs) {
+      batch.update(doc.ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
+      count++;
+      if (count % 400 === 0) { batches.push(batch); batch = db.batch(); }
+    }
+    if (count % 400 !== 0) batches.push(batch);
+    await Promise.all(batches.map((b) => b.commit()));
+  }
+);
+
+// ── getExpertPanelAnalysis — 4 expertos analizan Perfil Primero con Gemini ────
+//
+// Expertos:
+//  1. Dr. Sebastián Fuentes — abogado laboral chileno
+//  2. Valentina Torres — ingeniera en administración / consultora de negocios
+//  3. Dr. Rodrigo Castillo — psicólogo organizacional
+//  4. Marco Brennan — crítico ácido de plataformas tecnológicas
+//
+export const getExpertPanelAnalysis = onCall(
+  { region: "us-central1", timeoutSeconds: 120 },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    checkRateLimit(uid, "expertPanel", 3, 3_600_000);
+
+    const topic = String((request.data as { topic?: string }).topic ?? "plataforma_general").slice(0, 200);
+
+    const topicTexts: Record<string, string> = {
+      plataforma_general: "la plataforma laboral Perfil Primero en su conjunto: modelo invertido, privacidad del postulante, verificación de empresas, precios, propuesta de valor",
+      seguridad: "la seguridad y privacidad de datos en Perfil Primero: protección del perfil anónimo, cómo se manejan los datos personales, qué pasa si una empresa intenta bypassear el sistema",
+      precios: "el modelo de precios de Perfil Primero: $999 CLP/mes para postulantes, $999 CLP por contacto desbloqueado para empresas, el modelo de éxito vs suscripción",
+      matching: "el sistema de matching e IA en Perfil Primero: análisis de CV con Gemini, búsqueda semántica, score de calce, badges de perfil",
+      ux: "la experiencia de usuario de Perfil Primero: flujo de onboarding, panel del postulante, panel de empresa, diseño móvil"
+    };
+    const topicText = topicTexts[topic] ?? topicTexts.plataforma_general;
+
+    const ai = getGeminiAI();
+
+    const personas = [
+      {
+        id: "abogado",
+        nombre: "Dr. Sebastián Fuentes Araya",
+        rol: "Abogado Laboral · 18 años en derecho del trabajo chileno · Universidad de Chile",
+        emoji: "⚖️",
+        instruccion: `Eres el Dr. Sebastián Fuentes Araya, abogado laboral chileno especialista en Código del Trabajo, Ley 19.628 de Protección de Datos Personales, y derecho digital. Tienes 18 años de experiencia litigando en tribunales laborales. Tu estilo es preciso, citas artículos de leyes específicas, hablas en chileno formal pero directo. Analizas desde el riesgo legal para la empresa operadora y para los usuarios. Señalas qué está bien, qué es riesgoso y qué podría generar demandas o sanciones del Consejo para la Transparencia. NO inventas leyes — si algo no está regulado claramente, dilo. Sé específico y honesto.`
+      },
+      {
+        id: "ing_admin",
+        nombre: "Valentina Torres Reyes",
+        rol: "Ingeniera en Administración · MBA · Ex directora de operaciones en startup B2B SaaS",
+        emoji: "📊",
+        instruccion: `Eres Valentina Torres Reyes, ingeniera en administración con MBA de la UAI. Fuiste directora de operaciones en dos startups B2B SaaS chilenas que alcanzaron la rentabilidad. Analizas desde KPIs, unit economics, CAC, LTV, churn, eficiencia operacional y escalabilidad del modelo de negocios. Tu estilo es estructurado, usas números y porcentajes estimados cuando tienes base para hacerlo, haces preguntas incómodas sobre la sustentabilidad económica. Eres optimista pero exigente. Cuando algo está bien, lo reconoces. Cuando algo es un riesgo económico real, lo dices sin rodeos.`
+      },
+      {
+        id: "psicologo",
+        nombre: "Dr. Rodrigo Castillo Lagos",
+        rol: "Psicólogo Organizacional · Doctor en Psicología del Trabajo · Consultor de bienestar laboral",
+        emoji: "🧠",
+        instruccion: `Eres el Dr. Rodrigo Castillo Lagos, psicólogo organizacional con doctorado en psicología del trabajo en la PUC. Llevas 15 años estudiando el impacto de la tecnología en el bienestar de los trabajadores y la salud organizacional. Analizas desde la psicología del usuario: ¿cómo se siente el postulante que busca trabajo?, ¿qué emociones genera la plataforma?, ¿hay elementos de ansiedad o de empoderamiento?, ¿cómo afecta la dinámica de poder entre empresa y trabajador?, ¿la UX promueve o destruye la autoestima del candidato?. Tu estilo es empático, técnico pero accesible, y ocasionalmente provocador cuando ves algo que daña psicológicamente a los usuarios.`
+      },
+      {
+        id: "critico",
+        nombre: "Marco A. Brennan",
+        rol: "Ex-CTO · Columnista de tecnología · Autor de 'El Cementerio de Startups Latinoamericanas'",
+        emoji: "🔥",
+        instruccion: `Eres Marco A. Brennan, ex-CTO de tres startups y columnista de tecnología conocido por reseñas brutalmente honestas de productos digitales. Escribes para un medio de tecnología de negocios. Tu estilo es ácido, directo, sin pelos en la lengua — pero siempre fundamentado en criterios técnicos y de negocio reales. Comparas con referentes mundiales (LinkedIn, Glassdoor, Toptal, AngelList, Seek). Cuando algo es mediocre, lo dices. Cuando algo es genuinamente innovador, también lo reconoces — pero no le regales aplausos fáciles. Tu objetivo: dar un veredicto honesto que ayude a mejorar el producto, no a quedar bien con nadie. Termina siempre con un "Veredicto" de 1-2 oraciones.`
+      }
+    ];
+
+    const results = await Promise.all(
+      personas.map(async (persona) => {
+        const prompt = `${persona.instruccion}
+
+Analiza ${topicText}.
+
+Contexto de la plataforma que debes tener en cuenta:
+- Perfil Primero es una plataforma laboral invertida chilena: el postulante publica su perfil ANÓNIMO primero y las empresas VERIFICADAS lo contactan con cargo, sueldo y condiciones claras antes de que el postulante revele su identidad.
+- El postulante paga $999 CLP/mes por visibilidad activa.
+- La empresa paga $999 CLP por desbloquear el contacto después de que el postulante acepta la invitación.
+- Hay IA (Google Gemini) para analizar CVs y búsqueda semántica.
+- Hay roles: trabajador, empresa, OMIL (municipalidades), admin.
+- La plataforma está en Firebase (Firestore, Cloud Functions, Hosting). Es una SPA Next.js con exportación estática.
+- Existe sistema de invitaciones con estado (sent → accepted → in_process → offer_sent → hired/closed).
+- El chat se bloquea si se detectan datos de contacto para forzar el pago de cierre.
+
+Da tu análisis honesto en español chileno, entre 120 y 180 palabras. Sé específico, no genérico.`;
+
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: { temperature: 0.8, maxOutputTokens: 400 }
+          });
+          return {
+            id: persona.id,
+            nombre: persona.nombre,
+            rol: persona.rol,
+            emoji: persona.emoji,
+            opinion: response.text?.trim() ?? "Análisis no disponible.",
+            error: false
+          };
+        } catch {
+          return {
+            id: persona.id,
+            nombre: persona.nombre,
+            rol: persona.rol,
+            emoji: persona.emoji,
+            opinion: "No se pudo generar el análisis en este momento. Intenta nuevamente.",
+            error: true
+          };
+        }
+      })
+    );
+
+    await writeAudit(uid, "worker", "expert_panel_requested", "system", "expertPanel", { topic });
+    return { experts: results, topic, generatedAt: new Date().toISOString() };
+  }
+);
+
+// ── Push notifications: guardar suscripción ──────────────────────────────────
+export const savePushSubscription = onCall<{
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+}>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const { subscription } = request.data;
+  if (!subscription?.endpoint) throw new HttpsError("invalid-argument", "Suscripción inválida.");
+  await db.collection("users").doc(uid).set(
+    { pushSubscription: subscription, pushEnabledAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+  return { ok: true };
+});
+
+// ── Push notifications: enviar notificación a un usuario ────────────────────
+export const sendPushToUser = onCall<{ targetUid: string; title: string; body: string; url?: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  // Solo admin puede enviar a otros usuarios
+  const callerDoc = await db.collection("users").doc(uid).get();
+  if (callerDoc.data()?.role !== "admin" && uid !== request.data.targetUid) {
+    throw new HttpsError("permission-denied", "No autorizado.");
+  }
+  const targetDoc = await db.collection("users").doc(request.data.targetUid).get();
+  const sub = targetDoc.data()?.pushSubscription as { endpoint: string; keys: { p256dh: string; auth: string } } | undefined;
+  if (!sub?.endpoint) return { sent: false, reason: "sin_suscripcion" };
+
+  const vapidPublic = process.env.VAPID_PUBLIC_KEY ?? "";
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY ?? "";
+  const vapidEmail = process.env.VAPID_EMAIL ?? "mailto:admin@perfil-primero.web.app";
+  webpush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate);
+
+  try {
+    await webpush.sendNotification(sub, JSON.stringify({
+      title: request.data.title,
+      body: request.data.body,
+      url: request.data.url ?? "/postulante",
+      tag: `pp-${Date.now()}`
+    }));
+    return { sent: true };
+  } catch (err) {
+    // Si el endpoint está vencido, lo eliminamos
+    if ((err as { statusCode?: number }).statusCode === 410) {
+      await db.collection("users").doc(request.data.targetUid).update({ pushSubscription: FieldValue.delete() });
+    }
+    return { sent: false, reason: "error_envio" };
+  }
+});
+
+// ── Push: enviar a todos los workers con suscripción (admin) ─────────────────
+export const broadcastPushToWorkers = onCall<{ title: string; body: string; url?: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const callerDoc = await db.collection("users").doc(uid).get();
+  if (callerDoc.data()?.role !== "admin") throw new HttpsError("permission-denied", "Solo admins.");
+
+  const vapidPublic = process.env.VAPID_PUBLIC_KEY ?? "";
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY ?? "";
+  webpush.setVapidDetails(process.env.VAPID_EMAIL ?? "mailto:admin@perfil-primero.web.app", vapidPublic, vapidPrivate);
+
+  const snap = await db.collection("users").where("pushSubscription", "!=", null).limit(500).get();
+  const payload = JSON.stringify({ title: request.data.title, body: request.data.body, url: request.data.url ?? "/" });
+  let sent = 0;
+  await Promise.all(snap.docs.map(async (doc) => {
+    const sub = doc.data().pushSubscription as { endpoint: string; keys: { p256dh: string; auth: string } };
+    try {
+      await webpush.sendNotification(sub, payload);
+      sent++;
+    } catch (err) {
+      if ((err as { statusCode?: number }).statusCode === 410) {
+        await doc.ref.update({ pushSubscription: FieldValue.delete() });
+      }
+    }
+  }));
+  return { sent, total: snap.size };
+});
+
+// ── Reactivar perfil worker (pago ya confirmado externamente) ────────────────
+export const reactivateWorkerProfile = onCall<{ workerId?: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const callerDoc = await db.collection("users").doc(uid).get();
+  const role = callerDoc.data()?.role;
+  // Admin puede reactivar cualquier perfil; worker solo el propio
+  const targetId = role === "admin" && request.data.workerId ? request.data.workerId : uid;
+  if (targetId !== uid && role !== "admin") throw new HttpsError("permission-denied", "No autorizado.");
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  await db.collection("workerPublicProfiles").doc(targetId).update({
+    subscriptionStatus: "active",
+    visibilityStatus: "visible",
+    profileExpiresAt: expiresAt,
+    reactivatedAt: FieldValue.serverTimestamp()
+  });
+  await writeAudit(uid, role ?? "worker", "profile_reactivated", "worker", targetId, { expiresAt: expiresAt.toISOString() });
+  return { ok: true, expiresAt: expiresAt.toISOString() };
+});
+
+// ── Multi-usuario empresa: agregar miembro del equipo ───────────────────────
+export const addCompanyTeamMember = onCall<{ email: string; role: "viewer" | "recruiter" | "admin" }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const callerDoc = await db.collection("users").doc(uid).get();
+  if (callerDoc.data()?.role !== "company") throw new HttpsError("permission-denied", "Solo empresas.");
+
+  const companySnap = await db.collection("companyProfiles").doc(uid).get();
+  if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
+
+  const { email, role } = request.data;
+  if (!email || !["viewer", "recruiter", "admin"].includes(role)) {
+    throw new HttpsError("invalid-argument", "Email y rol requeridos.");
+  }
+
+  let targetUid: string | null = null;
+  try {
+    const userRecord = await getAuth().getUserByEmail(email);
+    targetUid = userRecord.uid;
+  } catch {
+    throw new HttpsError("not-found", `No existe usuario con email ${email}.`);
+  }
+
+  const teamMembers: Array<{ uid: string; email: string; role: string; addedAt: FirebaseFirestore.Timestamp }> =
+    companySnap.data()?.teamMembers ?? [];
+
+  if (teamMembers.some((m) => m.uid === targetUid)) {
+    throw new HttpsError("already-exists", "Este usuario ya es miembro del equipo.");
+  }
+  if (teamMembers.length >= 10) {
+    throw new HttpsError("resource-exhausted", "Máximo 10 miembros por empresa.");
+  }
+
+  teamMembers.push({ uid: targetUid!, email, role, addedAt: Timestamp.now() });
+  await db.collection("companyProfiles").doc(uid).update({ teamMembers });
+  await writeAudit(uid, "company", "team_member_added", "company", uid, { targetUid, email, role });
+  return { ok: true, memberCount: teamMembers.length };
+});
+
+// ── Multi-usuario empresa: eliminar miembro ──────────────────────────────────
+export const removeCompanyTeamMember = onCall<{ memberUid: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const companySnap = await db.collection("companyProfiles").doc(uid).get();
+  if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
+
+  const teamMembers: Array<{ uid: string }> = companySnap.data()?.teamMembers ?? [];
+  const next = teamMembers.filter((m) => m.uid !== request.data.memberUid);
+  await db.collection("companyProfiles").doc(uid).update({ teamMembers: next });
+  await writeAudit(uid, "company", "team_member_removed", "company", uid, { removedUid: request.data.memberUid });
+  return { ok: true };
+});
+
+// ── Utilidad: proyección de campos Firestore (reduce tráfico) ─────────────────
+function selectFields<T extends Record<string, unknown>>(doc: T, fields: (keyof T)[]): Partial<T> {
+  return fields.reduce((acc, f) => { acc[f] = doc[f]; return acc; }, {} as Partial<T>);
+}
+// Exportar para uso en tests
+export { selectFields };
+
+// ── submitNps — encuesta NPS post-proceso ─────────────────────────────────────
+export const submitNps = onCall<{ score: number; comment?: string; context?: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const { score, comment, context } = request.data;
+  if (typeof score !== "number" || score < 0 || score > 10) {
+    throw new HttpsError("invalid-argument", "El score NPS debe ser un número entre 0 y 10.");
+  }
+  const category = score >= 9 ? "promoter" : score >= 7 ? "passive" : "detractor";
+  await db.collection("npsSurveys").add({
+    uid,
+    score,
+    category,
+    comment: sanitize(comment ?? "", 500),
+    context: sanitize(context ?? "", 100),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  log("INFO", "nps_submitted", { uid, score, category });
+  return { ok: true, category };
+});
+
+// ── getPublicWorkerStats — estadísticas públicas para landing ─────────────────
+export const getPublicWorkerStats = onCall(async () => {
+  const [workersSnap, companiesSnap, invSnap] = await Promise.all([
+    db.collection("workerPublicProfiles").where("visibilityStatus", "==", "visible").count().get(),
+    db.collection("companyProfiles").where("verificationStatus", "==", "verified").count().get(),
+    db.collection("invitations").where("status", "==", "hired").count().get(),
+  ]);
+  return {
+    activeWorkers:      workersSnap.data().count,
+    verifiedCompanies:  companiesSnap.data().count,
+    successfulHires:    invSnap.data().count,
+  };
+});
+
+// ── recordUtmConversion — guardar atribución UTM al registro ─────────────────
+export const recordUtmConversion = onCall<{
+  source?: string; medium?: string; campaign?: string; event: string;
+}>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  await db.collection("utmConversions").add({
+    uid,
+    source:   sanitize(request.data.source ?? "", 100),
+    medium:   sanitize(request.data.medium ?? "", 100),
+    campaign: sanitize(request.data.campaign ?? "", 100),
+    event:    sanitize(request.data.event, 100),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});
+
+// ── expireOldNpsData — limpieza mensual de NPS > 1 año ───────────────────────
+export const expireOldNpsData = onSchedule("every 720 hours", async () => {
+  const cutoff = Timestamp.fromDate(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
+  const snap = await db.collection("npsSurveys").where("createdAt", "<", cutoff).limit(200).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  log("INFO", "nps_old_data_expired", { count: snap.size });
+});

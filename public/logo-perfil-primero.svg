@@ -1,16 +1,60 @@
-<svg width="204" height="48" viewBox="0 0 204 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Perfil Primero">
-  <rect x="2" y="2" width="44" height="44" rx="14" fill="url(#markGradient)" stroke="#BDEBFF" stroke-width="2"/>
-  <path d="M15 31V15H25.1C28.7 15 31.2 17.4 31.2 20.8C31.2 24.3 28.7 26.7 25.1 26.7H19.4V31H15ZM19.4 23.1H24.5C25.9 23.1 26.8 22.2 26.8 20.8C26.8 19.5 25.9 18.6 24.5 18.6H19.4V23.1Z" fill="#07324A"/>
-  <path d="M33 31V20.1L29.9 21.7V17.8L34.5 15H37.4V31H33Z" fill="#07324A"/>
-  <text x="58" y="22" fill="#07324A" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="850" letter-spacing="0">Perfil</text>
-  <text x="58" y="39" fill="#0F8FB2" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="850" letter-spacing="0">Primero</text>
-  <path d="M116 13H187" stroke="#6FD0FF" stroke-width="5" stroke-linecap="round"/>
-  <path d="M116 26H172" stroke="#BDEBFF" stroke-width="5" stroke-linecap="round"/>
-  <defs>
-    <linearGradient id="markGradient" x1="6" y1="5" x2="42" y2="44" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F5FCFF"/>
-      <stop offset="0.45" stop-color="#BDEBFF"/>
-      <stop offset="1" stop-color="#7ED8FF"/>
-    </linearGradient>
-  </defs>
+<svg width="520" height="120" viewBox="0 0 520 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Perfil Primero — Conectamos Talento con Oportunidades">
+  <title>Perfil Primero</title>
+
+  <!-- ═══════════════════════════════════════════
+       ÍCONO IZQUIERDO: círculo + P1 + figura
+       ═══════════════════════════════════════════ -->
+
+  <!-- Círculo exterior cyan (abierto arriba-derecha) -->
+  <path d="M100 12 A50 50 0 1 0 108 18" stroke="#3aaee0" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- Letra P grande (navy) -->
+  <text x="20" y="90" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif"
+        font-size="80" font-weight="900" fill="#1a2f5e">P</text>
+
+  <!-- Figura humana estilizada (cyan) — cabeza + arco cuerpo -->
+  <!-- Cabeza -->
+  <circle cx="88" cy="28" r="9" fill="#3aaee0"/>
+  <!-- Cuerpo: arco que baja, curva, sube -->
+  <path d="M78 42 Q65 65 72 80 Q80 92 92 86" stroke="#3aaee0" stroke-width="7"
+        stroke-linecap="round" fill="none"/>
+  <!-- Cola del arco hacia arriba-derecha -->
+  <path d="M88 44 Q100 30 108 18" stroke="#3aaee0" stroke-width="5"
+        stroke-linecap="round" fill="none"/>
+
+  <!-- Número 1 (navy, con forma de "banderín" inclinado abajo) -->
+  <!-- Palo vertical del 1 -->
+  <rect x="92" y="45" width="10" height="42" rx="2" fill="#1a2f5e" transform="rotate(-5 97 66)"/>
+  <!-- Base inclinada azul tipo chevron -->
+  <polygon points="82,98 105,88 110,102 87,112" fill="#3aaee0"/>
+  <!-- Trazo diagonal pequeño (el "tick" del 1) -->
+  <line x1="82" y1="51" x2="97" y2="45" stroke="#1a2f5e" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- ═══════════════════════════════════════════
+       LÍNEA SEPARADORA VERTICAL
+       ═══════════════════════════════════════════ -->
+  <line x1="135" y1="14" x2="135" y2="106" stroke="#9ca3b0" stroke-width="2"/>
+
+  <!-- ═══════════════════════════════════════════
+       WORDMARK: PERFIL / PRIMERO
+       ═══════════════════════════════════════════ -->
+
+  <!-- PERFIL (navy) -->
+  <text x="152" y="58" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif"
+        font-size="50" font-weight="900" fill="#1a2f5e" letter-spacing="-1">PERFIL</text>
+
+  <!-- PRIMERO (azul medio) -->
+  <text x="152" y="106" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif"
+        font-size="50" font-weight="900" fill="#3aaee0" letter-spacing="-1">PRIMERO</text>
+
+  <!-- ═══════════════════════════════════════════
+       TAGLINE: líneas + texto
+       ═══════════════════════════════════════════ -->
+  <!-- Línea izquierda -->
+  <line x1="152" y1="116" x2="185" y2="116" stroke="#3aaee0" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Texto tagline -->
+  <text x="191" y="119" font-family="Arial,'Helvetica Neue',sans-serif"
+        font-size="11.5" font-weight="600" fill="#1a2f5e" letter-spacing="1.6">CONECTAMOS TALENTO CON OPORTUNIDADES</text>
+  <!-- Línea derecha -->
+  <line x1="482" y1="116" x2="515" y2="116" stroke="#3aaee0" stroke-width="2.5" stroke-linecap="round"/>
 </svg>

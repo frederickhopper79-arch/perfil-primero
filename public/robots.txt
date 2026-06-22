@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: /consola-admin
+Disallow: /postulante
+Disallow: /empresa
+Disallow: /omil
+Disallow: /trabajador
+Disallow: /admin
+Disallow: /analisis-expertos
+Disallow: /r/
+Allow: /
+Allow: /como-funciona
+Allow: /precios
+Allow: /blog/
+Allow: /legal/
+Allow: /estado
+
+Sitemap: https://perfil-primero.web.app/sitemap.xml

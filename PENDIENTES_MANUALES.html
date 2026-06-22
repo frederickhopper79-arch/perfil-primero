@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pendientes Manuales — Perfil Primero</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f7fb; color: #1a2d45; font-size: 15px; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #0a2038, #0d2e4a); color: #e8f0fa; padding: 48px 32px 36px; }
+  .header h1 { font-size: 32px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .header p { color: rgba(255,255,255,0.65); font-size: 15px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+  .section { background: #fff; border: 1px solid #dde6f0; border-radius: 14px; margin-bottom: 24px; overflow: hidden; }
+  .section-header { align-items: center; background: #f0f5fb; border-bottom: 1px solid #dde6f0; display: flex; gap: 12px; padding: 16px 20px; }
+  .section-header h2 { font-size: 16px; font-weight: 800; flex: 1; }
+  .section-header .icon { font-size: 20px; }
+  .priority { border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; padding: 3px 8px; text-transform: uppercase; }
+  .priority.critical { background: #fff0f3; color: #9b1b30; }
+  .priority.high { background: #fff4e0; color: #7a4500; }
+  .priority.medium { background: #e8f4ff; color: #0050a0; }
+  .priority.low { background: #f0faf4; color: #1a6b3c; }
+  .items { list-style: none; padding: 0; }
+  .items li { border-bottom: 1px solid #f0f5fb; padding: 16px 20px; }
+  .items li:last-child { border-bottom: none; }
+  .items li label { display: grid; gap: 6px; grid-template-columns: 20px 1fr; align-items: start; cursor: pointer; }
+  .items li input[type=checkbox] { margin-top: 4px; }
+  .items li .content strong { color: #1a2d45; display: block; font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .items li .content p { color: #4a6080; font-size: 13px; line-height: 1.55; }
+  .items li .content .meta { color: #7a96b4; font-size: 12px; margin-top: 4px; display: block; }
+  .items li .content .cmd { background: #f0f5fb; border: 1px solid #dde6f0; border-radius: 6px; color: #0050a0; font-family: monospace; font-size: 12px; margin-top: 6px; padding: 6px 10px; display: inline-block; }
+  .footer { color: #7a96b4; font-size: 12px; margin-top: 32px; text-align: center; }
+  @media print { body { background: #fff; } .section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📋 Pendientes Manuales — Perfil Primero</h1>
+  <p>Generado el 19 de junio de 2026 · Auditoría exhaustiva post-desarrollo · <strong>perfil-primero.web.app</strong></p>
+</div>
+
+<div class="container">
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">🔑</span>
+      <h2>Configuración de Servicios Externos</h2>
+      <span class="priority critical">Crítico</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Activar cuenta Mercado Pago real en producción</strong>
+        <p>Obtener <code>MERCADOPAGO_ACCESS_TOKEN</code> de producción desde tu cuenta Mercado Pago Chile y agregar en <code>functions/.env</code>. Actualmente el sistema está listo pero necesita el token productivo.</p>
+        <span class="meta">mercadopago.cl → Desarrolladores → Credenciales → Producción</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar webhook de Mercado Pago</strong>
+        <p>En el panel de Mercado Pago → Notificaciones, agregar la URL del webhook para que los pagos se procesen automáticamente.</p>
+        <span class="cmd">https://us-central1-perfil-primero.cloudfunctions.net/mercadoPagoWebhook</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Resolver cuota agotada de Gemini API (Tarea #12)</strong>
+        <p>El análisis de CV con IA falla por cuota. Opciones: (a) actualizar al plan de pago en Google Cloud Console → Vertex AI, o (b) rotar a una nueva API Key en Google AI Studio.</p>
+        <span class="meta">aistudio.google.com → API Keys → Crear clave nueva → Actualizar GEMINI_API_KEY en functions/.env</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Activar dominio personalizado: perfil-primero.cl</strong>
+        <p>Conectar el dominio a Firebase Hosting. La plataforma actualmente solo responde en perfil-primero.web.app.</p>
+        <span class="meta">Firebase Console → Hosting → Agregar dominio personalizado → Configurar DNS</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar proveedor de email transaccional</strong>
+        <p>Las notificaciones (bienvenida, recordatorio de expiración, aviso de invitación) están implementadas pero requieren SENDGRID_API_KEY en <code>functions/.env</code>.</p>
+        <span class="meta">sendgrid.com → Settings → API Keys → Agregar como SENDGRID_API_KEY</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Verificar que contacto@perfil-primero.cl existe y recibe emails</strong>
+        <p>Este email aparece en los Términos, Política de Privacidad y como remitente de notificaciones. Sin mailbox activo los usuarios no pueden contactarte.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">⚖️</span>
+      <h2>Legal y Fiscal</h2>
+      <span class="priority critical">Crítico antes de cobrar</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Iniciar actividades ante el SII</strong>
+        <p>Perfil Primero SpA (RUT 78.449.783-6) debe iniciar actividades comerciales antes de procesar pagos reales. Giro recomendado: "Plataformas de intermediación digital" o "Servicios de información tecnológica".</p>
+        <span class="meta">sii.cl → Servicios Online → Inicio de Actividades</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Obtener Resolución de Emisor DTE</strong>
+        <p>Para emitir boletas electrónicas automáticas como empresa, necesitas certificarte como emisor DTE ante el SII o contratar un proveedor (Bsale, Facturador.cl, Nubox).</p>
+        <span class="meta">Afecta: módulo de facturación en panel admin</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Confirmar estado del Registro de Empresas (CVE)</strong>
+        <p>La constitución está registrada como CVE: CRPblJalJLZ0 del 17 de junio 2026. Verificar estado activo en el Registro de Empresas y Sociedades.</p>
+        <span class="meta">rees.economia.cl → buscar por RUT 78.449.783-6</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Validar Términos de Uso con asesor legal antes de lanzamiento comercial</strong>
+        <p>Los Términos actuales incluyen una cláusula de pendiente de revisión legal. Completar esta revisión especialmente en: modelo de pago, no reembolso, responsabilidad limitada y jurisdicción.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Registrar base de datos ante el Consejo para la Transparencia (Ley 19.628)</strong>
+        <p>Chile exige registro cuando se procesan datos personales de terceros (CVs, RUTs, datos laborales). Aplica a Perfil Primero.</p>
+        <span class="meta">cplt.cl → Registro de Bases de Datos</span>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">🔒</span>
+      <h2>Firebase y Seguridad</h2>
+      <span class="priority high">Alta prioridad</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Activar Firebase App Check</strong>
+        <p>Previene abuso de Cloud Functions y Firestore desde apps no autorizadas. Configurar con reCAPTCHA v3.</p>
+        <span class="meta">Firebase Console → App Check → Comenzar → Registrar app web</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar alertas de presupuesto en Google Cloud</strong>
+        <p>Sin límites, un abuso puede generar costos inesperados. Configurar alerta al 50%, 80% y 100% del presupuesto mensual.</p>
+        <span class="meta">Google Cloud Console → Facturación → Alertas de presupuesto</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Habilitar 2FA en cuenta de administrador</strong>
+        <p>La cuenta fabiancarrillo@gmail.com controla todo el proyecto. Activar verificación en 2 pasos.</p>
+        <span class="meta">myaccount.google.com → Seguridad → Verificación en 2 pasos</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Activar exportación automática de Firestore (backup)</strong>
+        <p>Configurar exportación diaria a Cloud Storage para recuperación ante desastres.</p>
+        <span class="meta">Google Cloud Console → Firestore → Copias de seguridad</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programar rotación de secrets cada 90 días</strong>
+        <p>Rotar periódicamente: MERCADOPAGO_ACCESS_TOKEN, GEMINI_API_KEY, STRIPE_SECRET_KEY.</p>
+        <span class="cmd">npx firebase functions:secrets:set NOMBRE_SECRET</span>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">⚙️</span>
+      <h2>Operaciones y Primer Lanzamiento</h2>
+      <span class="priority high">Antes del primer cliente</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear usuario administrador en producción</strong>
+        <p>Ejecutar el script de asignación de rol admin sobre tu cuenta, luego verificar acceso a /consola-admin.</p>
+        <span class="cmd">node scripts/set-admin-role.js tu@email.com</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Verificar y aprobar primera empresa de prueba end-to-end</strong>
+        <p>Registrar cuenta empresa → completar perfil → aprobar en /consola-admin → buscar worker → invitar → aceptar → pagar → confirmar desbloqueo de contacto.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear cupón de lanzamiento para primeras empresas</strong>
+        <p>En /consola-admin → Cupones, crear un cupón de 100% descuento para las primeras empresas. Código sugerido: LANZAMIENTO2026 con limite de 20 usos.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Validar flujo completo Mercado Pago en sandbox</strong>
+        <p>Simular pago aprobado, pendiente y rechazado con tarjeta de prueba antes de ir a producción real.</p>
+        <span class="meta">Tarjeta sandbox MP: 5031 7557 3453 0604 | CVV: 123 | Vencimiento: 11/25</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar Stripe (fallback de pago)</strong>
+        <p>Crear cuenta en stripe.com, obtener STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET y STRIPE_WORKER_PRICE_ID. Agregar en .env.local. Configurar webhook apuntando a la Cloud Function.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">📣</span>
+      <h2>Marketing y Visibilidad</h2>
+      <span class="priority medium">Primer mes</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear screenshot real para instalación PWA</strong>
+        <p>El manifest.json referencia /hero-marketplace.png (1200x630) que no existe. Tomar screenshot del panel y guardar en public/.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Registrar en Google Search Console</strong>
+        <p>Verificar dominio y enviar sitemap para indexación SEO.</p>
+        <span class="meta">Sitemap URL: https://perfil-primero.web.app/sitemap.xml</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar Google Analytics 4</strong>
+        <p>Agregar GA4 para tracking de conversiones. Obtener Measurement ID y agregar como NEXT_PUBLIC_GA_ID en .env.local.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear perfil de empresa en LinkedIn</strong>
+        <p>Para credibilidad, tráfico orgánico y búsquedas de marca. El email oficial debe estar activo primero.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">🏛️</span>
+      <h2>Canal OMIL</h2>
+      <span class="priority low">Cuando tengas convenios</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Firmar convenio con primera OMIL piloto</strong>
+        <p>El módulo OMIL está técnicamente completo. Para activarlo se necesita convenio formal con una municipalidad. Sugerencia: Puerto Montt, Puerto Varas o Castro.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear cuenta OMIL desde /consola-admin</strong>
+        <p>Una vez firmado el convenio, crear la cuenta con rol "omil" y entregar credenciales al personal de la municipalidad.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Preparar guía de usuario para el equipo OMIL</strong>
+        <p>Documento o video tutorial: cómo crear perfiles de postulantes, información requerida, interpretación de estados.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">🚀</span>
+      <h2>Backlog Técnico (próximos sprints)</h2>
+      <span class="priority low">Cuando escale</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Paginación en lista de workers</strong>
+        <p>Actualmente carga hasta 50 perfiles. Implementar cursor-based pagination (startAfter) cuando superes 200+ perfiles activos.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Indicadores de "visto" en chat</strong>
+        <p>Agregar campo readAt en conversationMessages y lógica de marcado al abrir conversación.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Notificaciones push (PWA via FCM)</strong>
+        <p>Implementar Firebase Cloud Messaging para notificaciones cuando llega invitación nueva o mensaje de chat.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Tests automatizados E2E con Playwright</strong>
+        <p>Flujos críticos: registro worker → activar → recibir invitación. Registro empresa → verificar → invitar → pagar.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Panel de métricas para empresas</strong>
+        <p>Implementar: búsquedas realizadas, perfiles vistos, tasa de aceptación de invitaciones, tiempo promedio de respuesta.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PROPUESTAS NO-CÓDIGO DE LAS 3.400 MEJORAS — 16 ROLES ESPECIALIZADOS -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section" style="border-left: 4px solid #7c3aed;">
+    <div class="section-header" style="background:#f5f3ff;">
+      <span class="icon">🧠</span>
+      <h2>Estrategia de Negocio · Rol 1 — CEO / Product Strategy</h2>
+      <span class="priority high">Estratégico</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir OKRs de lanzamiento (Q3 2026)</strong>
+        <p>Establecer: 500 postulantes activos en 90 días, 30 empresas verificadas, NPS ≥ 40, tasa de conversión invitación→pago ≥ 25%. Documentar en Notion o Google Sheets con revisión quincenal.</p>
+        <span class="meta">Responsable: Fabián · Plazo: antes del 1 julio 2026</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir estrategia de precios para Fase 2</strong>
+        <p>Evaluar si mantener $9.990 por contacto o migrar a modelo SaaS ($49.990/mes contactos ilimitados). Validar con primeras 10 empresas usuarias. Considerar precio por sector (TI vs construcción).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Mapa de competidores actualizado</strong>
+        <p>Analizar: Laborum, Computrabajo, LinkedIn Jobs, Bumeran, GetOnBoard, Trabajando.com. Identificar ventajas diferenciales de Perfil Primero en cada segmento de mercado.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir posicionamiento de marca para cada segmento</strong>
+        <p>Postulante: "privacidad + poder". Empresa: "calidad + eficiencia". OMIL: "digitalización municipal". Crear guía de mensajes clave para cada audiencia.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Plan de expansión regional</strong>
+        <p>Fase 1: Los Lagos + RM. Fase 2: Biobío + Valparaíso + La Araucanía. Fase 3: cobertura nacional. Definir KPIs de densidad de perfiles por región para escalar.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Explorar modelo B2G (Municipios)</strong>
+        <p>Presentar propuesta formal de convenio OMIL al Municipio de Puerto Montt. Template de convenio, precio por municipio (si aplica), SLA de soporte.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Construir Investor Deck (si se busca financiamiento)</strong>
+        <p>Pitch deck de 12 slides: problema, solución, mercado, modelo de negocio, tracción, equipo, financiamiento requerido y uso de fondos. Objetivo: CORFO o capital semilla privado.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Evaluar postulación a CORFO Capital Semilla</strong>
+        <p>CORFO ofrece hasta $70M CLP para startups en etapa temprana con modelo escalable. Perfil Primero cumple los criterios. Revisar convocatoria en corfo.cl.</p>
+        <span class="meta">corfo.cl → Capital Semilla Explora</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir política de reembolso y garantía de servicio</strong>
+        <p>Si empresa paga $9.990 y el candidato borra su cuenta al día siguiente, ¿se reembolsa? Documentar política clara antes de lanzamiento comercial.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Explorar alianzas con ATE / empresas de capacitación</strong>
+        <p>Partnering con Inacap, CFT, Duoc UC para que sus egresados recién titulados publiquen perfiles. Beneficio mutuo: colocación laboral y tracción de perfiles para PP.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #dc2626;">
+    <div class="section-header" style="background:#fff5f5;">
+      <span class="icon">📣</span>
+      <h2>PR y Comunicaciones · Rol 2 — Relaciones Públicas</h2>
+      <span class="priority medium">Primer mes</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Redactar comunicado de prensa de lanzamiento</strong>
+        <p>1 página. Incluye: qué es Perfil Primero, el problema que resuelve, quién lo fundó, cifras clave, cita del fundador y contacto de prensa. Distribuir a: El Mercurio, La Tercera, Emol, Pulso, Tecnologías de Chile.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Contactar a medios de empleo y RRHH</strong>
+        <p>Proponer entrevista o nota editorial en: Revista Capital, HR Influencer Chile, HR Management, podcast "Trabajo del Futuro". Ángulo: "La startup chilena que invierte el proceso de reclutamiento".</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Lanzamiento en Product Hunt</strong>
+        <p>Programar post en producthunt.com. Preparar: descripción en inglés, screenshots del producto, GIF demo, video de 60s. Conseguir upvoters el día del lanzamiento.</p>
+        <span class="meta">Lunes o martes son los mejores días para lanzar en PH</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Postular a premios startup Chile</strong>
+        <p>Evaluar: Chilecon, StartupChile Demo Day, Premio Chile Digital. El modelo invertido es innovador y tiene buenas posibilidades en categoría "Futuro del Trabajo".</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear caso de éxito (case study) de primera contratación</strong>
+        <p>Cuando se concrete la primera contratación real vía PP, documentar el caso: empresa, sector, tiempo de proceso, ahorro vs portal tradicional. Publicar en blog y LinkedIn.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Gestionar reseñas en Google Business</strong>
+        <p>Crear perfil en Google Business para "Perfil Primero SpA", agregar descripción, logo, horarios de atención y solicitar reseñas a los primeros usuarios satisfechos.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Contactar a Sernam / SENCE para alianza de empleo femenino</strong>
+        <p>Los programas de reinserción laboral femenina son un segmento estratégico. Proponer a SENCE incluir Perfil Primero como herramienta digital en sus programas de capacitación.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear hashtag y estrategia en redes sociales</strong>
+        <p>Propuesta: #PerfilPrimero #EmpeoChile #TrabajoDigno. Crear calendarios de contenido para LinkedIn, Instagram y TikTok con 3 publicaciones semanales por red.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Preparar kit de prensa descargable</strong>
+        <p>PDF con logo en distintos formatos, colores corporativos, descripción corta/larga de la empresa, foto del fundador, datos de contacto de prensa.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Entrevista en podcast de startups o RRHH chilenos</strong>
+        <p>Proponer aparición en: "Startup Chile Podcast", "HR Colombia" (escuchado en Chile), "El lado B del trabajo". Ángulo: cómo democratizar el acceso al trabajo con tecnología.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #d97706;">
+    <div class="section-header" style="background:#fffbeb;">
+      <span class="icon">🎨</span>
+      <h2>Diseño y Branding · Rol 3 — Diseñador Gráfico / Brand</h2>
+      <span class="priority medium">Antes del lanzamiento público</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear Design System en Figma</strong>
+        <p>Armar librería completa: paleta de colores (primarios, secundarios, semánticos), tipografías, espaciado (4px grid), componentes reutilizables (botones, cards, formularios, badges, tablas). Basarse en las CSS variables actuales de globals.css.</p>
+        <span class="meta">Herramienta: Figma (gratis para startups con 3 páginas)</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Wireframes UX de los flujos principales</strong>
+        <p>Flujo postulante: onboarding → perfil → recibir invitación → aceptar. Flujo empresa: registro → verificación → búsqueda → invitación → pago. Flujo OMIL: crear perfil → gestionar candidatos. Cada flujo en Figma para validar con usuarios antes de iterar código.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Diseñar imagen OG (Open Graph) para cada página principal</strong>
+        <p>Imágenes 1200x630px para compartir en redes sociales. Necesarias para: home, /para-postulantes, /para-empresas, /precios, /blog. Actualmente las páginas no tienen imágenes OG personalizadas.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear set de íconos de app (PWA icons)</strong>
+        <p>Generar todas las variantes del logo: 72x72, 96x96, 128x128, 144x144, 152x152, 192x192, 384x384, 512x512px. Formato PNG con fondo transparente y con fondo de color para maskable. El manifest.json ya los referencia.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear screenshot de la app para el manifest PWA</strong>
+        <p>El manifest.json referencia /hero-marketplace.png (1200x630) que no existe. Tomar screenshot del panel de empresa y del panel de postulante. Herramienta: Screely o Screenshot de Figma.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Diseñar email templates transaccionales</strong>
+        <p>HTML emails para: bienvenida, confirmación de pago, nueva invitación recibida, recordatorio de expiración de perfil, verificación de empresa aprobada/rechazada. Estilo coherente con la marca.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Manual de identidad visual (Brand Guidelines)</strong>
+        <p>Documento PDF de 8–12 páginas: uso correcto del logo, colores exactos (HEX/RGB/CMYK), tipografías permitidas, ejemplos de uso correcto e incorrecto. Necesario antes de contratar freelancers o agencias.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear ilustraciones para páginas de error y estados vacíos</strong>
+        <p>Diseñar ilustraciones SVG personalizadas para: 404 not found, sin resultados en búsqueda, perfil sin invitaciones, error de conexión. Actualmente usa emojis como fallback.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Video demo de producto (60–90 segundos)</strong>
+        <p>Screencast mostrando: cómo un postulante crea su perfil (30s) y cómo una empresa busca y contacta candidatos (30s). Subtítulos en español. Subir a YouTube y embeber en home.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Diseñar tarjetas de presentación / material offline</strong>
+        <p>Para eventos y ferias laborales: tarjetas de visita, roll-up banner con propuesta de valor, folleto A5 con QR al sitio. Impresión local en Puerto Montt.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #059669;">
+    <div class="section-header" style="background:#ecfdf5;">
+      <span class="icon">📈</span>
+      <h2>Marketing Digital · Rol 4 — Growth & Marketing</h2>
+      <span class="priority medium">Mes 1–3</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Configurar campañas Google Ads</strong>
+        <p>Campaña Search con keywords: "buscar trabajo Chile", "publicar CV online", "portal de empleo Chile", "contratar profesionales Chile". Presupuesto inicial: $50.000 CLP/mes. Convertir en lead capture.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Estrategia de contenido SEO para el blog</strong>
+        <p>Publicar 2 artículos por semana durante los primeros 3 meses. Temas prioritarios: sueldos por sector, cómo crear buen perfil LinkedIn, trabajo remoto Chile, tips negociación salarial. Usar Google Search Console para encontrar keywords.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programa de referidos para postulantes</strong>
+        <p>Diseño: "Invita a un amigo y cuando se registre, ambos reciben 1 mes de visibilidad premium gratis." Requiere código de referido único por usuario (campo referralCode en Firestore).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Campaña en LinkedIn Ads para empresas</strong>
+        <p>Target: directores de RRHH, gerentes de área, CEOs de Pymes en Chile. Formato: Lead Gen Form. Mensaje: "¿Cansado de revisar 200 CVs? Conoce a los candidatos que ya te están esperando."</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Email marketing de onboarding (secuencia automática)</strong>
+        <p>Secuencia de 5 emails para nuevos postulantes: D+0 bienvenida, D+2 cómo mejorar tu perfil, D+5 tips de visibilidad, D+10 historial de plataforma, D+30 reactivación si no hay actividad.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear landing page de "lista de espera empresas"</strong>
+        <p>Durante el lanzamiento, recolectar emails de empresas interesadas antes de que estén verificadas. Usar Typeform, Tally o una página simple en /empresas/waitlist.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Colaborar con influencers de RRHH en LinkedIn Chile</strong>
+        <p>Identificar 5–10 personas con >5K seguidores que hablen de empleo, RRHH o carrera en Chile. Ofrecer acceso gratuito a cambio de review honesta del producto.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Estrategia TikTok / Reels para postulantes jóvenes</strong>
+        <p>Videos de 30–60 segundos: "¿Sabías que puedes recibir ofertas de trabajo sin enviar tu CV?", "Tips de sueldo 2025 en Chile", "Cómo negociar tu primer sueldo". Mostrar la app en acción.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Webinar gratuito para empresas</strong>
+        <p>"Cómo contratar mejor en 2026: el modelo invertido de reclutamiento." 45 minutos + 15 min preguntas. Gravar y subir como recurso permanente. Herramienta: Google Meet o Zoom.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Implementar NPS survey post-contratación</strong>
+        <p>30 días después de que una empresa desbloquee un contacto, enviar encuesta NPS de 2 preguntas: "¿Recomendarías Perfil Primero?" (0–10) y "¿Por qué?". Usar typeform o implementar en panel.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #2563eb;">
+    <div class="section-header" style="background:#eff6ff;">
+      <span class="icon">💼</span>
+      <h2>Ventas B2B · Rol 5 — Sales / Business Development</h2>
+      <span class="priority high">Desde el mes 1</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear guión de venta (sales script) para llamadas con empresas</strong>
+        <p>Estructura: apertura (problema que resuelve), demo de 5 min, objeciones comunes + respuestas, cierre. Objeciones más comunes: "es muy caro", "no conozco la plataforma", "prefiero Computrabajo".</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Construir pipeline CRM de empresas prospecto</strong>
+        <p>Usar HubSpot CRM (gratis) o Google Sheets. Etapas: contactado → demo agendada → cuenta creada → primera invitación → primera compra → cliente recurrente.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Identificar 50 empresas objetivo en Puerto Montt y región</strong>
+        <p>Sectores: salud, construcción, turismo, tecnología, comercio. Recopilar: nombre, RUT, contacto RRHH/gerente, LinkedIn, teléfono. Base de datos inicial para contacto directo.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear propuesta comercial PDF para cuentas corporativas</strong>
+        <p>Para empresas que contratan 10+ personas/mes, ofrecer cuenta corporativa con reportes, factura mensual consolidada y soporte preferente. Precio: negociable desde $150.000/mes.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Asistir a ferias de empleo y eventos de RRHH</strong>
+        <p>Eventos objetivo: Feria Laboral Puerto Montt, ExpoRRHH Santiago, HackHR Chile. Llevar material impreso, laptop para demo en vivo y código de descuento para registro en ferias.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programa "Empresa Embajadora"</strong>
+        <p>Las primeras 10 empresas verificadas reciben badge especial en su perfil, descuentos permanentes y acceso anticipado a nuevas funciones. A cambio: testimonial en video y permiso para usar el logo.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Alianzas con consultoras RRHH y head hunters</strong>
+        <p>Proponer comisión del 20% a consultoras que deriven empresas a PP. Crear cuenta de "partner" con dashboard de referidos y facturación mensual consolidada.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Explorar acuerdo con Cámara de Comercio de Puerto Montt</strong>
+        <p>La Cámara agrupa cientos de Pymes de la región. Una alianza puede generar 50+ empresas registradas en los primeros 6 meses.</p>
+        <span class="meta">camarapuertomontt.cl</span>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #7c3aed;">
+    <div class="section-header" style="background:#f5f3ff;">
+      <span class="icon">🏗️</span>
+      <h2>Procesos Organizacionales · Rol 6 — Operations / COO</h2>
+      <span class="priority medium">Antes de escalar</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear SOP (Procedimiento Estándar) de verificación de empresas</strong>
+        <p>Documentar paso a paso: cómo revisar una solicitud de empresa, qué documentos pedir (RUT empresa, iniciación de actividades, nombre representante legal), criterios de rechazo, tiempo máximo de respuesta (48h).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear SOP de manejo de disputas y reclamos</strong>
+        <p>¿Qué pasa si una empresa dice que el candidato no respondió? ¿Si el postulante dice que fue contactado sin consentimiento? Documentar flujo de resolución, plazos y criterios de reembolso.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir SLA de soporte al cliente</strong>
+        <p>Respuesta inicial: 24h hábiles. Resolución: 72h. Canal prioritario para empresas con plan activo: 4h. Documentar en página de ayuda y en los Términos de Servicio.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Sistema de ticket de soporte</strong>
+        <p>Implementar Freshdesk, Zendesk (gratis hasta 3 agentes) o Crisp.chat para gestionar solicitudes de soporte. El email soporte@perfil-primero.cl debe conectarse a un sistema de tickets.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir política de privacidad de datos para colaboradores</strong>
+        <p>Si contratas freelancers o colaboradores que accedan a datos de usuarios, necesitas NDA y política interna de manejo de datos personales conforme a Ley 19.628.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear calendario editorial de contenidos</strong>
+        <p>Plan mensual de publicaciones: blog (2/semana), LinkedIn (3/semana), Instagram (4/semana), newsletter (1/mes). Asignar responsable, fecha de publicación y KPI por publicación.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Reunión mensual de revisión de métricas</strong>
+        <p>Crear ritual mensual de revisión: usuarios nuevos, tasa de conversión, NPS, ingresos, churn, tickets de soporte abiertos. Dashboard en Google Data Studio o Notion.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Plan de contingencia ante indisponibilidad de Firebase</strong>
+        <p>Qué comunicar a usuarios si Firebase tiene downtime. Tener página de estado (ya creada en /estado). Definir protocolo de comunicación en redes sociales y email durante incidentes.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #db2777;">
+    <div class="section-header" style="background:#fdf2f8;">
+      <span class="icon">👥</span>
+      <h2>Experiencia de Usuario · Rol 7 — UX Research</h2>
+      <span class="priority medium">Mes 1–2</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Entrevistas de usuario con 10 postulantes potenciales</strong>
+        <p>Preguntas clave: ¿Cómo buscas trabajo actualmente? ¿Qué te frustra del proceso? ¿Estarías cómodo con un perfil anónimo? ¿Cuánto tiempo dedicas a buscar empleo? Grabar con permiso, transcribir patrones.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Entrevistas con 5 gerentes de RRHH de empresas medianas</strong>
+        <p>Preguntas: ¿Cuánto tardan en contratar un perfil senior? ¿Cuánto les cuesta? ¿Qué les frustra de los portales actuales? ¿Pagarían $9.990 por contacto calificado? Usar Calendly para agendar.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Test de usabilidad del flujo de registro (A/B testing manual)</strong>
+        <p>Observar a 5 personas completando el registro desde cero. Medir: tiempo hasta completar, dónde se detienen, qué preguntan, qué los frustra. Usar Lookback.io o solo Zoom compartiendo pantalla.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear mapa de empatía del postulante típico chileno</strong>
+        <p>Documentar: qué piensa, siente, ve, escucha, dice y hace un postulante de 25–40 años en Chile que busca cambiar de trabajo. Usar esta info para mejorar los textos del onboarding.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Heatmap de comportamiento con Hotjar o Microsoft Clarity</strong>
+        <p>Instalar Hotjar (gratis hasta 35 sesiones/día) o Microsoft Clarity (gratis ilimitado). Analizar dónde hacen clic, hasta dónde scrollean, qué abandonan. Mejoras basadas en datos reales.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Encuesta de onboarding post-registro</strong>
+        <p>Al completar el registro, mostrar encuesta de 3 preguntas: "¿Cómo supiste de nosotros?", "¿Cuál es tu sector?", "¿Qué esperas de la plataforma?". Datos valiosos para personalización futura.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear personas (User Personas) documentadas</strong>
+        <p>Al menos 3 personas: "Ana, profesional de salud, 32 años, busca trabajo híbrido en Concepción", "Carlos, gerente de RRHH de constructora, 45 años, Santiago", "Roberto, funcionario OMIL Puerto Montt, 38 años". Usarlas en decisiones de diseño.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #0284c7;">
+    <div class="section-header" style="background:#f0f9ff;">
+      <span class="icon">💰</span>
+      <h2>Finanzas y Contabilidad · Rol 8 — CFO / Finance</h2>
+      <span class="priority high">Antes de cobrar</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Abrir cuenta bancaria empresarial</strong>
+        <p>Cuenta corriente a nombre de Perfil Primero SpA (RUT 78.449.783-6). Banco recomendado: BancoEstado (mejor atención a Pymes), Santander o BCI. Necesario: Inicio de actividades SII previo.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Contratar contador o plataforma contable</strong>
+        <p>Opciones: contador freelance ($30.000–$80.000/mes), plataforma Nubox, Defontana o Bsale (desde $15.000/mes). Necesario para: declaraciones mensuales de IVA, PPM, renta anual.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Proyección financiera de 12 meses</strong>
+        <p>Crear modelo en Excel/Google Sheets: ingresos proyectados por número de contactos desbloqueados, costos fijos (Firebase, dominio, marketing), punto de equilibrio mensual. Actualizar mensualmente.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir estructura de costos de Firebase</strong>
+        <p>Estimar costo mensual de Firebase según usuarios activos: Firestore reads/writes, Cloud Functions invocaciones, Storage GB. Configurar alerta de presupuesto en Google Cloud para no tener sorpresas.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Evaluar si emitir boletas o facturas electrónicas</strong>
+        <p>Las empresas que pagan $9.990 van a pedir factura para registrar el gasto. Necesitas sistema de facturación electrónica (DTE). Contratar Bsale o Nubox antes de cobrar a la primera empresa.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir tratamiento tributario de los ingresos</strong>
+        <p>Clarificar con contador: ¿se aplica IVA a servicios digitales? ¿Los ingresos en CLP de Mercado Pago se declaran mensualmente? ¿Cuándo corresponde hacer PPM?</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #65a30d;">
+    <div class="section-header" style="background:#f7fee7;">
+      <span class="icon">🤝</span>
+      <h2>Partnerships Institucionales · Rol 9 — Alianzas</h2>
+      <span class="priority medium">Mes 2–6</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Convenio SENCE — Programa de Empleo</strong>
+        <p>SENCE financia capacitación y reemplazo laboral. Proponer que Perfil Primero sea herramienta de colocación laboral en sus programas de Bono de Capacitación y Chile Solidario.</p>
+        <span class="meta">sence.gob.cl → Contacto → Unidad de Intermediación</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Convenio con universidades de la región</strong>
+        <p>Proponer a UACH, ULagos, USS, Duoc UC Puerto Montt que sus egresados recientes tengan acceso gratuito a Perfil Primero. Beneficio para universidad: estadísticas de colocación de egresados.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Alianza con empresa de ATS (Applicant Tracking System)</strong>
+        <p>Explorar integración con Talentbrew, BambooHR o Buk (unicornio chileno). Las empresas que ya usan estos sistemas podrían conectar PP como fuente de candidatos.</p>
+        <span class="meta">buk.cl tiene >5.000 empresas clientes en Chile</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Presencia en Ecosistema StartupChile</strong>
+        <p>Postular al programa de aceleración StartupChile (gratis, con capital de hasta USD 40.000). Red de contactos y visibilidad internacional para el producto.</p>
+        <span class="meta">startupchile.org → Convocatorias abiertas</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Alianza con Asociación de RRHH de Chile (ARCHI)</strong>
+        <p>ARCHI agrupa a profesionales de RRHH de todo Chile. Una membresía o presentación en su congreso anual puede generar decenas de empresas usuarias.</p>
+        <span class="meta">archi.cl</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programa para personas con discapacidad (Ley 21.015)</strong>
+        <p>La ley exige que empresas con 100+ empleados contraten 1% de personas con discapacidad. Crear categoría específica en perfiles para facilitar este matching. Alianza con Senadis.</p>
+        <span class="meta">senadis.gob.cl</span>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #b45309;">
+    <div class="section-header" style="background:#fffbeb;">
+      <span class="icon">📊</span>
+      <h2>Datos y Analytics · Rol 10 — Data Analyst</h2>
+      <span class="priority medium">Mes 2–3</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir métricas norte (North Star Metrics)</strong>
+        <p>Propuesta: "Contactos desbloqueados por mes" como métrica principal. Métricas de apoyo: perfiles activos, invitaciones enviadas, tasa de aceptación, tiempo al primer pago de empresa nueva.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear dashboard de KPIs en Looker Studio (ex Data Studio)</strong>
+        <p>Conectar: Firestore (via export a BigQuery), Mercado Pago (API), Google Analytics 4. Visualizar: usuarios nuevos/día, embudo de conversión, ingresos por semana, churn de perfiles.</p>
+        <span class="meta">Gratuito: lookerstudio.google.com</span>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Informe mensual de mercado laboral Chile</strong>
+        <p>Con datos anonimizados de la plataforma: sueldos medianos por sector, habilidades más buscadas, regiones con más actividad. Publicar como PDF mensual (contenido de valor, tracción orgánica).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>A/B testing de mensajes de invitación</strong>
+        <p>Probar 2 versiones del template de invitación que envían las empresas. Medir cuál tiene mayor tasa de aceptación. Implementar con feature flag ya creado en el código.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Análisis de cohort de retención</strong>
+        <p>Medir: de los postulantes que se registran en el mes X, ¿cuántos siguen activos a los 30, 60, 90 días? Identificar el momento de abandono y actuar con emails de reactivación.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #6d28d9;">
+    <div class="section-header" style="background:#f5f3ff;">
+      <span class="icon">🛡️</span>
+      <h2>Seguridad y Privacidad · Rol 11 — CISO / Compliance</h2>
+      <span class="priority high">Antes del lanzamiento</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Política de Privacidad revisada por abogado especialista en datos</strong>
+        <p>La Política de Privacidad actual fue redactada con IA. Antes de procesar datos de usuarios reales, hacer revisar por abogado especialista en Ley 19.628 y su nueva reforma (Ley 21.719 vigente desde 2026).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Procedimiento de respuesta ante brecha de datos</strong>
+        <p>Si hay una filtración: ¿a quién se notifica primero? ¿En qué plazo? La Ley 21.719 exige notificar al Consejo para la Transparencia en 72h y a los afectados sin demora injustificada.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Evaluación de impacto en privacidad (PIA)</strong>
+        <p>Documentar: qué datos se recopilan, para qué, por cuánto tiempo, quién tiene acceso y cómo se eliminan. Requerido formalmente por la nueva legislación chilena de datos personales.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Política de retención y eliminación de datos</strong>
+        <p>Definir: los perfiles inactivos por 12 meses se eliminan automáticamente (o se anonimiza). Respetar el derecho de supresión ("ser olvidado") con un proceso documentado de eliminación.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Penetration testing básico</strong>
+        <p>Antes del lanzamiento público, contratar un especialista (o usar OWASP ZAP gratuito) para identificar vulnerabilidades básicas en la aplicación. Documentar hallazgos y resolución.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #0891b2;">
+    <div class="section-header" style="background:#ecfeff;">
+      <span class="icon">🌐</span>
+      <h2>Comunidad y Social · Rol 12 — Community Manager</h2>
+      <span class="priority low">Mes 2–6</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear comunidad de Discord o Slack para usuarios</strong>
+        <p>Canal para: anuncios de nuevas funciones, feedback de usuarios, preguntas frecuentes, comunidad de apoyo entre postulantes. Moderar activamente los primeros 3 meses.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Newsletter mensual "Mercado Laboral Chile"</strong>
+        <p>Suscripción abierta (no solo usuarios de PP). Contenido: sueldos del mes por sector, novedades de la plataforma, tip de la semana para postulantes, caso de éxito. Herramienta: Mailchimp o Brevo (gratis hasta 2.000 suscriptores).</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programa de embajadores de marca (postulantes)</strong>
+        <p>Identificar los 20 postulantes más activos y enganchados. Ofrecerles acceso premium gratuito y mención en redes a cambio de compartir su experiencia positiva con su red.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear grupo en LinkedIn: "Talento Profesional Chile"</strong>
+        <p>Comunidad para compartir tips de búsqueda laboral, negociación de sueldo, trabajo remoto en Chile. Perfil Primero como moderador posiciona la marca como referente de mercado.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Encuesta de satisfacción semestral</strong>
+        <p>Cada 6 meses, enviar encuesta a toda la base de usuarios: satisfacción general, funciones deseadas, NPS, problemas frecuentes. Publicar resumen de resultados como prueba de transparencia.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #be185d;">
+    <div class="section-header" style="background:#fdf2f8;">
+      <span class="icon">🌍</span>
+      <h2>Expansión Internacional · Rol 13 — Internacionalización</h2>
+      <span class="priority low">Año 2</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Evaluación de mercados para expansión en LATAM</strong>
+        <p>Priorizar: Colombia (mercado laboral digital creciente), Perú (grande, informalidad laboral como oportunidad), Argentina (talento TI barato post-devaluación). Análisis competitivo por mercado.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Adaptar plataforma para múltiples monedas</strong>
+        <p>Actualmente todo está en CLP. Para expansión: mostrar sueldos en moneda local según país. Configurar Mercado Pago multi-país o Stripe Billing con precios por región.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Investigar regulaciones de datos en Colombia y Perú</strong>
+        <p>Ley 1581 de Colombia (habeas data) y Ley 29733 de Perú (datos personales) tienen requisitos similares pero distintos a Chile. Evaluar antes de operar en esos mercados.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Versión en inglés para postulantes remotos</strong>
+        <p>Muchas empresas chilenas contratan extranjeros para trabajo remoto. Ofrecer interfaz en inglés permitiría capturar talentos de Argentina, Colombia, Venezuela, México.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #0d9488;">
+    <div class="section-header" style="background:#f0fdfa;">
+      <span class="icon">🤖</span>
+      <h2>IA y Producto Futuro · Rol 14 — AI Product Manager</h2>
+      <span class="priority low">Roadmap año 1–2</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>IA de sugerencia de sueldo esperado</strong>
+        <p>Basada en sector, región, años de experiencia y habilidades, sugerir al postulante un rango salarial de mercado. Datos de: INE, LinkedIn Salary, datos anonimizados propios. Mejorar la calidad de perfiles desde el origen.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Análisis de compatibilidad empresa-candidato con LLM</strong>
+        <p>Más allá del score numérico actual, usar Gemini para generar un párrafo de "por qué este candidato es buena opción para tu cargo". Valor diferencial alto para empresas.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Chatbot de soporte con IA</strong>
+        <p>Usar Gemini o Claude API para responder preguntas frecuentes de soporte: "¿cómo activo mi perfil?", "¿cuándo me pagan?", "¿cómo rechazo una invitación?". Reducir volumen de tickets de soporte.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Detección automática de perfiles falsos o spammers</strong>
+        <p>Modelo de ML para identificar: perfiles creados masivamente desde el mismo IP, empresas que envían invitaciones masivas sin intención real, postulantes que aceptan todo sin leer.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Generación de descripción de perfil con IA</strong>
+        <p>Si el postulante responde preguntas simples ("¿Cuál es tu mayor logro profesional?"), la IA genera automáticamente un resumen profesional pulido. Baja la barrera de entrada para usuarios menos digitales.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Predicción de probabilidad de contratación</strong>
+        <p>Para cada perfil, mostrar una estimación: "Candidatos con tu perfil reciben en promedio 2 invitaciones en 30 días". Incentiva la completitud del perfil y establece expectativas realistas.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #9333ea;">
+    <div class="section-header" style="background:#faf5ff;">
+      <span class="icon">📱</span>
+      <h2>App Móvil Nativa · Rol 15 — Mobile Product</h2>
+      <span class="priority low">Año 2 si hay tracción</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Evaluar demanda de app nativa vs PWA</strong>
+        <p>Antes de invertir en app nativa (React Native o Flutter), medir: % de usuarios que instalan la PWA actual, % de sesiones móviles, solicitudes directas de "¿tienen app?".</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Diseño de app en Figma (mobile-first)</strong>
+        <p>Si se decide construir app nativa: diseñar primero en Figma todas las pantallas. Flujo completo de postulante y empresa en formato mobile (375px). Testear con usuarios antes de codificar.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Publicar en App Store y Google Play</strong>
+        <p>Costo: Google Play $25 USD (único pago), Apple Developer $99 USD/año. Proceso de revisión: Google 2–3 días, Apple 1–2 semanas. Requiere app con funcionalidad completa documentada.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Push notifications nativas para invitaciones</strong>
+        <p>El diferenciador clave de app nativa vs PWA: notificaciones más confiables en iOS (Apple limita mucho las web push). Evaluar si justifica el costo de desarrollo.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="section" style="border-left: 4px solid #64748b;">
+    <div class="section-header" style="background:#f8fafc;">
+      <span class="icon">📝</span>
+      <h2>Recursos Humanos internos · Rol 16 — People & Culture</h2>
+      <span class="priority low">Cuando contrates</span>
+    </div>
+    <ul class="items">
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir primer perfil de contratación</strong>
+        <p>¿Qué rol contratar primero? Opciones: (a) Community Manager / soporte, (b) Desarrollador junior para acelerar features, (c) Vendedor para empresas B2B. Depende de cuál cuello de botella duela más.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Crear estructura de compensación y equity</strong>
+        <p>Si contratas socios o colaboradores clave, definir: ¿hay equity? ¿sueldo + comisión? ¿contrato a honorarios o contrato de trabajo? Cada opción tiene implicancias legales y tributarias distintas.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Programa de onboarding para nuevos colaboradores</strong>
+        <p>Documento de bienvenida: arquitectura del producto, valores de la empresa, accesos, herramientas usadas (GitHub, Figma, Notion, Firebase). Evita re-explicar todo desde cero cada vez.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Definir cultura y valores de la empresa</strong>
+        <p>Documentar: ¿cómo tomamos decisiones? ¿priorizamos velocidad o calidad? ¿cómo manejamos errores? ¿qué NO hacemos? Los valores deben reflejarse en cómo se trata a usuarios y colaboradores.</p>
+      </div></label></li>
+      <li><label><input type="checkbox"><div class="content">
+        <strong>Política de trabajo remoto para el equipo</strong>
+        <p>Si contratas personas en otras regiones: ¿cuántos días presenciales? ¿cómo se mide el desempeño? ¿qué herramientas de comunicación se usan? Documentar desde el inicio para evitar conflictos.</p>
+      </div></label></li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>Perfil Primero SpA · RUT 78.449.783-6 · Puerto Montt, Chile · contacto@perfil-primero.cl</p>
+    <p style="margin-top:4px;">Actualizado 22 de junio 2026 · Propuestas no-código de los 16 roles especializados (3.400 mejoras) · Claude Sonnet 4.6</p>
+  </div>
+
+</div>
+</body>
+</html>

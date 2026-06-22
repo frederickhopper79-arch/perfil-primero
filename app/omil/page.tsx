@@ -5,7 +5,7 @@ export default function OmilPage() {
     <main className="workspace">
       <section className="workspaceHeader">
         <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.svg" alt="" />
+          <img className="brandLogo" src="/logo-perfil-primero.png" alt="" />
           <span>Perfil Primero</span>
         </a>
         <div>

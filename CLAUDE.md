@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+> **AISLAMIENTO DE PROYECTO — LEER PRIMERO**
+> Este repositorio es EXCLUSIVAMENTE Perfil Primero (Pagina de Empleos).
+> NUNCA tocar, mencionar ni ejecutar comandos en: Kineassistance, hopper-tech-web, ni ningún otro proyecto.
+> Si el usuario pide algo que involucre otro proyecto, recordarle que debe abrir una sesión separada desde esa carpeta.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project

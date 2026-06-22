@@ -1,5 +1,33 @@
 export type UserRole = "worker" | "company" | "admin" | "omil";
 
+// Type guards para runtime validation
+export function isUserRole(value: unknown): value is UserRole {
+  return typeof value === "string" && ["worker", "company", "admin", "omil"].includes(value);
+}
+
+export function isInvitationStatus(value: unknown): value is InvitationStatus {
+  return typeof value === "string" && [
+    "sent","viewed","accepted","rejected","more_info_requested",
+    "unlocked","in_process","offer_sent","hired","closed","expired"
+  ].includes(value);
+}
+
+export function isWorkerVisibilityStatus(value: unknown): value is WorkerVisibilityStatus {
+  return typeof value === "string" && ["visible","paused","hidden","expired","suspended"].includes(value);
+}
+
+// Branded type para profileCode
+export type ProfileCode = string & { readonly _brand: "ProfileCode" };
+export function toProfileCode(s: string): ProfileCode { return s as ProfileCode; }
+
+export interface OmilMetadata {
+  municipalityName: string;
+  contactPersonName: string;
+  contactPersonRut: string;
+  contactPersonRole: string;
+  municipalityLogoUrl?: string;
+}
+
 export type CompanyVerificationStatus = "draft" | "pending" | "verified" | "rejected" | "suspended";
 
 export type WorkerAvailability = "actively_looking" | "listening" | "unavailable";
@@ -51,6 +79,8 @@ export interface WorkerPublicProfile {
   formattedCv?: string;
   coverLetter?: string;
   cvFileUrl?: string;
+  badges?: string[];
+  referralCode?: string;
   experienceLevel: "junior" | "mid" | "senior" | "lead";
   yearsOfExperience: number;
   region: string;
@@ -71,6 +101,7 @@ export interface WorkerPrivateProfile {
   workerId: string;
   legalName: string;
   preferredName: string;
+  rut?: string;
   email: string;
   phone: string;
   portfolioLinks: string[];
@@ -105,6 +136,7 @@ export interface Invitation {
   companyHiredCount?: number;
   companyVerified?: boolean;
   decisionDeadline?: Date | string;
+  urgencyLevel?: "high" | "medium" | "low";
 }
 
 export interface JobOffer {
@@ -152,6 +184,30 @@ export interface ConversationMessage {
   createdAt?: Date;
 }
 
+export interface CompanyMonthlyPlan {
+  active: boolean;
+  contactCreditsTotal: number;
+  contactCreditsUsed: number;
+  activatedAt?: Date;
+  renewsAt?: Date;
+  paymentId?: string;
+}
+
+export interface CompanyUnlimitedPlan {
+  active: boolean;
+  activatedAt?: Date;
+  renewsAt?: Date;
+  paymentId?: string;
+}
+
+export interface CompanyAlertPreferences {
+  enabled: boolean;
+  areas: string[];
+  regions: string[];
+  salaryMax: number;
+  workModes: Array<"remote" | "hybrid" | "onsite">;
+}
+
 export interface CompanyProfile {
   companyId: string;
   companyName: string;
@@ -170,6 +226,14 @@ export interface CompanyProfile {
   responseRate: number;
   averageResponseTimeHours: number | null;
   hiredCount?: number;
+  monthlyPlan?: CompanyMonthlyPlan;
+  unlimitedPlan?: CompanyUnlimitedPlan;
+  alertPreferences?: CompanyAlertPreferences;
+  email?: string;
+  contactEmail?: string;
+  culture?: string;
+  benefits?: string;
+  remotePolicy?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
