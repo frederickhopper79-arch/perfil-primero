@@ -213,7 +213,20 @@ export function AdminPanel() {
       setUid(user.uid);
       await loadDashboard();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo entrar al panel interno.");
+      const code = (error as { code?: string }).code ?? "";
+      const msg =
+        code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found"
+          ? "Credenciales incorrectas. Revisa email y contraseña."
+          : code === "auth/too-many-requests"
+          ? "Demasiados intentos fallidos. Espera unos minutos o restablece tu contraseña."
+          : code === "auth/user-disabled"
+          ? "Esta cuenta está deshabilitada. Contacta al administrador del sistema."
+          : code === "auth/network-request-failed"
+          ? "Sin conexión a internet. Revisa tu red e intenta de nuevo."
+          : code === "auth/internal-error"
+          ? "Error interno de Firebase Auth. Verifica que Email/Password esté habilitado en Firebase Console → Authentication → Sign-in methods."
+          : (error instanceof Error ? error.message : "No se pudo entrar al panel interno.");
+      setStatus(msg);
     }
   }
 
@@ -226,7 +239,13 @@ export function AdminPanel() {
       setUid(credential.user.uid);
       await loadDashboard();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo entrar con Google.");
+      const code = (error as { code?: string }).code ?? "";
+      const msg =
+        code === "auth/popup-closed-by-user" ? "Se cerró la ventana de Google sin iniciar sesión." :
+        code === "auth/popup-blocked" ? "El navegador bloqueó la ventana emergente. Permite popups para este sitio." :
+        code === "auth/internal-error" ? "Error interno de Firebase Auth. Verifica la configuración del proyecto." :
+        (error instanceof Error ? error.message : "No se pudo entrar con Google.");
+      setStatus(msg);
     }
   }
 

@@ -62,7 +62,7 @@ export default function ParaEmpresasPage() {
       <SiteTopbar />
       <main>
       {/* Hero */}
-      <section style={{
+      <section className="on-dark" style={{
         background: "linear-gradient(135deg, var(--color-dark) 0%, var(--blue-dark) 100%)",
         color: "#fff",
         padding: "5rem 1rem 4rem",

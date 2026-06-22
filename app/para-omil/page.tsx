@@ -35,7 +35,7 @@ export default function ParaOmilPage() {
     <>
       <SiteTopbar />
       <main>
-      <section style={{
+      <section className="on-dark" style={{
         background: "linear-gradient(135deg, #1e3a5f 0%, var(--color-primary) 100%)",
         color: "#fff",
         padding: "5rem 1rem 4rem",

@@ -92,6 +92,14 @@ h3 {
   color: var(--heading);
 }
 
+/* Secciones con fondo oscuro — headings y párrafos heredan color blanco del padre */
+.on-dark h1,
+.on-dark h2,
+.on-dark h3,
+.on-dark p {
+  color: inherit;
+}
+
 h1 {
   font-size: 36px;
   letter-spacing: -0.01em;
