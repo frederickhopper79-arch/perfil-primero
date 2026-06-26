@@ -12,6 +12,7 @@ export function AuthCard({
   role: UserRole;
   onReady: (uid: string, email: string) => void;
 }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const isInstitutional = role === "omil" || role === "admin";
@@ -61,7 +62,7 @@ export function AuthCard({
     try {
       const user =
         mode === "register"
-          ? await registerWithEmail(trimmedEmail, password, role)
+          ? await registerWithEmail(trimmedEmail, password, role, name.trim() || undefined)
           : await loginWithEmail(trimmedEmail, password);
       await ensureUserRecord(user.uid, user.email ?? trimmedEmail, role);
       await assertExpectedRole(user.uid);
@@ -123,7 +124,7 @@ export function AuthCard({
         <div style={{ display: "flex", background: "var(--bg-soft)", borderRadius: 12, padding: 4, marginBottom: 20, gap: 4 }}>
           <button
             type="button"
-            onClick={() => { setMode("register"); setStatus(""); setPassword(""); }}
+            onClick={() => { setMode("register"); setStatus(""); setPassword(""); setName(""); }}
             disabled={isLoading}
             style={{
               flex: 1,
@@ -143,7 +144,7 @@ export function AuthCard({
           </button>
           <button
             type="button"
-            onClick={() => { setMode("login"); setStatus(""); setPassword(""); }}
+            onClick={() => { setMode("login"); setStatus(""); setPassword(""); setName(""); }}
             disabled={isLoading}
             style={{
               flex: 1,
@@ -185,6 +186,20 @@ export function AuthCard({
       )}
 
       <form className="authForm" onSubmit={handleEmail} noValidate>
+        {mode === "register" && (
+          <label>
+            Tu nombre
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              type="text"
+              autoComplete="name"
+              disabled={isLoading}
+              placeholder={role === "company" ? "Nombre del responsable de RRHH" : "¿Cómo te llamamos?"}
+              maxLength={80}
+            />
+          </label>
+        )}
         <label>
           Correo electrónico
           <input

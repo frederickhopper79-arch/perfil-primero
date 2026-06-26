@@ -10,11 +10,11 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./client";
 import type { UserRole } from "@/lib/domain/types";
 
-export async function registerWithEmail(email: string, password: string, role: UserRole) {
+export async function registerWithEmail(email: string, password: string, role: UserRole, displayName?: string) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Correo electrónico inválido.");
   if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
   const credential = await createUserWithEmailAndPassword(auth, email, password);
-  await createUserRecord(credential.user.uid, email, role);
+  await createUserRecord(credential.user.uid, email, role, undefined, displayName);
   return credential.user;
 }
 
@@ -53,7 +53,7 @@ function generateReferralCode(uid: string): string {
   return uid.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
 }
 
-async function createUserRecord(uid: string, email: string, role: UserRole, refCode?: string) {
+async function createUserRecord(uid: string, email: string, role: UserRole, refCode?: string, displayName?: string) {
   const userRef = doc(db, "users", uid);
   const existing = await getDoc(userRef);
 
@@ -79,6 +79,7 @@ async function createUserRecord(uid: string, email: string, role: UserRole, refC
     {
       email,
       role,
+      displayName: displayName ?? null,
       status: "active",
       referralCode,
       referredBy: refCode ?? null,
