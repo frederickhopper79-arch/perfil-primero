@@ -1,4 +1,5 @@
 ﻿import type { Metadata } from "next";
+import { ContactoForm } from "./contacto-form";
 
 export const metadata: Metadata = {
   title: "Contacto · Perfil Primero",
@@ -109,6 +110,11 @@ export default function ContactoPage() {
             <div style={{ color: "var(--muted)", fontSize: "0.875rem" }}>{ch.description}</div>
           </a>
         ))}
+      </div>
+
+      {/* Formulario de contacto */}
+      <div style={{ marginBottom: "3rem" }}>
+        <ContactoForm />
       </div>
 
       <div style={{
