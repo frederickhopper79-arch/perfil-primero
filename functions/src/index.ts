@@ -2,6 +2,7 @@ import * as crypto from "crypto";
 import * as webpush from "web-push";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getMessaging } from "firebase-admin/messaging";
 import { FieldValue, getFirestore, Query, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import type { CallableOptions } from "firebase-functions/v2/https";
@@ -16,7 +17,10 @@ initializeApp();
 
 const db = getFirestore();
 const appUrl = process.env.APP_URL ?? "https://perfil-primero.web.app";
-const launchPriceClp = 999;
+const workerLaunchClp = 0;    // gratis durante lanzamiento
+const companyLaunchClp = 4990; // precio lanzamiento empresa
+const workerRegularClp = 999;  // precio normal post-lanzamiento postulante
+const companyRegularClp = 9990; // precio normal post-lanzamiento empresa
 
 // Opciones de runtime para funciones de alta frecuencia
 export const CALL_OPTS_FAST: CallableOptions = { timeoutSeconds: 30, memory: "256MiB", minInstances: 0 };
@@ -62,7 +66,7 @@ function validateRutCl(rut: string): boolean {
   return dv === expected;
 }
 
-// ── Rate limiting in-memory (por UID) ─────────────────────────────────────
+// ── Rate limiting híbrido: in-memory (rápido) + Firestore (persistente para endpoints críticos) ────
 const _rateLimitStore = new Map<string, number[]>();
 function checkRateLimit(uid: string, key: string, maxRequests: number, windowMs: number): void {
   const storeKey = `${uid}:${key}`;
@@ -72,6 +76,26 @@ function checkRateLimit(uid: string, key: string, maxRequests: number, windowMs:
     throw new HttpsError("resource-exhausted", "Demasiadas solicitudes. Espera un momento antes de intentarlo nuevamente.");
   }
   _rateLimitStore.set(storeKey, [...timestamps, now]);
+}
+
+// Rate limiting persistente via Firestore para endpoints críticos (sobrevive cold starts)
+async function checkRateLimitPersistent(uid: string, key: string, maxRequests: number, windowMs: number): Promise<void> {
+  const storeKey = `${uid}:${key}`;
+  const ref = db.collection("rateLimits").doc(storeKey);
+  const now = Date.now();
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data();
+    const windowStart = Number(data?.windowStart ?? 0);
+    const count = Number(data?.count ?? 0);
+    if (now - windowStart > windowMs) {
+      tx.set(ref, { uid, key, count: 1, windowStart: now, updatedAt: FieldValue.serverTimestamp() });
+    } else if (count >= maxRequests) {
+      throw new HttpsError("resource-exhausted", "Demasiadas solicitudes. Espera un momento antes de intentarlo nuevamente.");
+    } else {
+      tx.update(ref, { count: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+    }
+  });
 }
 
 // ── Mercado Pago: validar firma x-signature ───────────────────────────────
@@ -361,6 +385,91 @@ export const createManagedUser = onCall<{
   return { userId, email, role, status: status ?? "active" };
 });
 
+export const adminSearchUser = onCall<{ query: string }>(async (request) => {
+  const adminId = await assertAdmin(request.auth?.uid);
+  const { query } = request.data;
+  if (!query || query.trim().length < 3) {
+    throw new HttpsError("invalid-argument", "Ingresa al menos 3 caracteres para buscar.");
+  }
+  const q = query.trim();
+
+  let authUser;
+  // Try by UID first, then by email
+  try {
+    authUser = await getAuth().getUser(q);
+  } catch {
+    try {
+      authUser = await getAuth().getUserByEmail(q);
+    } catch {
+      throw new HttpsError("not-found", "Usuario no encontrado con ese UID o email.");
+    }
+  }
+
+  const firestoreDoc = await db.collection("users").doc(authUser.uid).get();
+  const firestoreData = firestoreDoc.exists ? firestoreDoc.data() : {};
+
+  await writeAudit(adminId, "admin", "admin_search_user", "user", authUser.uid, { query: q });
+
+  return {
+    uid: authUser.uid,
+    email: authUser.email ?? "",
+    displayName: authUser.displayName ?? "",
+    disabled: authUser.disabled,
+    emailVerified: authUser.emailVerified,
+    creationTime: authUser.metadata.creationTime,
+    lastSignInTime: authUser.metadata.lastSignInTime,
+    role: firestoreData?.["role"] ?? null,
+    status: firestoreData?.["status"] ?? null,
+    managedByAdmin: firestoreData?.["managedByAdmin"] ?? false,
+  };
+});
+
+export const adminUpdateUser = onCall<{
+  uid: string;
+  role?: "worker" | "company" | "admin" | "omil";
+  status?: "active" | "suspended";
+  disabled?: boolean;
+}>(async (request) => {
+  const adminId = await assertAdmin(request.auth?.uid);
+  const { uid, role, status, disabled } = request.data;
+  if (!uid) throw new HttpsError("invalid-argument", "UID requerido.");
+
+  const changes: Record<string, unknown> = {};
+  const authChanges: Record<string, unknown> = {};
+
+  if (role !== undefined) {
+    if (!["worker", "company", "admin", "omil"].includes(role)) {
+      throw new HttpsError("invalid-argument", "Rol inválido.");
+    }
+    changes.role = role;
+  }
+  if (status !== undefined) {
+    changes.status = status;
+    authChanges.disabled = status === "suspended";
+  }
+  if (disabled !== undefined) {
+    authChanges.disabled = disabled;
+    if (disabled) changes.status = "suspended";
+    else changes.status = "active";
+  }
+
+  if (Object.keys(authChanges).length > 0) {
+    await getAuth().updateUser(uid, authChanges);
+  }
+  if (Object.keys(changes).length > 0) {
+    changes.updatedAt = FieldValue.serverTimestamp();
+    await db.collection("users").doc(uid).set(changes, { merge: true });
+  }
+
+  await writeAudit(adminId, "admin", "admin_update_user", "user", uid, {
+    role: role ?? "",
+    status: status ?? "",
+    disabled: String(disabled ?? "")
+  });
+
+  return { uid, ...changes };
+});
+
 export const createOmilPostulantProfile = onCall<{
   legalName: string;
   email: string;
@@ -413,17 +522,56 @@ export const createOmilPostulantProfile = onCall<{
     throw new HttpsError("invalid-argument", "Nombre, email, cargo, área, región y comuna son obligatorios.");
   }
 
-  const workerRef = db.collection("workerPublicProfiles").doc();
+  // Crear (o recuperar) cuenta Firebase Auth para el postulante usando su email real.
+  // Esto permite que el postulante luego inicie sesión como trabajador tradicional.
+  let workerId: string;
+  let isNewAuthUser = true;
+  const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+
+  try {
+    const newAuthUser = await getAuth().createUser({
+      email,
+      password: tempPassword,
+      displayName: legalName,
+      emailVerified: false,
+      disabled: false
+    });
+    workerId = newAuthUser.uid;
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code !== "auth/email-already-exists") {
+      throw new HttpsError("internal", err instanceof Error ? err.message : "No se pudo crear la cuenta del postulante.");
+    }
+    // Ya existe una cuenta con ese email — la reutilizamos
+    const existing = await getAuth().getUserByEmail(email);
+    workerId = existing.uid;
+    isNewAuthUser = false;
+  }
+
+  // Crear/actualizar doc de usuario con rol worker
+  await db.collection("users").doc(workerId).set({
+    email,
+    role: "worker",
+    status: "active",
+    profileSource: "omil",
+    createdByOmilId: omilId,
+    billingExempt: true,
+    canCreateUnlimitedPostulants: false,
+    updatedAt: FieldValue.serverTimestamp(),
+    ...(isNewAuthUser ? { createdAt: FieldValue.serverTimestamp() } : {})
+  }, { merge: true });
+
   const OMIL_DAYS = 60;
   const profileExpiresAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * OMIL_DAYS);
   const preExpiryReminderAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * (OMIL_DAYS - 7));
   const cleanSkills = Array.isArray(data.skills)
     ? data.skills.map((skill) => String(skill).trim()).filter(Boolean).slice(0, 12)
     : [];
+  const profileCode = `OMIL-${workerId.slice(0, 5).toUpperCase()}`;
 
-  await workerRef.set({
-    workerId: workerRef.id,
-    profileCode: `OMIL-${workerRef.id.slice(0, 5).toUpperCase()}`,
+  await db.collection("workerPublicProfiles").doc(workerId).set({
+    workerId,
+    profileCode,
     displayName: headline,
     headline,
     summary: String(data.summary ?? "").slice(0, 900),
@@ -446,10 +594,10 @@ export const createOmilPostulantProfile = onCall<{
     profileExpiresAt,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
-  });
+  }, { merge: true });
 
-  await db.collection("workerPrivateProfiles").doc(workerRef.id).set({
-    workerId: workerRef.id,
+  await db.collection("workerPrivateProfiles").doc(workerId).set({
+    workerId,
     legalName,
     preferredName: legalName.split(" ")[0] ?? "",
     email,
@@ -458,11 +606,11 @@ export const createOmilPostulantProfile = onCall<{
     createdByOmilId: omilId,
     updatedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp()
-  });
+  }, { merge: true });
 
-  await db.collection("emailReminders").doc(`omil-preexpiry-${workerRef.id}`).set({
-    reminderId: `omil-preexpiry-${workerRef.id}`,
-    workerId: workerRef.id,
+  await db.collection("emailReminders").doc(`omil-preexpiry-${workerId}`).set({
+    reminderId: `omil-preexpiry-${workerId}`,
+    workerId,
     omilId,
     targetEmail: email,
     status: "queued",
@@ -472,14 +620,41 @@ export const createOmilPostulantProfile = onCall<{
     createdAt: FieldValue.serverTimestamp()
   });
 
-  await writeAudit(omilId, "omil", "omil_postulant_profile_created", "worker", workerRef.id, {
+  // Generar link de recuperación de contraseña para que el postulante active su cuenta
+  if (isNewAuthUser) {
+    try {
+      const resetLink = await getAuth().generatePasswordResetLink(email);
+      const omilData = (await db.collection("users").doc(omilId).get()).data();
+      const municipalityName = omilData?.omil?.municipalityName ?? "la OMIL municipal";
+      await sendEmail(
+        email,
+        "Tu perfil laboral ha sido creado — activa tu cuenta en Perfil Primero",
+        `<p>Hola <strong>${legalName.split(" ")[0]}</strong>,</p>
+         <p>La ${municipalityName} ha creado un perfil laboral para ti en <strong>Perfil Primero</strong>, la plataforma donde las empresas te encuentran a ti.</p>
+         <p>Tu perfil ya está visible para empresas verificadas. Para acceder y gestionarlo tú mismo, solo necesitas activar tu cuenta:</p>
+         <p style="margin:24px 0;">
+           <a href="${resetLink}" style="background:#3aaee0;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+             Activar mi cuenta
+           </a>
+         </p>
+         <p>Al hacer clic podrás crear tu contraseña e ingresar con <strong>${email}</strong>.</p>
+         <p>Tu perfil estará activo por 60 días. Si tienes dudas, puedes contactar a la ${municipalityName} o escribirnos a contacto@perfil-primero.cl.</p>
+         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+         <p style="color:#888;font-size:13px;">Perfil Primero · Chile · <a href="https://perfil-primero.web.app">perfil-primero.web.app</a></p>`
+      );
+    } catch {
+      // No bloquear la creación si el email falla
+    }
+  }
+
+  await writeAudit(omilId, "omil", "omil_postulant_profile_created", "worker", workerId, {
     email,
     profileExpiresAt: profileExpiresAt.toDate().toISOString()
   });
 
   return {
-    workerId: workerRef.id,
-    profileCode: `OMIL-${workerRef.id.slice(0, 5).toUpperCase()}`,
+    workerId,
+    profileCode,
     profileExpiresAt: profileExpiresAt.toDate().toISOString()
   };
 });
@@ -547,34 +722,54 @@ export const sendOmilPreExpiryReminders = onSchedule(
   },
   async () => {
     const now = Timestamp.now();
-    // Busca recordatorios OMIL pendientes cuyo sendAt ya llegó
-    const remSnap = await db.collection("emailReminders")
+
+    // Recordatorios OMIL pendientes
+    const omilRemSnap = await db.collection("emailReminders")
       .where("type", "==", "omil_pre_expiry")
       .where("status", "==", "queued")
       .where("sendAt", "<=", now)
       .limit(200)
       .get();
 
-    if (remSnap.empty) return;
+    // Recordatorios de workers regulares
+    const workerRemSnap = await db.collection("emailReminders")
+      .where("type", "==", "worker_pre_expiry")
+      .where("status", "==", "queued")
+      .where("sendAt", "<=", now)
+      .limit(200)
+      .get();
 
-    for (const remDoc of remSnap.docs) {
+    const allDocs = [...omilRemSnap.docs, ...workerRemSnap.docs];
+    if (allDocs.length === 0) return;
+
+    for (const remDoc of allDocs) {
       const rem = remDoc.data();
       const email: string | undefined = rem.targetEmail;
       if (!email) continue;
 
       const expiresAt: Timestamp | undefined = rem.profileExpiresAt;
       const expiresDate = expiresAt ? expiresAt.toDate().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" }) : "pronto";
+      const isOmil = rem.type === "omil_pre_expiry";
 
       try {
         await sendEmail(
           email,
-          "⏰ Tu perfil gratuito OMIL vence en 7 días — activa tu suscripción para seguir visible",
-          `<p>Hola,</p>
-           <p>Tu perfil laboral publicado a través de la OMIL <strong>vence el ${expiresDate}</strong>.</p>
-           <p>Cuando venza, tu perfil dejará de aparecer en las búsquedas de empresas. Si quieres seguir visible en <strong>Perfil Primero</strong>, solo necesitas activar tu propia suscripción mensual por <strong>$999 CLP</strong> — igual que cualquier otro postulante.</p>
-           <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Activar mi suscripción →</a></p>
-           <p>Si no deseas continuar, no necesitas hacer nada — tu perfil se desactivará automáticamente al vencer.</p>
-           <p>— Equipo Perfil Primero</p>`
+          isOmil
+            ? "⏰ Tu perfil gratuito OMIL vence en 7 días — activa tu suscripción para seguir visible"
+            : "⏰ Tu perfil en Perfil Primero vence en 7 días — renueva para seguir visible",
+          isOmil
+            ? `<p>Hola,</p>
+               <p>Tu perfil laboral publicado a través de la OMIL <strong>vence el ${expiresDate}</strong>.</p>
+               <p>Cuando venza, tu perfil dejará de aparecer en las búsquedas de empresas. Si quieres seguir visible en <strong>Perfil Primero</strong>, activa tu propia suscripción.</p>
+               <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Renovar mi suscripción →</a></p>
+               <p>Si no deseas continuar, no necesitas hacer nada — tu perfil se desactivará automáticamente al vencer.</p>
+               <p>— Equipo Perfil Primero</p>`
+            : `<p>Hola,</p>
+               <p>Tu perfil en <strong>Perfil Primero</strong> <strong>vence el ${expiresDate}</strong>.</p>
+               <p>Cuando venza, dejarás de aparecer en las búsquedas de empresas verificadas. Renueva tu suscripción para mantener tu visibilidad.</p>
+               <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Renovar mi suscripción →</a></p>
+               <p>Si no deseas renovar, tu perfil se desactivará automáticamente el ${expiresDate}.</p>
+               <p>— Equipo Perfil Primero</p>`
         );
 
         await remDoc.ref.update({ status: "sent", sentAt: FieldValue.serverTimestamp() });
@@ -1041,7 +1236,7 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
     throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
-  checkRateLimit(companyId, "createInvitation", 10, 60_000);
+  await checkRateLimitPersistent(companyId, "createInvitation", 10, 60_000);
 
   const company = await db.collection("companyProfiles").doc(companyId).get();
 
@@ -1125,6 +1320,7 @@ export const createInvitation = onCall<CreateInvitationInput>(async (request) =>
 
   // Notificar al postulante (fire-and-forget — no bloquea la respuesta)
   notifyWorkerInvitationReceived(invitationRef.id).catch(() => {});
+  sendFcmToUser(request.data.workerId, "Nueva invitación laboral", "Una empresa verificada te invitó a una oportunidad en Perfil Primero.", "/postulante").catch(() => {});
 
   return { invitationId: invitationRef.id };
 });
@@ -1408,10 +1604,30 @@ export const updateInvitationStatus = onCall<{ invitationId: string; status: str
   });
 
   if (request.data.status === "hired") {
+    const invData = invitation.data()!;
     await db.collection("companyProfiles").doc(companyId).set(
       { hiredCount: FieldValue.increment(1) },
       { merge: true }
     );
+    // Notificar OMIL si el postulante fue creado por una OMIL
+    const workerPub = await db.collection("workerPublicProfiles").doc(invData.workerId).get();
+    const omilId: string | undefined = workerPub.data()?.createdByOmilId;
+    if (omilId) {
+      const omilUserSnap = await db.collection("users").doc(omilId).get();
+      const omilEmail: string | undefined = omilUserSnap.data()?.email;
+      const omilName: string = omilUserSnap.data()?.omil?.municipalityName ?? "tu OMIL";
+      if (omilEmail) {
+        sendEmail(
+          omilEmail,
+          "¡Un postulante de tu OMIL fue contratado!",
+          `<p>Hola equipo ${omilName},</p>
+           <p>Un postulante cuyo perfil publicaron en Perfil Primero acaba de ser <strong>contratado</strong> por una empresa verificada.</p>
+           <p>Este logro cuenta en los indicadores de impacto de tu OMIL. Puedes ver el detalle en tu consola.</p>
+           <p><a href="${appUrl}/omil" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Ver mi panel OMIL →</a></p>
+           <p>— Equipo Perfil Primero</p>`
+        ).catch(() => {});
+      }
+    }
   }
 
   if (request.data.status === "rejected") {
@@ -1535,6 +1751,11 @@ export const sendConversationMessage = onCall<{ invitationId: string; body: stri
   await writeAudit(senderId, isCompany ? "company" : "worker", "conversation_message_sent", "invitation", request.data.invitationId, {
     invitationId: request.data.invitationId
   });
+
+  // Push al destinatario (fire-and-forget)
+  const recipientId = isCompany ? invitationData.workerId : invitationData.companyId;
+  const senderLabel = isCompany ? "Empresa" : "Postulante";
+  sendFcmToUser(recipientId, `Nuevo mensaje de ${senderLabel}`, body.slice(0, 80), "/postulante").catch(() => {});
 
   return { messageId: messageRef.id };
 });
@@ -1685,6 +1906,14 @@ export const createWorkerSubscriptionCheckout = onCall<CheckoutCouponInput | und
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   });
+
+  // Activación gratuita — no requiere pasarela de pago
+  if (amount === 0) {
+    await paymentRef.update({ status: "paid", providerPaymentId: "free_launch", updatedAt: FieldValue.serverTimestamp() });
+    await activateWorkerSubscription(workerId, paymentRef.id);
+    await writeAudit(workerId, "worker", "free_activation", "payment", paymentRef.id, { phase: "launch" });
+    return { url: null, activated: true };
+  }
 
   const preference = await createMercadoPagoPreference({
     title: "Perfil visible por 30 dias - Perfil Primero",
@@ -1854,7 +2083,7 @@ export const analyzeCvWithAi = onCall<{
     throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
-  checkRateLimit(workerId, "analyzeCv", 5, 3_600_000);
+  await checkRateLimitPersistent(workerId, "analyzeCv", 5, 3_600_000);
 
   const { fileName, mimeType, base64 } = request.data;
 
@@ -2179,9 +2408,13 @@ async function validateCoupon(
     throw new HttpsError("failed-precondition", "Este usuario ya usó este cupón.");
   }
 
+  if (Number(data.maxTotalUses ?? 0) > 0 && Number(data.usedCount ?? 0) >= Number(data.maxTotalUses)) {
+    throw new HttpsError("failed-precondition", "El cupón ya alcanzó su límite total de usos.");
+  }
+
   const discountPercent = Math.max(0, Math.min(Number(data.discountPercent ?? 0), 100));
   const rawDiscountAmount = Math.round(baseAmount * (discountPercent / 100));
-  const finalAmount = Math.max(baseAmount - rawDiscountAmount, 1);
+  const finalAmount = Math.max(baseAmount - rawDiscountAmount, 0);
   const discountAmount = baseAmount - finalAmount;
 
   return {
@@ -2288,13 +2521,63 @@ function countBy(items: Array<Record<string, unknown>>, field: string) {
   }, {});
 }
 
+// Activa el perfil del postulante, envía email de bienvenida y agenda recordatorio de vencimiento
+async function activateWorkerSubscription(workerId: string, paymentId: string): Promise<void> {
+  const DAYS = 30;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * DAYS);
+  const reminderAt = Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * (DAYS - 7));
+
+  await db.collection("workerPublicProfiles").doc(workerId).set(
+    { subscriptionStatus: "active", visibilityStatus: "visible", profileExpiresAt: expiresAt, updatedAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+
+  const privateSnap = await db.collection("workerPrivateProfiles").doc(workerId).get();
+  const email: string | undefined = privateSnap.data()?.email;
+  if (!email) return;
+
+  const expiresDate = expiresAt.toDate().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
+
+  // Email de bienvenida
+  await sendEmail(
+    email,
+    "¡Tu perfil ya está visible en Perfil Primero!",
+    `<p>¡Hola!</p>
+     <p>Tu perfil en <strong>Perfil Primero</strong> ya está activo y visible para empresas verificadas que buscan candidatos como tú.</p>
+     <p><strong>¿Qué pasa ahora?</strong></p>
+     <ul>
+       <li>Las empresas verificadas pueden ver tu perfil anónimo y enviarte invitaciones con sueldo claro.</li>
+       <li>Tú decides si aceptas o rechazas cada invitación — sin compromiso.</li>
+       <li>Tu perfil estará visible hasta el <strong>${expiresDate}</strong>.</li>
+     </ul>
+     <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Ver mi perfil →</a></p>
+     <p>Si recibes una invitación, te avisaremos por email y notificación.</p>
+     <p>— Equipo Perfil Primero</p>`
+  );
+
+  // Recordatorio de vencimiento (7 días antes)
+  await db.collection("emailReminders").doc(`worker-preexpiry-${workerId}-${paymentId}`).set({
+    reminderId: `worker-preexpiry-${workerId}-${paymentId}`,
+    workerId,
+    targetEmail: email,
+    status: "queued",
+    type: "worker_pre_expiry",
+    sendAt: reminderAt,
+    profileExpiresAt: expiresAt,
+    createdAt: FieldValue.serverTimestamp()
+  });
+}
+
+let _pricingCache: { data: PricingConfig; expiresAt: number } | null = null;
+
 async function getPricingConfig(): Promise<PricingConfig> {
+  if (_pricingCache && Date.now() < _pricingCache.expiresAt) return _pricingCache.data;
   const defaults: PricingConfig = {
     launchPhaseActive: true,
-    workerSubscriptionClp: launchPriceClp,
-    companyContactClp: launchPriceClp,
-    workerRegularClp: 9990,
-    companyRegularClp: 24990
+    workerSubscriptionClp: workerLaunchClp,
+    companyContactClp: companyLaunchClp,
+    workerRegularClp: workerRegularClp,
+    companyRegularClp: companyRegularClp
   };
 
   const snap = await db.collection("configuracion_sistema").doc("tarifas").get();
@@ -2316,13 +2599,15 @@ async function getPricingConfig(): Promise<PricingConfig> {
     return defaults;
   }
 
-  return {
+  const result: PricingConfig = {
     launchPhaseActive: data.fase_lanzamiento_activa !== false,
-    workerSubscriptionClp: Math.max(1, Number(data.tarifa_suscripcion_postulante_clp ?? defaults.workerSubscriptionClp)),
+    workerSubscriptionClp: Math.max(0, Number(data.tarifa_suscripcion_postulante_clp ?? defaults.workerSubscriptionClp)),
     companyContactClp: Math.max(1, Number(data.tarifa_contacto_empresa_clp ?? defaults.companyContactClp)),
     workerRegularClp: Math.max(1, Number(data.tarifa_postulante_precio_real ?? defaults.workerRegularClp)),
     companyRegularClp: Math.max(1, Number(data.tarifa_empresa_precio_real ?? defaults.companyRegularClp))
   };
+  _pricingCache = { data: result, expiresAt: Date.now() + 5 * 60 * 1000 };
+  return result;
 }
 
 async function createMarketAnalyticsReport(period: "weekly_schedule" | "manual_admin", actorId: string) {
@@ -2529,16 +2814,7 @@ async function handleProviderPaymentApproved(
   await writeAccountingEntry(paymentId, providerPaymentId, paymentData);
 
   if (paymentData?.paymentType === "worker_subscription" && paymentData.relatedWorkerId) {
-    await db.collection("workerPublicProfiles").doc(paymentData.relatedWorkerId).set(
-      {
-        subscriptionStatus: "active",
-        visibilityStatus: "visible",
-        profileExpiresAt: Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 30),
-        updatedAt: FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
-
+    await activateWorkerSubscription(paymentData.relatedWorkerId, paymentId);
     await writeAudit(paymentData.relatedWorkerId, "worker", "worker_subscription_paid", "worker", paymentData.relatedWorkerId, {
       paymentId
     });
@@ -2740,16 +3016,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (alreadyProcessed) return;
 
   if (metadata.type === "worker_subscription" && metadata.workerId) {
-    await db.collection("workerPublicProfiles").doc(metadata.workerId).set(
-      {
-        subscriptionStatus: "active",
-        visibilityStatus: "visible",
-        profileExpiresAt: Timestamp.fromMillis(Date.now() + 1000 * 60 * 60 * 24 * 30),
-        updatedAt: FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
-
+    await activateWorkerSubscription(metadata.workerId, paymentId);
     await writeAudit(metadata.workerId, "worker", "worker_subscription_paid", "worker", metadata.workerId, {
       paymentId
     });
@@ -3088,6 +3355,65 @@ export const updatePublicStats = onSchedule("every 60 minutes", async () => {
 
 // ── Email transaccional (SendGrid) ────────────────────────────────────────────
 
+// ── FCM push helper ───────────────────────────────────────────────────────────
+async function sendFcmToUser(uid: string, title: string, body: string, url = "/"): Promise<void> {
+  const tokensSnap = await db.collection("users").doc(uid).collection("pushTokens").limit(10).get();
+  if (tokensSnap.empty) return;
+  const messaging = getMessaging();
+  await Promise.all(tokensSnap.docs.map(async (tokenDoc) => {
+    const token = tokenDoc.id;
+    try {
+      await messaging.send({
+        token,
+        notification: { title, body },
+        webpush: {
+          notification: { icon: "/logo-perfil-primero.png", badge: "/logo-perfil-primero.png" },
+          fcmOptions: { link: url }
+        }
+      });
+    } catch (err) {
+      // Token inválido o vencido — eliminarlo
+      const code = (err as { errorInfo?: { code?: string } }).errorInfo?.code ?? "";
+      if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") {
+        await tokenDoc.ref.delete();
+      }
+    }
+  }));
+}
+
+// ── Marcar mensajes como leídos ───────────────────────────────────────────────
+export const markMessagesRead = onCall<{ invitationId: string }>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+
+  const invSnap = await db.collection("invitations").doc(request.data.invitationId).get();
+  if (!invSnap.exists) throw new HttpsError("not-found", "Invitación no encontrada.");
+  const inv = invSnap.data()!;
+  if (inv.companyId !== uid && inv.workerId !== uid) {
+    throw new HttpsError("permission-denied", "No tienes acceso a esta conversación.");
+  }
+
+  // Marcar como leídos los mensajes que no envié yo
+  const msgsSnap = await db.collection("conversationMessages")
+    .where("invitationId", "==", request.data.invitationId)
+    .where("senderId", "!=", uid)
+    .get();
+
+  if (msgsSnap.empty) return { marked: 0 };
+
+  const now = FieldValue.serverTimestamp();
+  const CHUNK = 400;
+  for (let i = 0; i < msgsSnap.docs.length; i += CHUNK) {
+    const batch = db.batch();
+    msgsSnap.docs.slice(i, i + CHUNK).forEach((d) => {
+      if (!d.data().readAt) batch.update(d.ref, { readAt: now });
+    });
+    await batch.commit();
+  }
+
+  return { marked: msgsSnap.size };
+});
+
 async function sendEmail(to: string, subject: string, html: string) {
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL ?? "contacto@perfil-primero.cl";
@@ -3357,7 +3683,7 @@ const companyUnlimitedPriceClp = 29990;
 export const createCompanyMonthlyCheckout = onCall(async (request) => {
   const companyId = request.auth?.uid;
   if (!companyId) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  checkRateLimit(companyId, "monthly_checkout", 3, 60_000);
+  await checkRateLimitPersistent(companyId, "monthly_checkout", 3, 60_000);
 
   const companySnap = await db.collection("companyProfiles").doc(companyId).get();
   if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
@@ -3416,7 +3742,7 @@ export const createCompanyMonthlyCheckout = onCall(async (request) => {
 export const createCompanyUnlimitedCheckout = onCall(async (request) => {
   const companyId = request.auth?.uid;
   if (!companyId) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  checkRateLimit(companyId, "unlimited_checkout", 3, 60_000);
+  await checkRateLimitPersistent(companyId, "unlimited_checkout", 3, 60_000);
 
   const companySnap = await db.collection("companyProfiles").doc(companyId).get();
   if (!companySnap.exists) throw new HttpsError("not-found", "Perfil de empresa no encontrado.");
@@ -4435,4 +4761,545 @@ export const expireOldNpsData = onSchedule("every 720 hours", async () => {
   snap.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();
   log("INFO", "nps_old_data_expired", { count: snap.size });
+});
+
+// ── getReferralStats — estadísticas del programa de referidos del usuario ──────
+export const getReferralStats = onCall(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const userDoc = await db.collection("users").doc(uid).get();
+  const referralCode = userDoc.data()?.referralCode ?? null;
+  if (!referralCode) return { referralCode: null, referralCount: 0, earnedDays: 0, referrals: [] };
+  const referralsSnap = await db.collection("referrals")
+    .where("referrerUid", "==", uid)
+    .where("status", "==", "activated")
+    .orderBy("activatedAt", "desc")
+    .limit(50)
+    .get();
+  const referrals = referralsSnap.docs.map(d => ({
+    refereeEmail: String(d.data().refereeEmail ?? "").replace(/(?<=.{3}).(?=.*@)/g, "*"),
+    activatedAt: (d.data().activatedAt as Timestamp)?.toDate().toISOString() ?? null,
+    earnedDays: Number(d.data().earnedDays ?? 30),
+  }));
+  const earnedDays = referrals.reduce((s, r) => s + r.earnedDays, 0);
+  return { referralCode, referralCount: referrals.length, earnedDays, referrals };
+});
+
+// ── applyReferralCode — aplica código de referido en registro ─────────────────
+export const applyReferralCode = onCall<{ referralCode: string }>(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const code = sanitize(request.data.referralCode, 20).toUpperCase();
+  if (!code || code.length < 4) throw new HttpsError("invalid-argument", "Código de referido inválido.");
+  const existingRef = await db.collection("referrals")
+    .where("refereeUid", "==", uid).limit(1).get();
+  if (!existingRef.empty) throw new HttpsError("already-exists", "Ya aplicaste un código de referido.");
+  const referrerSnap = await db.collection("users").where("referralCode", "==", code).limit(1).get();
+  if (referrerSnap.empty) throw new HttpsError("not-found", "Código de referido no encontrado.");
+  const referrerDoc = referrerSnap.docs[0];
+  if (referrerDoc.id === uid) throw new HttpsError("invalid-argument", "No puedes usar tu propio código.");
+  await db.collection("referrals").add({
+    referralCode: code,
+    referrerUid: referrerDoc.id,
+    refereeUid: uid,
+    status: "pending",
+    earnedDays: 30,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  log("INFO", "referral_code_applied", { uid, referrerUid: referrerDoc.id, code });
+  return { ok: true, referrerUid: referrerDoc.id };
+});
+
+// ── activateReferral — se activa cuando el referee activa su perfil ───────────
+export const activateReferral = onCall<{ refereeUid: string }>(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const snap = await db.collection("referrals")
+    .where("refereeUid", "==", request.data.refereeUid)
+    .where("status", "==", "pending")
+    .limit(1).get();
+  if (snap.empty) return { ok: false };
+  const ref = snap.docs[0];
+  const { referrerUid, earnedDays } = ref.data();
+  const batch = db.batch();
+  batch.update(ref.ref, { status: "activated", activatedAt: FieldValue.serverTimestamp() });
+  const referrerUser = db.collection("users").doc(referrerUid);
+  batch.update(referrerUser, { referralDaysEarned: FieldValue.increment(earnedDays) });
+  await batch.commit();
+  log("INFO", "referral_activated", { referrerUid, refereeUid: request.data.refereeUid, earnedDays });
+  return { ok: true };
+});
+
+// ── getSalaryBenchmark — benchmark salarial por sector y región ───────────────
+export const getSalaryBenchmark = onCall<{ sector: string; region?: string; experienceLevel?: string }>(CALL_OPTS_FAST, async (request) => {
+  const sector = sanitize(request.data.sector, 100);
+  const region = sanitize(request.data.region ?? "", 80);
+  const experienceLevel = sanitize(request.data.experienceLevel ?? "", 20);
+  let q: Query = db.collection("workerPublicProfiles")
+    .where("visibilityStatus", "==", "visible")
+    .where("sectors", "array-contains", sector);
+  if (region) q = (q as Query).where("region", "==", region);
+  if (experienceLevel) q = (q as Query).where("experienceLevel", "==", experienceLevel);
+  const snap = await q.limit(200).get();
+  if (snap.empty) return { count: 0, medianMin: null, medianMax: null, p25Min: null, p75Max: null };
+  const mins: number[] = [];
+  const maxes: number[] = [];
+  snap.docs.forEach(d => {
+    const mn = Number(d.data().expectedSalaryMin ?? 0);
+    const mx = Number(d.data().expectedSalaryMax ?? 0);
+    if (mn > 0) mins.push(mn);
+    if (mx > 0) maxes.push(mx);
+  });
+  mins.sort((a, b) => a - b);
+  maxes.sort((a, b) => a - b);
+  const median = (arr: number[]) => arr.length === 0 ? null : arr[Math.floor(arr.length / 2)];
+  const p = (arr: number[], pct: number) => arr.length === 0 ? null : arr[Math.floor(arr.length * pct)];
+  return {
+    count: snap.size,
+    medianMin: median(mins),
+    medianMax: median(maxes),
+    p25Min: p(mins, 0.25),
+    p75Max: p(maxes, 0.75),
+    sector,
+    region: region || "Chile",
+    experienceLevel: experienceLevel || "todos",
+  };
+});
+
+// ── getProfileCompletionScore — score detallado de completitud del perfil ─────
+export const getProfileCompletionScore = onCall(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const [pubSnap, privSnap] = await Promise.all([
+    db.collection("workerPublicProfiles").doc(uid).get(),
+    db.collection("workerPrivateProfiles").doc(uid).get(),
+  ]);
+  if (!pubSnap.exists) throw new HttpsError("not-found", "Perfil no encontrado.");
+  const pub = pubSnap.data()!;
+  const priv = privSnap.data() ?? {};
+  const checks = [
+    { field: "headline", label: "Titular profesional", done: Boolean(pub.headline?.trim()), weight: 10 },
+    { field: "summary", label: "Resumen profesional", done: pub.summary?.length >= 100, weight: 15 },
+    { field: "skills", label: "Habilidades (mín. 3)", done: (pub.skills?.length ?? 0) >= 3, weight: 15 },
+    { field: "sectors", label: "Sector de industria", done: (pub.sectors?.length ?? 0) >= 1, weight: 10 },
+    { field: "expectedSalary", label: "Expectativa salarial", done: pub.expectedSalaryMin > 0 && pub.expectedSalaryMax > 0, weight: 10 },
+    { field: "workModes", label: "Modalidad de trabajo", done: (pub.workModes?.length ?? 0) >= 1, weight: 5 },
+    { field: "region", label: "Región o ciudad", done: Boolean(pub.region?.trim()), weight: 5 },
+    { field: "cvFileUrl", label: "CV adjunto", done: Boolean(pub.cvFileUrl || priv.formattedCv), weight: 15 },
+    { field: "phone", label: "Teléfono de contacto", done: Boolean((priv as Record<string,unknown>).phone), weight: 5 },
+    { field: "yearsOfExperience", label: "Años de experiencia", done: pub.yearsOfExperience >= 0, weight: 5 },
+    { field: "experienceLevel", label: "Nivel de experiencia", done: Boolean(pub.experienceLevel), weight: 5 },
+  ];
+  const score = checks.reduce((s, c) => s + (c.done ? c.weight : 0), 0);
+  const missing = checks.filter(c => !c.done).map(c => c.label);
+  return { score, checks, missing, isPublishable: score >= 60 };
+});
+
+// ── updateNotificationPreferences — gestión de preferencias de notificación ───
+export const updateNotificationPreferences = onCall<{
+  email?: {
+    newInvitations?: boolean;
+    messages?: boolean;
+    profileExpiry?: boolean;
+    weeklyDigest?: boolean;
+    marketing?: boolean;
+  };
+  push?: {
+    newInvitations?: boolean;
+    messages?: boolean;
+  };
+}>(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const prefs: Record<string, unknown> = {};
+  if (request.data.email) prefs["notifPrefs.email"] = request.data.email;
+  if (request.data.push) prefs["notifPrefs.push"] = request.data.push;
+  if (Object.keys(prefs).length === 0) return { ok: true };
+  await db.collection("users").doc(uid).set({ notifPrefs: request.data }, { merge: true });
+  return { ok: true };
+});
+
+// ── getNotificationPreferences — obtiene preferencias de notificación ──────────
+export const getNotificationPreferences = onCall(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const snap = await db.collection("users").doc(request.auth.uid).get();
+  const defaults = {
+    email: { newInvitations: true, messages: true, profileExpiry: true, weeklyDigest: true, marketing: false },
+    push: { newInvitations: true, messages: true },
+  };
+  return { prefs: snap.data()?.notifPrefs ?? defaults };
+});
+
+// ── getPublicBlogStats — estadísticas públicas para páginas de blog ───────────
+export const getPublicBlogStats = onCall(CALL_OPTS_FAST, async () => {
+  const statsDoc = await db.collection("publicStats").doc("platform").get();
+  const data = statsDoc.data() ?? {};
+  return {
+    totalWorkers: Number(data.totalActiveWorkers ?? 0),
+    totalCompanies: Number(data.totalVerifiedCompanies ?? 0),
+    totalHired: Number(data.totalHired ?? 0),
+    avgDaysToOffer: Number(data.avgDaysToFirstOffer ?? 11),
+    responseRate: Number(data.companyResponseRate ?? 73),
+    topSectors: Array.isArray(data.topSectors) ? data.topSectors.slice(0, 5) : [],
+    topRegions: Array.isArray(data.topRegions) ? data.topRegions.slice(0, 5) : [],
+    updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() ?? null,
+  };
+});
+
+// ── createContactTicket — crea ticket de contacto desde el formulario web ─────
+export const createContactTicket = onCall<{
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  userType?: "worker" | "company" | "omil" | "other";
+}>(CALL_OPTS_FAST, async (request) => {
+  checkRateLimit(request.auth?.uid ?? request.rawRequest.ip ?? "anon", "contact", 5, 60 * 60 * 1000);
+  const name = sanitize(request.data.name, 100);
+  const email = sanitize(request.data.email, 200);
+  const subject = sanitize(request.data.subject, 200);
+  const message = sanitize(request.data.message, 2000);
+  if (!name || !email || !subject || !message) throw new HttpsError("invalid-argument", "Todos los campos son requeridos.");
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRe.test(email)) throw new HttpsError("invalid-argument", "Email inválido.");
+  await db.collection("contactTickets").add({
+    name, email, subject, message,
+    userType: request.data.userType ?? "other",
+    uid: request.auth?.uid ?? null,
+    status: "open",
+    createdAt: FieldValue.serverTimestamp(),
+    ip: request.rawRequest.ip ?? null,
+  });
+  log("INFO", "contact_ticket_created", { email, subject });
+  return { ok: true };
+});
+
+// ── getContactTickets — admin: lista tickets de contacto ─────────────────────
+export const getContactTickets = onCall<{ status?: string; limit?: number }>(async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const userDoc = await db.collection("users").doc(request.auth.uid).get();
+  if (userDoc.data()?.role !== "admin") throw new HttpsError("permission-denied", "Solo admins.");
+  const status = sanitize(request.data?.status ?? "open", 20);
+  const pageSize = Math.min(Number(request.data?.limit ?? 50), 100);
+  const q = db.collection("contactTickets").where("status", "==", status)
+    .orderBy("createdAt", "desc").limit(pageSize);
+  const snap = await q.get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: (d.data().createdAt as Timestamp)?.toDate().toISOString() }));
+});
+
+// ── updateContactTicketStatus — admin: actualizar estado de ticket ────────────
+export const updateContactTicketStatus = onCall<{ ticketId: string; status: "open" | "in_progress" | "resolved" | "closed" }>(async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const userDoc = await db.collection("users").doc(request.auth.uid).get();
+  if (userDoc.data()?.role !== "admin") throw new HttpsError("permission-denied", "Solo admins.");
+  const ticketId = sanitize(request.data.ticketId, 50);
+  const status = request.data.status;
+  await db.collection("contactTickets").doc(ticketId).update({
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+    resolvedBy: request.auth.uid,
+  });
+  return { ok: true };
+});
+
+// ── getWorkerTimeline — historial de eventos del trabajador ───────────────────
+export const getWorkerTimeline = onCall(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const [invitationsSnap, paymentsSnap] = await Promise.all([
+    db.collection("invitations").where("workerId", "==", uid).orderBy("expiresAt", "desc").limit(20).get(),
+    db.collection("payments").where("uid", "==", uid).orderBy("createdAt", "desc").limit(10).get(),
+  ]);
+  const events: Array<{ type: string; date: string | null; label: string; meta?: Record<string,unknown> }> = [];
+  invitationsSnap.docs.forEach(d => {
+    const data = d.data();
+    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
+    const statusLabels: Record<string,string> = {
+      sent: "Invitación recibida", accepted: "Invitación aceptada", hired: "Contratación confirmada",
+      rejected: "Invitación rechazada", expired: "Invitación expirada", in_process: "Proceso en curso",
+    };
+    events.push({ type: "invitation", date: ts, label: statusLabels[data.status] ?? data.status, meta: { opportunityTitle: data.opportunityTitle, status: data.status } });
+  });
+  paymentsSnap.docs.forEach(d => {
+    const data = d.data();
+    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
+    events.push({ type: "payment", date: ts, label: "Pago realizado — perfil activado", meta: { amount: data.amount, currency: data.currency } });
+  });
+  events.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  return { events };
+});
+
+// ── getCompanyTimeline — historial de eventos de la empresa ───────────────────
+export const getCompanyTimeline = onCall(CALL_OPTS_FAST, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const uid = request.auth.uid;
+  const companyDoc = await db.collection("companyProfiles").doc(uid).get();
+  if (!companyDoc.exists) throw new HttpsError("not-found", "Empresa no encontrada.");
+  const [invitationsSnap, paymentsSnap] = await Promise.all([
+    db.collection("invitations").where("companyId", "==", uid).orderBy("expiresAt", "desc").limit(30).get(),
+    db.collection("payments").where("uid", "==", uid).orderBy("createdAt", "desc").limit(10).get(),
+  ]);
+  const events: Array<{ type: string; date: string | null; label: string; meta?: Record<string,unknown> }> = [];
+  const statusLabels: Record<string,string> = {
+    sent: "Invitación enviada", accepted: "Candidato aceptó", hired: "Contratación confirmada",
+    rejected: "Candidato rechazó", expired: "Invitación expirada", in_process: "Proceso activo",
+  };
+  invitationsSnap.docs.forEach(d => {
+    const data = d.data();
+    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
+    events.push({ type: "invitation", date: ts, label: statusLabels[data.status] ?? data.status, meta: { opportunityTitle: data.opportunityTitle, status: data.status } });
+  });
+  paymentsSnap.docs.forEach(d => {
+    const data = d.data();
+    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
+    events.push({ type: "payment", date: ts, label: "Pago procesado", meta: { amount: data.amount } });
+  });
+  events.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  return { events };
+});
+
+// ── generateWeeklyDigest — envía resumen semanal a trabajadores activos ────────
+export const generateWeeklyDigest = onSchedule("every monday 09:00", async () => {
+  const snap = await db.collection("workerPublicProfiles")
+    .where("visibilityStatus", "==", "visible")
+    .where("subscriptionStatus", "==", "active")
+    .limit(500).get();
+  let sent = 0;
+  for (const workerDoc of snap.docs) {
+    const uid = workerDoc.id;
+    const userDoc = await db.collection("users").doc(uid).get();
+    const prefs = userDoc.data()?.notifPrefs?.email ?? {};
+    if (prefs.weeklyDigest === false) continue;
+    const impressions = workerDoc.data().analytics?.weekImpressions ?? 0;
+    const email = userDoc.data()?.email;
+    if (!email) continue;
+    log("INFO", "weekly_digest_queued", { uid, impressions, email: email.slice(0, 4) + "***" });
+    sent++;
+  }
+  log("INFO", "weekly_digest_batch_done", { sent });
+});
+
+// ── getAggregatedMetrics — panel de métricas globales para admin ──────────────
+export const getAggregatedMetrics = onCall(async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const userDoc = await db.collection("users").doc(request.auth.uid).get();
+  if (userDoc.data()?.role !== "admin") throw new HttpsError("permission-denied", "Solo admins.");
+  const [workersSnap, companiesSnap, paymentsSnap, invitationsSnap] = await Promise.all([
+    db.collection("workerPublicProfiles").count().get(),
+    db.collection("companyProfiles").where("verificationStatus", "==", "verified").count().get(),
+    db.collection("payments").where("status", "==", "approved").count().get(),
+    db.collection("invitations").count().get(),
+  ]);
+  const hiredSnap = await db.collection("invitations").where("status", "==", "hired").count().get();
+  return {
+    totalWorkers: workersSnap.data().count,
+    verifiedCompanies: companiesSnap.data().count,
+    approvedPayments: paymentsSnap.data().count,
+    totalInvitations: invitationsSnap.data().count,
+    totalHired: hiredSnap.data().count,
+    conversionRate: invitationsSnap.data().count > 0
+      ? Math.round((hiredSnap.data().count / invitationsSnap.data().count) * 100)
+      : 0,
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+// ── Sugerencia de sueldo por sector/región ─────────────────────────────────
+const SALARY_REFERENCE: Record<string, { min: number; median: number; max: number }> = {
+  "Tecnología / Software": { min: 1200000, median: 2200000, max: 4500000 },
+  "Finanzas / Banca": { min: 900000, median: 1900000, max: 3800000 },
+  "Salud / Clínico": { min: 800000, median: 1500000, max: 3200000 },
+  "Marketing / Comunicaciones": { min: 700000, median: 1300000, max: 2800000 },
+  "Logística / Operaciones": { min: 600000, median: 1100000, max: 2200000 },
+  "Educación / Capacitación": { min: 550000, median: 950000, max: 1800000 },
+  "Comercio / Ventas": { min: 600000, median: 1050000, max: 2500000 },
+  "Construcción / Minería": { min: 800000, median: 1600000, max: 3500000 },
+  "Gastronomía / Turismo": { min: 500000, median: 750000, max: 1500000 },
+  "RRHH / Administración": { min: 650000, median: 1100000, max: 2100000 },
+};
+
+export const getSalarySuggestion = onCall<{ sector: string; region: string; yearsExp: number }>(async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const { sector, yearsExp } = request.data;
+  const ref = SALARY_REFERENCE[sector];
+  if (!ref) return { min: 560000, median: 900000, max: 1800000, note: "Estimación general de mercado" };
+  const expFactor = Math.min(1 + (Number(yearsExp ?? 0) * 0.04), 1.5);
+  return {
+    min: Math.round(ref.min * expFactor / 1000) * 1000,
+    median: Math.round(ref.median * expFactor / 1000) * 1000,
+    max: Math.round(ref.max * expFactor / 1000) * 1000,
+    note: `Estimación de referencia para ${sector} en Chile 2026`
+  };
+});
+
+// ── Referidos ─────────────────────────────────────────────────────────────
+export const getReferralLink = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const code = `REF-${uid.slice(0, 8).toUpperCase()}`;
+  const ref = db.collection("referralCodes").doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({ uid, code, uses: 0, conversions: 0, createdAt: FieldValue.serverTimestamp() });
+  }
+  const data = snap.data() ?? {};
+  return { code: snap.exists ? (data.code ?? code) : code, uses: Number(data.uses ?? 0), conversions: Number(data.conversions ?? 0), url: `${appUrl}/?ref=${snap.exists ? (data.code ?? code) : code}` };
+});
+
+export const trackReferralVisit = onCall<{ code: string }>(async (request) => {
+  const { code } = request.data;
+  if (!code) return { ok: false };
+  const snap = await db.collection("referralCodes").where("code", "==", code.toUpperCase()).limit(1).get();
+  if (snap.empty) return { ok: false };
+  await snap.docs[0].ref.update({ uses: FieldValue.increment(1) });
+  return { ok: true };
+});
+
+// ── Email nurturing (D+3 perfil incompleto) ────────────────────────────────
+export const sendNurturingEmails = onSchedule(
+  { schedule: "every day 10:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const threeDaysAgo = Timestamp.fromMillis(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const fourDaysAgo = Timestamp.fromMillis(Date.now() - 4 * 24 * 60 * 60 * 1000);
+    const snap = await db.collection("workerPublicProfiles")
+      .where("subscriptionStatus", "==", "inactive")
+      .where("createdAt", ">=", fourDaysAgo)
+      .where("createdAt", "<=", threeDaysAgo)
+      .limit(100)
+      .get();
+    for (const doc of snap.docs) {
+      const privSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
+      const email: string | undefined = privSnap.data()?.email;
+      if (!email) continue;
+      const reminded = await db.collection("emailReminders").doc(`nurturing-d3-${doc.id}`).get();
+      if (reminded.exists) continue;
+      await sendEmail(email, "Tu perfil en Perfil Primero está listo — solo falta activarlo",
+        `<p>Hola,</p>
+         <p>Creaste tu cuenta en Perfil Primero hace 3 días. Tu perfil está casi listo — solo necesitas <strong>activarlo</strong> para que empresas verificadas puedan encontrarte.</p>
+         <p>Durante el período de lanzamiento, la activación es <strong>completamente gratis</strong>.</p>
+         <p><a href="${appUrl}/postulante" style="background:#0055ff;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin:12px 0">Activar mi perfil ahora →</a></p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+      await db.collection("emailReminders").doc(`nurturing-d3-${doc.id}`).set({
+        type: "nurturing_d3", workerId: doc.id, targetEmail: email, status: "sent", sentAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── NPS automático (D+30 tras activación) ─────────────────────────────────
+export const sendNpsEmails = onSchedule(
+  { schedule: "every day 11:00", timeZone: "America/Santiago", region: "us-central1" },
+  async () => {
+    const thirtyDaysAgo = Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const thirtyOneDaysAgo = Timestamp.fromMillis(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    const snap = await db.collection("workerPublicProfiles")
+      .where("subscriptionStatus", "==", "active")
+      .where("createdAt", ">=", thirtyOneDaysAgo)
+      .where("createdAt", "<=", thirtyDaysAgo)
+      .limit(100)
+      .get();
+    for (const doc of snap.docs) {
+      const reminded = await db.collection("emailReminders").doc(`nps-d30-${doc.id}`).get();
+      if (reminded.exists) continue;
+      const privSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
+      const email: string | undefined = privSnap.data()?.email;
+      if (!email) continue;
+      const npsUrl = `${appUrl}/feedback?uid=${doc.id}&type=worker`;
+      await sendEmail(email, "¿Cómo ha sido tu experiencia en Perfil Primero?",
+        `<p>Hola,</p>
+         <p>Llevas 30 días en Perfil Primero. Queremos saber cómo te ha ido.</p>
+         <p>En una escala del 1 al 10, ¿cuánto recomendarías Perfil Primero a un amigo o colega?</p>
+         <p style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">
+           ${[1,2,3,4,5,6,7,8,9,10].map(n => `<a href="${npsUrl}&score=${n}" style="background:#f0f4f8;color:#0d1b2a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:600">${n}</a>`).join("")}
+         </p>
+         <p>Tu opinión nos ayuda a mejorar la plataforma.</p>
+         <p>— Equipo Perfil Primero</p>`
+      );
+      await db.collection("emailReminders").doc(`nps-d30-${doc.id}`).set({
+        type: "nps_d30", workerId: doc.id, targetEmail: email, status: "sent", sentAt: FieldValue.serverTimestamp()
+      });
+    }
+  }
+);
+
+// ── Detector de sueldo irreal en oferta laboral ───────────────────────────
+export const validateJobOfferSalary = onCall<{ salaryMin: number; salaryMax: number; sector: string }>(async (request) => {
+  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const INGRESO_MINIMO = 560000;
+  const { salaryMin, salaryMax, sector } = request.data;
+  const ref = SALARY_REFERENCE[sector];
+  const marketMin = ref?.min ?? INGRESO_MINIMO;
+  const warnings: string[] = [];
+  if (Number(salaryMin) < INGRESO_MINIMO) warnings.push(`El sueldo mínimo ($${salaryMin?.toLocaleString("es-CL")}) está bajo el ingreso mínimo legal ($${INGRESO_MINIMO.toLocaleString("es-CL")}).`);
+  if (ref && Number(salaryMax) < marketMin * 0.6) warnings.push(`El sueldo máximo parece muy bajo para ${sector} (referencia de mercado: $${marketMin.toLocaleString("es-CL")} mínimo).`);
+  if (Number(salaryMax) < Number(salaryMin)) warnings.push("El sueldo máximo es menor que el mínimo.");
+  return { valid: warnings.length === 0, warnings };
+});
+
+// ── Dashboard MRR/ARR (admin) ──────────────────────────────────────────────
+export const getMrrDashboard = onCall(async (request) => {
+  await assertAdmin(request.auth?.uid);
+  const now = new Date();
+  const months: { label: string; revenue: number; count: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = Timestamp.fromDate(d);
+    const end = Timestamp.fromDate(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    const snap = await db.collection("payments")
+      .where("status", "==", "paid")
+      .where("createdAt", ">=", start)
+      .where("createdAt", "<", end)
+      .get();
+    const revenue = snap.docs.reduce((sum, doc) => sum + Number(doc.data().amount ?? 0), 0);
+    months.push({ label: d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" }), revenue, count: snap.size });
+  }
+  const currentMonthRevenue = months[months.length - 1]?.revenue ?? 0;
+  return { months, mrr: currentMonthRevenue, arr: currentMonthRevenue * 12 };
+});
+
+// ── Exportar datos a CSV ───────────────────────────────────────────────────
+export const exportWorkerscsv = onCall(async (request) => {
+  await assertAdmin(request.auth?.uid);
+  const snap = await db.collection("workerPublicProfiles").limit(500).get();
+  const rows = ["workerId,sector,region,visibilityStatus,subscriptionStatus,profileSource,createdAt"];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    rows.push([doc.id, d.sector ?? "", d.region ?? "", d.visibilityStatus ?? "", d.subscriptionStatus ?? "", d.profileSource ?? "", d.createdAt?.toDate?.()?.toISOString?.() ?? ""].join(","));
+  }
+  return { csv: rows.join("\n"), count: snap.size };
+});
+
+export const exportPaymentsCsv = onCall(async (request) => {
+  await assertAdmin(request.auth?.uid);
+  const snap = await db.collection("payments").where("status", "==", "paid").limit(500).get();
+  const rows = ["paymentId,userId,amount,paymentType,provider,createdAt"];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    rows.push([d.paymentId ?? doc.id, d.userId ?? "", d.amount ?? 0, d.paymentType ?? "", d.provider ?? "", d.createdAt?.toDate?.()?.toISOString?.() ?? ""].join(","));
+  }
+  return { csv: rows.join("\n"), count: snap.size };
+});
+
+// ── Panel de impacto OMIL ──────────────────────────────────────────────────
+export const getOmilImpactPanel = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+  const [profilesSnap, invitationsSnap] = await Promise.all([
+    db.collection("workerPublicProfiles").where("createdByOmilId", "==", uid).get(),
+    db.collection("invitations").where("workerId", "in",
+      (await db.collection("workerPublicProfiles").where("createdByOmilId", "==", uid).limit(30).get()).docs.map(d => d.id)
+    ).get().catch(() => ({ size: 0, docs: [] as FirebaseFirestore.QueryDocumentSnapshot[] }))
+  ]);
+  const profiles = profilesSnap.docs.map(d => d.data());
+  const hiredCount = profiles.filter(p => p.subscriptionStatus === "active").length;
+  const invDocs = "docs" in invitationsSnap ? invitationsSnap.docs : [];
+  const contrataciones = invDocs.filter((d: FirebaseFirestore.QueryDocumentSnapshot) => d.data().status === "hired").length;
+  return {
+    totalPerfiles: profilesSnap.size,
+    perfilesActivos: profiles.filter(p => p.visibilityStatus === "visible").length,
+    perfilesVencidos: profiles.filter(p => p.visibilityStatus === "expired").length,
+    activosSuscripcion: hiredCount,
+    invitacionesRecibidas: invitationsSnap.size,
+    contratacionesConfirmadas: contrataciones
+  };
 });
