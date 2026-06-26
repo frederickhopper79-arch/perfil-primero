@@ -112,12 +112,78 @@ export function AuthCard({
 
   return (
     <section className="authCard">
-      <div>
-        <p className="eyebrow">
-          {role === "worker" ? "Cuenta postulante" : role === "company" ? "Cuenta empresa" : role === "omil" ? "Cuenta OMIL" : "Cuenta admin"}
-        </p>
-        <h2>{mode === "register" ? "Crear cuenta" : mode === "reset" ? "Recuperar contraseña" : "Iniciar sesión"}</h2>
-      </div>
+
+      {/* Eyebrow */}
+      <p className="eyebrow" style={{ marginBottom: 12 }}>
+        {role === "worker" ? "Cuenta postulante" : role === "company" ? "Cuenta empresa" : role === "omil" ? "Cuenta OMIL" : "Cuenta admin"}
+      </p>
+
+      {/* Tabs prominentes — solo para roles no institucionales y fuera del modo reset */}
+      {!isInstitutional && mode !== "reset" && (
+        <div style={{ display: "flex", background: "var(--bg-soft)", borderRadius: 12, padding: 4, marginBottom: 20, gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => { setMode("register"); setStatus(""); setPassword(""); }}
+            disabled={isLoading}
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: 9,
+              border: "none",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              transition: "all .15s",
+              background: mode === "register" ? "var(--surface)" : "transparent",
+              color: mode === "register" ? "var(--color-primary)" : "var(--muted)",
+              boxShadow: mode === "register" ? "0 1px 4px rgba(0,0,0,.12)" : "none",
+            }}
+          >
+            Crear cuenta
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("login"); setStatus(""); setPassword(""); }}
+            disabled={isLoading}
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: 9,
+              border: "none",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              transition: "all .15s",
+              background: mode === "login" ? "var(--surface)" : "transparent",
+              color: mode === "login" ? "var(--color-primary)" : "var(--muted)",
+              boxShadow: mode === "login" ? "0 1px 4px rgba(0,0,0,.12)" : "none",
+            }}
+          >
+            Iniciar sesión
+          </button>
+        </div>
+      )}
+
+      {/* Título en modo reset */}
+      {mode === "reset" && (
+        <h2 style={{ marginBottom: 16 }}>Recuperar contraseña</h2>
+      )}
+
+      {/* Botón Google — primero en register para reducir fricción */}
+      {!isInstitutional && mode === "register" && (
+        <button className="button secondary full" type="button" onClick={handleGoogle} disabled={isLoading} style={{ marginBottom: 16 }}>
+          <GoogleIcon />
+          Registrarse con Gmail
+        </button>
+      )}
+      {!isInstitutional && mode === "register" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <hr style={{ flex: 1, border: "none", borderTop: "1px solid var(--line)" }} />
+          <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>o con correo</span>
+          <hr style={{ flex: 1, border: "none", borderTop: "1px solid var(--line)" }} />
+        </div>
+      )}
+
       <form className="authForm" onSubmit={handleEmail} noValidate>
         <label>
           Correo electrónico
@@ -153,40 +219,38 @@ export function AuthCard({
           </label>
         )}
         <button className="button primary" type="submit" disabled={isLoading} aria-busy={isLoading}>
-          {isLoading ? "Procesando..." : mode === "register" ? "Crear cuenta" : mode === "reset" ? "Enviar correo de recuperación" : "Entrar"}
+          {isLoading ? "Procesando..." : mode === "register" ? "Crear cuenta gratis →" : mode === "reset" ? "Enviar correo de recuperación" : "Entrar →"}
         </button>
       </form>
-      {!isInstitutional && mode !== "reset" && (
-        <>
-          <button className="button secondary full" type="button" onClick={handleGoogle} disabled={isLoading}>
-            <GoogleIcon />
-            Entrar con Gmail
-          </button>
-          <button
-            className="textButton"
-            type="button"
-            disabled={isLoading}
-            onClick={() => { setMode(mode === "register" ? "login" : "register"); setStatus(""); }}
-          >
-            {mode === "register" ? "Ya tengo cuenta" : "Crear una cuenta nueva"}
-          </button>
-        </>
+
+      {/* Botón Google en login */}
+      {!isInstitutional && mode === "login" && (
+        <button className="button secondary full" type="button" onClick={handleGoogle} disabled={isLoading} style={{ marginTop: 8 }}>
+          <GoogleIcon />
+          Entrar con Gmail
+        </button>
       )}
+
+      {/* Recuperar contraseña — solo en login */}
       {mode === "login" && (
-        <button className="textButton" type="button" style={{ fontSize: "12px" }} onClick={() => { setMode("reset"); setStatus(""); }}>
+        <button className="textButton" type="button" style={{ fontSize: "12px", marginTop: 4 }} onClick={() => { setMode("reset"); setStatus(""); }}>
           Olvidé mi contraseña
         </button>
       )}
+
+      {/* Volver — solo en reset */}
       {mode === "reset" && (
         <button className="textButton" type="button" onClick={() => { setMode("login"); setStatus(""); }}>
-          Volver a iniciar sesión
+          ← Volver a iniciar sesión
         </button>
       )}
+
       {isInstitutional && mode === "login" && (
         <p className="helperText" style={{ textAlign: "center", fontSize: "12px" }}>
           Acceso institucional. Las credenciales son asignadas por el administrador.
         </p>
       )}
+
       {status ? (
         <p className="statusText" role="alert" aria-live="polite"
           style={{ color: status.includes("lista") || status.includes("enviado") ? "var(--green)" : "var(--coral)" }}>
