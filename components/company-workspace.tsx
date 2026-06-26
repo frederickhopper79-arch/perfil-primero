@@ -57,7 +57,8 @@ import { CompanyInvoicesPanel } from "./company-invoices-panel";
 import { SalaryBenchmarkWidget } from "./salary-benchmark-widget";
 import { chileRegions, FREEMIUM_WORKER_LIMIT, invitationTemplates, jobAreas } from "@/lib/domain/catalogs";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, db } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 import {
   createCompanyMonthlyCheckout,
   createCompanyUnlimitedCheckout,
@@ -184,6 +185,7 @@ function TeamMembersPanel({ uid }: { uid: string }) {
 
 export function CompanyWorkspace() {
   const [uid, setUid] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [workers, setWorkers] = useState<WorkerPublicProfile[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<WorkerPublicProfile | null>(null);
   const COMPARE_CACHE_KEY = "pp_compareWorkers_v2";
@@ -402,6 +404,9 @@ export function CompanyWorkspace() {
   useEffect(() => {
     if (!uid) return;
     fetchWorkers();
+    getDoc(doc(db, "users", uid)).then((snap) => {
+      if (snap.exists()) setDisplayName(snap.data().displayName ?? "");
+    }).catch(() => {});
   }, [uid]);
 
   function fetchWorkers(overrideFilters?: typeof filters) {
@@ -1102,7 +1107,7 @@ export function CompanyWorkspace() {
         <section className="workspaceSessionBar">
           <div>
             <span className="smallLabel">Sesión empresa</span>
-            <strong>{company.companyName || uid}</strong>
+            <strong>{displayName ? `Hola, ${displayName}` : (company.companyName || uid)}</strong>
           </div>
           <button
             className="button secondary"

@@ -11,7 +11,7 @@ import { InterviewRulesCard } from "./company-workspace";
 import { chileRegions, jobAreas, seniorityLevels } from "@/lib/domain/catalogs";
 import { calculateProfileCompleteness, getCompletenessHints } from "@/lib/domain/matching-engine";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { auth, db } from "@/lib/firebase/client";
 import {
   acceptInterviewRules,
   acceptInvitation,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/firebase/workers";
 import { getReferralCode } from "@/lib/firebase/auth";
 import { trackEvent } from "@/lib/firebase/analytics";
+import { doc, getDoc } from "firebase/firestore";
 import type { ConversationMessage, Invitation } from "@/lib/domain/types";
 import { fileToBase64 } from "@/lib/utils/file";
 import { Confetti } from "@/components/ui/confetti";
@@ -77,6 +78,7 @@ const QUICK_REPLIES = [
 export function WorkerOnboarding() {
   const [uid, setUid] = useState("");
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState("");
   const [accessStatus, setAccessStatus] = useState("");
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -229,6 +231,9 @@ export function WorkerOnboarding() {
     });
     listWorkerPayments(uid).then(setPayments).catch(() => setStatus("No se pudieron cargar los pagos."));
     getReferralCode(uid).then(setReferralCode).catch(() => {});
+    getDoc(doc(db, "users", uid)).then((snap) => {
+      if (snap.exists()) setDisplayName(snap.data().displayName ?? "");
+    }).catch(() => {});
     getWorkerProfile(uid)
       .then(({ publicProfile, privateProfile }) => {
         if (publicProfile) {
@@ -963,7 +968,7 @@ export function WorkerOnboarding() {
         <section className="workspaceSessionBar">
           <div>
             <span className="smallLabel">Sesión postulante</span>
-            <strong>{email || profileCode}</strong>
+            <strong>{displayName ? `Hola, ${displayName}` : (email || profileCode)}</strong>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
