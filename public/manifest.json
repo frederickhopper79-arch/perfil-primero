@@ -14,25 +14,25 @@
   "categories": ["business", "productivity", "jobs"],
   "icons": [
     {
-      "src": "/logo-perfil-primero.png",
+      "src": "/isotipo.png",
       "sizes": "48x48",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-perfil-primero.png",
+      "src": "/isotipo.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-perfil-primero.png",
+      "src": "/isotipo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-perfil-primero.png",
+      "src": "/isotipo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -45,42 +45,51 @@
       "short_name": "Postulante",
       "description": "Accede a tu panel de postulante",
       "url": "/postulante",
-      "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/isotipo.png", "sizes": "512x512", "type": "image/png" }]
     },
     {
       "name": "Buscar talento",
       "short_name": "Empresa",
       "description": "Panel de empresa para buscar candidatos",
       "url": "/empresa",
-      "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/isotipo.png", "sizes": "512x512", "type": "image/png" }]
     },
     {
       "name": "Crear cuenta",
       "short_name": "Registro",
       "description": "Regístrate como postulante o empresa",
       "url": "/bienvenida",
-      "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/isotipo.png", "sizes": "512x512", "type": "image/png" }]
     },
     {
       "name": "Cómo funciona",
       "short_name": "Cómo funciona",
       "description": "Aprende cómo funciona Perfil Primero",
       "url": "/como-funciona",
-      "icons": [{ "src": "/logo-perfil-primero.png", "sizes": "512x512", "type": "image/png" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/hero-marketplace.png",
-      "sizes": "1200x630",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Perfil Primero — Plataforma laboral invertida de Chile"
+      "icons": [{ "src": "/isotipo.png", "sizes": "512x512", "type": "image/png" }]
     }
   ],
   "share_target": {
     "action": "/postulante",
     "method": "GET",
     "params": { "text": "ref" }
-  }
+  },
+  "screenshots": [
+    {
+      "src": "/isotipo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Perfil Primero — Plataforma laboral invertida de Chile"
+    },
+    {
+      "src": "/isotipo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Buscar talento con sueldo visible desde el primer contacto"
+    }
+  ],
+  "edge_side_panel": { "preferred_width": 400 },
+  "launch_handler": { "client_mode": "focus-existing" }
 }

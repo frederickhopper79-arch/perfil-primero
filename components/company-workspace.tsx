@@ -50,10 +50,11 @@ function toPersonalityLabel(score: number): string {
 import { FormEvent, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useDeferredSearch } from "@/lib/hooks/useDeferredSearch";
 import { onAuthStateChanged } from "firebase/auth";
-import { BadgeDollarSign, Bell, BriefcaseBusiness, Check, CheckCircle2, CreditCard, Filter, Loader2, MessageSquare, Search, Send } from "lucide-react";
+import { BarChart3 as BarChart3Icon, BadgeDollarSign, Bell, BriefcaseBusiness, Check, CheckCircle2, CreditCard, Filter, Loader2, MessageSquare, Search, Send } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { MercadoPagoIcon } from "./brand-icons";
 import { CompanyInvoicesPanel } from "./company-invoices-panel";
+import { SalaryBenchmarkWidget } from "./salary-benchmark-widget";
 import { chileRegions, FREEMIUM_WORKER_LIMIT, invitationTemplates, jobAreas } from "@/lib/domain/catalogs";
 import { ensureUserRecord, getUserRole, logout } from "@/lib/firebase/auth";
 import { auth } from "@/lib/firebase/client";
@@ -68,6 +69,7 @@ import {
   getUnlockedWorkerContact,
   listCompanyJobOffers,
   listCompanyPayments,
+  markMessagesRead,
   recordProfileImpression,
   recordSearchAnalytics,
   saveCompanyAlertPreferences,
@@ -150,7 +152,7 @@ function TeamMembersPanel({ uid }: { uid: string }) {
       <form className="formGrid" onSubmit={handleAdd} style={{ marginBottom: 12 }}>
         <label>
           Email del colaborador
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@empresa.cl" required />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@empresa.cl" required autoComplete="email" inputMode="email" enterKeyHint="next" />
         </label>
         <label>
           Rol
@@ -202,7 +204,10 @@ export function CompanyWorkspace() {
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [messageBody, setMessageBody] = useState("");
-  const [activeView, setActiveView] = useState<"dashboard" | "jobs" | "talent" | "interview" | "kanban" | "billing">("dashboard");
+  const [lastWorkerDoc, setLastWorkerDoc] = useState<import("firebase/firestore").QueryDocumentSnapshot | null>(null);
+  const [hasMoreWorkers, setHasMoreWorkers] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [activeView, setActiveView] = useState<"dashboard" | "jobs" | "talent" | "interview" | "kanban" | "billing" | "metrics" | "benchmark">("dashboard");
   const [filters, setFilters] = useState({
     query: "",
     region: "",
@@ -402,6 +407,8 @@ export function CompanyWorkspace() {
   function fetchWorkers(overrideFilters?: typeof filters) {
     const f = overrideFilters ?? filters;
     setLoadingWorkers(true);
+    setLastWorkerDoc(null);
+    setHasMoreWorkers(false);
     recordSearchAnalytics({
       region: f.region || undefined,
       area: f.area || undefined,
@@ -413,9 +420,33 @@ export function CompanyWorkspace() {
       sector: f.area || undefined,
       salaryMax: f.salaryMax ? Number(f.salaryMax) : undefined
     })
-      .then((results) => { setWorkers(results); setRefreshedAt(new Date()); trackEvent("search_performed", { results: results.length }); })
+      .then(({ workers: results, hasMore, lastDoc }) => {
+        setWorkers(results);
+        setLastWorkerDoc(lastDoc);
+        setHasMoreWorkers(hasMore);
+        setRefreshedAt(new Date());
+        trackEvent("search_performed", { results: results.length });
+      })
       .catch(() => setStatus("No se pudieron cargar los perfiles."))
       .finally(() => setLoadingWorkers(false));
+  }
+
+  function loadMoreWorkers() {
+    if (!lastWorkerDoc || loadingMore) return;
+    setLoadingMore(true);
+    listVisibleWorkers({
+      region: filters.region || undefined,
+      sector: filters.area || undefined,
+      salaryMax: filters.salaryMax ? Number(filters.salaryMax) : undefined,
+      cursor: lastWorkerDoc
+    })
+      .then(({ workers: more, hasMore, lastDoc }) => {
+        setWorkers((prev) => [...prev, ...more]);
+        setLastWorkerDoc(lastDoc);
+        setHasMoreWorkers(hasMore);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
   }
 
   function toggleFavorite(workerId: string) {
@@ -669,6 +700,7 @@ export function CompanyWorkspace() {
       setLastInvitationId(result.invitationId);
       setActiveInvitationId(result.invitationId);
       setActiveView("interview");
+      trackEvent("invitation_sent", { invitation_id: result.invitationId, salary_min: invite.salaryMin, salary_max: invite.salaryMax });
       setStatus(`Invitación creada: ${result.invitationId}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
@@ -829,6 +861,7 @@ export function CompanyWorkspace() {
   useEffect(() => {
     if (!activeInvitation) return;
     const unsub = subscribeToMessages(activeInvitation.invitationId, setMessages);
+    markMessagesRead(activeInvitation.invitationId).catch(() => {});
     return () => unsub();
   }, [activeInvitation?.invitationId]);
 
@@ -1134,7 +1167,9 @@ export function CompanyWorkspace() {
             ["talent", "Buscar talento"],
             ["interview", "Entrevista"],
             ["kanban", "Pipeline"],
-            ["billing", "Pagos"]
+            ["billing", "Pagos"],
+            ["metrics", "Métricas"],
+            ["benchmark", "Benchmark salarial"],
           ].map(([key, label]) => (
             <button
               className={activeView === key ? "active" : ""}
@@ -1662,6 +1697,14 @@ export function CompanyWorkspace() {
             </div>
           </section>
         ) : null}
+
+        {hasMoreWorkers && !loadingWorkers && (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <button className="button secondary" type="button" onClick={loadMoreWorkers} disabled={loadingMore}>
+              {loadingMore ? <><Loader2 size={14} className="spinIcon" aria-hidden="true" /> Cargando...</> : "Cargar más perfiles"}
+            </button>
+          </div>
+        )}
         </>
         ) : null}
 
@@ -2034,6 +2077,11 @@ export function CompanyWorkspace() {
               <div className={`messageBubble ${message.senderRole}`} key={message.messageId}>
                 <strong>{message.senderRole === "company" ? "Empresa" : message.senderRole === "worker" ? "Postulante" : "Sistema"}</strong>
                 <p>{message.body}</p>
+                {message.senderRole === "company" && uid && message.senderId === uid && (
+                  <span className="messageReadStatus" title={message.readAt ? "Visto" : "Enviado"}>
+                    {message.readAt ? "✓✓" : "✓"}
+                  </span>
+                )}
               </div>
             )) : <p className="emptyState">Abre o crea una invitación para iniciar conversación.</p>}
             <div ref={messagesEndRef} />
@@ -2373,6 +2421,121 @@ export function CompanyWorkspace() {
           </section>
           <CompanyInvoicesPanel />
           </>
+        ) : null}
+
+        {activeView === "metrics" ? (() => {
+          const sent = invitations.length;
+          const accepted = invitations.filter((i) => ["accepted","in_process","offer_sent","hired"].includes(i.status)).length;
+          const hired = invitations.filter((i) => i.status === "hired").length;
+          const rejected = invitations.filter((i) => i.status === "rejected" || i.status === "closed").length;
+          const acceptRate = sent > 0 ? Math.round((accepted / sent) * 100) : 0;
+          const hireRate = sent > 0 ? Math.round((hired / sent) * 100) : 0;
+          const totalSpent = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+          const costPerHire = hired > 0 ? Math.round(totalSpent / hired) : 0;
+          const avgResponseMs = invitations
+            .filter((i) => (i as unknown as Record<string,unknown>).firstResponseAt && (i as unknown as Record<string,unknown>).createdAt)
+            .map((i) => {
+              const d = i as unknown as Record<string,{seconds:number}>;
+              const res = d.firstResponseAt?.seconds;
+              const cre = d.createdAt?.seconds;
+              return res && cre ? (res - cre) / 3600 : 0;
+            });
+          const avgResponseH = avgResponseMs.length > 0 ? Math.round(avgResponseMs.reduce((a,b) => a+b, 0) / avgResponseMs.length) : null;
+
+          return (
+            <section className="stack">
+              <div className="formHeader" style={{ marginBottom: 0 }}>
+                <BarChart3Icon size={22} aria-hidden="true" />
+                <div>
+                  <h2>Métricas de reclutamiento</h2>
+                  <p>Resumen de tu actividad como empresa en Perfil Primero.</p>
+                </div>
+              </div>
+              <div className="dashboardGrid">
+                <article>
+                  <span className="smallLabel">Invitaciones enviadas</span>
+                  <strong>{sent}</strong>
+                  <p>Total acumulado</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Tasa de aceptación</span>
+                  <strong>{acceptRate}%</strong>
+                  <p>{accepted} de {sent} invitaciones aceptadas</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Tasa de contratación</span>
+                  <strong>{hireRate}%</strong>
+                  <p>{hired} contratado{hired !== 1 ? "s" : ""}</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Rechazos / cierres</span>
+                  <strong>{rejected}</strong>
+                  <p>Sin avanzar en el proceso</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Gasto total</span>
+                  <strong>${totalSpent.toLocaleString("es-CL")}</strong>
+                  <p>CLP pagados en la plataforma</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Costo por contratado</span>
+                  <strong>{costPerHire > 0 ? `$${costPerHire.toLocaleString("es-CL")}` : "—"}</strong>
+                  <p>Promedio por contratación</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Tiempo promedio de respuesta</span>
+                  <strong>{avgResponseH !== null ? `${avgResponseH}h` : "—"}</strong>
+                  <p>Desde invitación hasta primera respuesta</p>
+                </article>
+                <article>
+                  <span className="smallLabel">Procesos activos</span>
+                  <strong>{invitations.filter((i) => !["closed","expired","rejected","hired"].includes(i.status)).length}</strong>
+                  <p>Candidatos en curso</p>
+                </article>
+              </div>
+
+              {sent > 0 && (
+                <section className="formSurface" style={{ marginTop: 0 }}>
+                  <h3 style={{ fontSize: 14, marginBottom: 12 }}>Distribución por estado</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { label: "Enviada", key: "sent", color: "var(--accent)" },
+                      { label: "Aceptada", key: "accepted", color: "#3aaee0" },
+                      { label: "Entrevista", key: "in_process", color: "#7c3aed" },
+                      { label: "Oferta enviada", key: "offer_sent", color: "#f59e0b" },
+                      { label: "Contratado", key: "hired", color: "#16a34a" },
+                      { label: "Rechazado", key: "rejected", color: "#dc2626" },
+                    ].map(({ label, key, color }) => {
+                      const count = invitations.filter((i) => i.status === key).length;
+                      const pct = Math.round((count / sent) * 100);
+                      return (
+                        <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ width: 110, fontSize: 12, color: "var(--muted)" }}>{label}</span>
+                          <div style={{ flex: 1, background: "var(--line)", borderRadius: 4, height: 8, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: color, transition: "width 0.4s" }} />
+                          </div>
+                          <span style={{ fontSize: 12, width: 40, textAlign: "right" }}>{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </section>
+          );
+        })() : null}
+
+        {activeView === "benchmark" ? (
+          <section className="stack">
+            <div className="formHeader">
+              <BadgeDollarSign size={22} aria-hidden="true" />
+              <div>
+                <h2>Benchmark salarial</h2>
+                <p>Compara el rango de mercado para el cargo que buscas cubrir.</p>
+              </div>
+            </div>
+            <SalaryBenchmarkWidget />
+          </section>
         ) : null}
       </div>
 

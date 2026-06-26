@@ -1,9 +1,12 @@
 export const PRICING = {
-  workerActivation: 0,
-  companyContactUnlock: 9990,
-  companyMonthlyPlan: 9990,
-  companyMonthlyContacts: 5,
-  companyUnlimitedPlan: 29990,
+  // Fase lanzamiento
+  workerActivationLaunch: 0,           // GRATIS durante lanzamiento
+  companyContactUnlockLaunch: 4990,    // $4.990 CLP por contacto (lanzamiento)
+  // Fase post-lanzamiento
+  workerActivation: 999,               // $999 CLP por 30 días
+  companyContactUnlock: 9990,          // $9.990 CLP por contacto
+  companyUnlimitedPlan: 29990,         // $29.990 CLP/mes ilimitado
+  // Meta
   omilProfileDays: 60,
   workerProfileDays: 30,
   maxCvBytes: 5 * 1024 * 1024,
@@ -53,38 +56,43 @@ export interface Plan {
 export const PLANS: Plan[] = [
   {
     id: "free",
-    name: "Gratuito",
+    name: "Exploración",
     priceMonthly: 0,
-    cta: "Comenzar gratis",
-    features: ["Búsqueda de perfiles anónimos", "Filtros básicos", "5 invitaciones/mes"],
-    limits: { unlocks: 0, invitations: 5, teamMembers: 1 },
+    cta: "Registrar empresa gratis",
+    features: ["Búsqueda ilimitada de perfiles anónimos", "Enviar invitaciones sin costo", "Filtros por cargo, sector y región"],
+    limits: { unlocks: 0, invitations: 30, teamMembers: 1 },
   },
   {
     id: "basic",
-    name: "Básico",
-    priceMonthly: PRICING.companyContactUnlock,
-    cta: `Activar por ${formatCLP(PRICING.companyContactUnlock)}`,
-    features: ["1 desbloqueo de contacto", "30 días de acceso", "Pago único sin suscripción"],
+    name: "Por contacto",
+    priceMonthly: PRICING.companyContactUnlockLaunch,
+    cta: `Pagar por contacto`,
+    features: [
+      `$${PRICING.companyContactUnlockLaunch.toLocaleString("es-CL")} CLP por contacto (lanzamiento)`,
+      `$${PRICING.companyContactUnlock.toLocaleString("es-CL")} CLP precio normal`,
+      "Pagas solo cuando el postulante acepta",
+      "Sin mensualidad ni permanencia",
+    ],
     limits: { unlocks: 1, invitations: 30, teamMembers: 1 },
   },
   {
     id: "pro",
-    name: "Pro",
-    priceMonthly: PRICING.companyMonthlyPlan,
-    cta: "Contratar Pro",
+    name: "Ilimitado",
+    priceMonthly: PRICING.companyUnlimitedPlan,
+    cta: "Contratar plan ilimitado",
     highlighted: true,
     features: [
-      `${PRICING.companyMonthlyContacts} desbloqueos/mes`,
-      "Invitaciones ilimitadas",
-      "Filtros avanzados con IA",
+      "Contactos ilimitados por 30 días",
+      "Sin costo extra por candidato",
+      "Alertas automáticas de candidatos",
       "Soporte prioritario",
     ],
-    limits: { unlocks: PRICING.companyMonthlyContacts, invitations: "unlimited", teamMembers: 3 },
+    limits: { unlocks: "unlimited", invitations: "unlimited", teamMembers: 3 },
   },
   {
     id: "enterprise",
     name: "Enterprise",
-    priceMonthly: PRICING.companyUnlimitedPlan,
+    priceMonthly: 0,
     cta: "Hablar con ventas",
     features: [
       "Desbloqueos ilimitados",

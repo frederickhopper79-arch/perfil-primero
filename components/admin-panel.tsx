@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import {
   AlertTriangle,
@@ -25,6 +25,8 @@ import { loginWithEmail } from "@/lib/firebase/auth";
 import { logout } from "@/lib/firebase/auth";
 import { GoogleIcon } from "./brand-icons";
 import {
+  adminSearchUser,
+  adminUpdateUser,
   approveManualTransfer,
   createManagedUser,
   exportAccountingCsv,
@@ -53,7 +55,16 @@ type AdminView =
   | "reviews"
   | "security"
   | "audit"
-  | "reports";
+  | "reports"
+  | "pendientes"
+  | "expertos"
+  | "roadmap"
+  | "changelog"
+  | "tarifas"
+  | "mrr"
+  | "exports"
+  | "omil-impact"
+  | "funnel";
 
 type HealthCheckDoc = {
   status: "healthy" | "warning" | "degraded";
@@ -135,7 +146,16 @@ const views: Array<{ key: AdminView; label: string }> = [
   { key: "reviews", label: "Reputación" },
   { key: "security", label: "Seguridad" },
   { key: "audit", label: "Auditoria" },
-  { key: "reports", label: "Reportes" }
+  { key: "reports", label: "Reportes" },
+  { key: "pendientes", label: "⚠️ Pendientes manuales" },
+  { key: "expertos", label: "🧠 Análisis de expertos" },
+  { key: "roadmap", label: "🗺 Roadmap" },
+  { key: "changelog", label: "📋 Changelog" },
+  { key: "tarifas", label: "💰 Config. tarifas" },
+  { key: "mrr", label: "📈 MRR / ARR" },
+  { key: "exports", label: "📥 Exportar CSV" },
+  { key: "omil-impact", label: "🏛 Impacto OMIL" },
+  { key: "funnel", label: "🔽 Embudo conversión" }
 ];
 
 export function AdminPanel() {
@@ -548,6 +568,15 @@ export function AdminPanel() {
         {activeView === "security" ? <SecurityView alerts={data.securityAlerts} resolvedAlerts={resolvedAlerts} onResolve={(id) => setResolvedAlerts((prev) => new Set([...prev, id]))} /> : null}
         {activeView === "audit" ? <AuditView events={data.auditEvents} /> : null}
         {activeView === "reports" ? <ReportsView dashboard={data} onGenerateMarketReport={handleGenerateMarketReport} /> : null}
+        {activeView === "pendientes" ? <PendientesView /> : null}
+        {activeView === "expertos" ? <ExpertosView /> : null}
+        {activeView === "roadmap" ? <RoadmapView /> : null}
+        {activeView === "changelog" ? <ChangelogView /> : null}
+        {activeView === "tarifas" ? <TarifasView /> : null}
+        {activeView === "mrr" ? <MrrView /> : null}
+        {activeView === "exports" ? <ExportsView /> : null}
+        {activeView === "omil-impact" ? <OmilImpactView /> : null}
+        {activeView === "funnel" ? <FunnelView dashboard={data} /> : null}
 
         {status ? <p className="statusText">{status}</p> : null}
       </div>
@@ -776,6 +805,142 @@ type NewUserState = {
   contactPersonRole: string;
 };
 
+type FoundUser = Awaited<ReturnType<typeof adminSearchUser>>;
+
+function UserSearchPanel() {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [found, setFound] = useState<FoundUser | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editRole, setEditRole] = useState<string>("");
+  const [editStatus, setEditStatus] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  async function handleSearch(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setFound(null);
+    setSaveMsg(null);
+    setEditing(false);
+    setLoading(true);
+    try {
+      const result = await adminSearchUser(query.trim());
+      setFound(result);
+      setEditRole(result.role ?? "");
+      setEditStatus(result.status ?? "active");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No encontrado.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    if (!found) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      await adminUpdateUser({
+        uid: found.uid,
+        role: editRole as "worker" | "company" | "admin" | "omil",
+        status: editStatus as "active" | "suspended",
+      });
+      setFound({ ...found, role: editRole, status: editStatus });
+      setSaveMsg("Cambios guardados correctamente.");
+      setEditing(false);
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : "Error al guardar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="formSurface stack">
+      <div className="formHeader">
+        <Users size={22} aria-hidden="true" />
+        <div>
+          <h2>Buscar y modificar usuario</h2>
+          <p>Busca por UID o email. Puedes cambiar el rol y el estado de la cuenta.</p>
+        </div>
+      </div>
+      <form className="formGrid" onSubmit={handleSearch} style={{ alignItems: "flex-end" }}>
+        <label style={{ gridColumn: "1 / -1" }}>
+          UID o email
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="uid123 o usuario@ejemplo.com"
+            required
+            minLength={3}
+          />
+        </label>
+        <button className="button primary" type="submit" disabled={loading}>
+          {loading ? "Buscando…" : "Buscar"}
+        </button>
+      </form>
+
+      {error && <p className="errorMsg">{error}</p>}
+
+      {found && (
+        <div className="adminUserResult">
+          <table className="adminTable">
+            <tbody>
+              <tr><th>UID</th><td><code>{found.uid}</code></td></tr>
+              <tr><th>Email</th><td>{found.email}</td></tr>
+              <tr><th>Nombre</th><td>{found.displayName || "—"}</td></tr>
+              <tr><th>Verificado</th><td>{found.emailVerified ? "Sí" : "No"}</td></tr>
+              <tr><th>Deshabilitado (Auth)</th><td>{found.disabled ? "Sí" : "No"}</td></tr>
+              <tr><th>Creación</th><td>{found.creationTime}</td></tr>
+              <tr><th>Último acceso</th><td>{found.lastSignInTime || "—"}</td></tr>
+              <tr><th>Rol</th><td>{found.role ?? "—"}</td></tr>
+              <tr><th>Estado</th><td>{found.status ?? "—"}</td></tr>
+            </tbody>
+          </table>
+
+          {!editing && (
+            <button className="button" type="button" onClick={() => setEditing(true)}>
+              Editar rol / estado
+            </button>
+          )}
+
+          {editing && (
+            <form className="formGrid" onSubmit={handleSave} style={{ marginTop: "1rem" }}>
+              <label>
+                Rol
+                <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
+                  <option value="worker">Postulante</option>
+                  <option value="company">Empresa</option>
+                  <option value="admin">Administrador</option>
+                  <option value="omil">OMIL</option>
+                </select>
+              </label>
+              <label>
+                Estado
+                <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+                  <option value="active">Activo</option>
+                  <option value="suspended">Suspendido</option>
+                </select>
+              </label>
+              <button className="button primary" type="submit" disabled={saving}>
+                {saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+              <button className="button" type="button" onClick={() => setEditing(false)}>
+                Cancelar
+              </button>
+            </form>
+          )}
+
+          {saveMsg && <p style={{ marginTop: "0.5rem" }}>{saveMsg}</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdministrationView({
   dashboard,
   newUser,
@@ -795,6 +960,7 @@ function AdministrationView({
 
   return (
     <section className="stack">
+      <UserSearchPanel />
       <form className="formSurface adminUserCreator" onSubmit={onCreateUser}>
         <div className="formHeader">
           <Users size={22} aria-hidden="true" />
@@ -1999,4 +2165,802 @@ function csvCell(value: unknown) {
 function statusCounts(counts: Record<string, number>) {
   const entries = Object.entries(counts);
   return entries.length ? entries.map(([key, value]) => `${key}: ${value}`).join(" / ") : "Sin registros";
+}
+
+// ── Lista de tareas pendientes que requieren acción manual ──────────────────
+type PrioridadPendiente = "critico" | "alto" | "medio" | "info";
+
+interface TareaPendiente {
+  id: string;
+  titulo: string;
+  detalle: string;
+  prioridad: PrioridadPendiente;
+  categoria: string;
+  accion?: string;
+  urlAccion?: string;
+  resuelta?: boolean;
+}
+
+const TAREAS_PENDIENTES: TareaPendiente[] = [
+  {
+    id: "gemini-quota",
+    titulo: "Cuota Gemini API agotada para análisis de CV",
+    detalle: "La función analyzeWorkerCv falla con 429. Requiere revisar el plan en Google AI Studio o rotar la GEMINI_API_KEY en functions/.env y redesplegar.",
+    prioridad: "alto",
+    categoria: "API / Infraestructura",
+    accion: "Ir a Google AI Studio",
+    urlAccion: "https://aistudio.google.com",
+  },
+  {
+    id: "sii-inicio-actividades",
+    titulo: "Inicio de actividades SII pendiente para Perfil Primero SpA",
+    detalle: "RUT 78.449.783-6 aún no tiene inicio de actividades en el SII. Sin esto no se pueden emitir boletas/facturas válidas. Requiere gestión manual en sii.cl con RUT del representante legal.",
+    prioridad: "critico",
+    categoria: "Legal / Contabilidad",
+    accion: "Ir a SII",
+    urlAccion: "https://www.sii.cl",
+  },
+  {
+    id: "openfactura-credenciales",
+    titulo: "Credenciales OpenFactura no configuradas",
+    detalle: "La integración SII/OpenFactura en el admin no tiene OPENFACTURA_API_KEY en functions/.env. Agregar la key para habilitar emisión automática de DTE.",
+    prioridad: "alto",
+    categoria: "API / Infraestructura",
+  },
+  {
+    id: "sendgrid-key",
+    titulo: "SENDGRID_API_KEY no configurada",
+    detalle: "Los emails transaccionales (bienvenida, invitaciones, recordatorios) dependen de SendGrid. Agregar SENDGRID_API_KEY en functions/.env y redesplegar las functions.",
+    prioridad: "alto",
+    categoria: "API / Infraestructura",
+  },
+  {
+    id: "vapid-push",
+    titulo: "VAPID keys para notificaciones push no configuradas",
+    detalle: "Las notificaciones push PWA requieren VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY en functions/.env. Generarlas con: npx web-push generate-vapid-keys",
+    prioridad: "medio",
+    categoria: "API / Infraestructura",
+  },
+  {
+    id: "mercadopago-produccion",
+    titulo: "Verificar que MERCADOPAGO_ACCESS_TOKEN es de producción",
+    detalle: "Confirmar que el token en functions/.env es el de producción (empieza con APP_USR-) y no el de sandbox/testing.",
+    prioridad: "critico",
+    categoria: "Pagos",
+    accion: "Ir a Mercado Pago",
+    urlAccion: "https://www.mercadopago.cl/developers/panel/credentials",
+  },
+  {
+    id: "github-secrets",
+    titulo: "Secrets GitHub Actions no configurados",
+    detalle: "El workflow .github/workflows/deploy.yml requiere FIREBASE_SERVICE_ACCOUNT y las variables NEXT_PUBLIC_* en los Secrets del repositorio de GitHub para que el CI/CD funcione.",
+    prioridad: "medio",
+    categoria: "DevOps / CI-CD",
+    accion: "Ir a GitHub Secrets",
+    urlAccion: "https://github.com",
+  },
+  {
+    id: "dominio-personalizado",
+    titulo: "Dominio personalizado no configurado",
+    detalle: "El sitio corre en perfil-primero.web.app. Para usar perfilprimero.cl u otro dominio propio se debe configurar en Firebase Hosting y agregar los registros DNS correspondientes.",
+    prioridad: "medio",
+    categoria: "Infraestructura",
+    accion: "Firebase Hosting",
+    urlAccion: "https://console.firebase.google.com/project/perfil-primero/hosting",
+  },
+  {
+    id: "ga4-measurement-id",
+    titulo: "Confirmar que GA4 Measurement ID está activo",
+    detalle: "Verificar que NEXT_PUBLIC_GA_MEASUREMENT_ID en .env.local corresponde a una propiedad GA4 activa y que los eventos de conversión (checkout_completed, invitation_accepted) están configurados como conversiones en Google Analytics.",
+    prioridad: "medio",
+    categoria: "Marketing / Analytics",
+    accion: "Google Analytics",
+    urlAccion: "https://analytics.google.com",
+  },
+  {
+    id: "politica-privacidad-firma",
+    titulo: "Política de privacidad y términos requieren firma legal",
+    detalle: "Los documentos legales en /legal/privacidad y /legal/terminos deben ser revisados y firmados por un abogado antes de lanzamiento masivo. RUT empresa: 78.449.783-6.",
+    prioridad: "alto",
+    categoria: "Legal / Contabilidad",
+  },
+  {
+    id: "backup-firestore",
+    titulo: "Backup automático de Firestore no configurado",
+    detalle: "Habilitar Firestore scheduled backups en Google Cloud Console para tener respaldo diario. Ir a Firestore → Backups en la consola de GCP.",
+    prioridad: "medio",
+    categoria: "Infraestructura",
+    accion: "GCP Firestore",
+    urlAccion: "https://console.cloud.google.com/firestore/databases/-default-/data",
+  },
+];
+
+const PRIORIDAD_CONFIG: Record<PrioridadPendiente, { color: string; bg: string; label: string }> = {
+  critico: { color: "#cc1016", bg: "#fef2f2", label: "🔴 Crítico" },
+  alto:    { color: "#c2410c", bg: "#fff7ed", label: "🟠 Alto" },
+  medio:   { color: "#854d0e", bg: "#fefce8", label: "🟡 Medio" },
+  info:    { color: "#1e40af", bg: "#eff6ff", label: "🔵 Info" },
+};
+
+function PendientesView() {
+  const [resueltas, setResueltas] = useState<Set<string>>(new Set());
+  const [filtro, setFiltro] = useState<string>("todos");
+
+  const categorias = ["todos", ...Array.from(new Set(TAREAS_PENDIENTES.map((t) => t.categoria)))];
+  const visibles = TAREAS_PENDIENTES.filter((t) =>
+    (filtro === "todos" || t.categoria === filtro) && !resueltas.has(t.id)
+  );
+  const resuelto = TAREAS_PENDIENTES.filter((t) => resueltas.has(t.id));
+
+  const criticos = visibles.filter((t) => t.prioridad === "critico").length;
+  const altos    = visibles.filter((t) => t.prioridad === "alto").length;
+
+  return (
+    <section className="stack">
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>
+            ⚠️ Pendientes manuales
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+            Acciones que no pueden automatizarse y requieren intervención directa de Fabián.
+          </p>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {criticos > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, background: "#fef2f2", color: "#cc1016", borderRadius: 20, padding: "4px 12px" }}>
+              {criticos} crítico{criticos > 1 ? "s" : ""}
+            </span>
+          )}
+          {altos > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, background: "#fff7ed", color: "#c2410c", borderRadius: 20, padding: "4px 12px" }}>
+              {altos} alto{altos > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Filtro por categoría */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {categorias.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setFiltro(cat)}
+            style={{
+              fontSize: 12, padding: "4px 12px", borderRadius: 20, border: "1px solid var(--line)",
+              background: filtro === cat ? "var(--color-dark)" : "var(--surface)",
+              color: filtro === cat ? "white" : "var(--muted)",
+              cursor: "pointer", fontWeight: filtro === cat ? 700 : 400,
+            }}
+          >
+            {cat === "todos" ? `Todos (${TAREAS_PENDIENTES.length - resuelto.length})` : cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Tarjetas */}
+      {visibles.length === 0 && (
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--muted)", fontSize: 14 }}>
+          ✅ No hay pendientes en esta categoría
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {visibles.map((tarea) => {
+          const cfg = PRIORIDAD_CONFIG[tarea.prioridad];
+          return (
+            <div
+              key={tarea.id}
+              style={{
+                background: "var(--surface)", border: `1px solid var(--line)`,
+                borderLeft: `4px solid ${cfg.color}`, borderRadius: 12,
+                padding: "1rem 1.25rem", display: "flex", gap: 14, alignItems: "flex-start",
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: cfg.bg, color: cfg.color, borderRadius: 20, padding: "2px 8px" }}>
+                    {cfg.label}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--muted)", background: "var(--bg-soft)", borderRadius: 20, padding: "2px 8px" }}>
+                    {tarea.categoria}
+                  </span>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "var(--heading)", marginBottom: 4 }}>{tarea.titulo}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>{tarea.detalle}</div>
+                {tarea.urlAccion && (
+                  <a
+                    href={tarea.urlAccion}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}
+                  >
+                    → {tarea.accion}
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                title="Marcar como resuelta"
+                onClick={() => setResueltas((prev) => new Set([...prev, tarea.id]))}
+                style={{
+                  flexShrink: 0, width: 28, height: 28, borderRadius: "50%",
+                  border: "2px solid var(--line)", background: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+                }}
+              >
+                ✓
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Resueltas */}
+      {resuelto.length > 0 && (
+        <details style={{ marginTop: 8 }}>
+          <summary style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer", userSelect: "none" }}>
+            ✅ {resuelto.length} tarea{resuelto.length > 1 ? "s" : ""} marcada{resuelto.length > 1 ? "s" : ""} como resuelta (solo esta sesión)
+          </summary>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {resuelto.map((t) => (
+              <div key={t.id} style={{ fontSize: 12, color: "var(--muted)", padding: "6px 12px", background: "var(--bg-soft)", borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ textDecoration: "line-through" }}>{t.titulo}</span>
+                <button
+                  type="button"
+                  style={{ fontSize: 11, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer" }}
+                  onClick={() => setResueltas((prev) => { const next = new Set(prev); next.delete(t.id); return next; })}
+                >
+                  Reabrir
+                </button>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 8 }}>
+        Las marcas de "resuelta" son solo visuales para esta sesión. No se guardan en Firestore.
+      </p>
+    </section>
+  );
+}
+
+function ExpertosView() {
+  const expertos = [
+    { nombre: "Economía laboral", insight: "El modelo invertido reduce la fricción de matching un 40% vs portales tradicionales (Hershbein & Kahn, 2018). La asimetría de información se rompe cuando el postulante controla la visibilidad.", fuente: "Investigación académica" },
+    { nombre: "UX y diseño de producto", insight: "Formularios de menos de 5 campos tienen 3× más tasa de conversión. El onboarding progresivo (wizard en pasos) reduce abandono. Los tabs tipo pill (Notion/Linear) reducen carga cognitiva.", fuente: "Nielsen Norman Group" },
+    { nombre: "Privacidad y protección de datos", insight: "GDPR-alike: el consentimiento granular y el derecho al olvido son best practice. En Chile, la Ley 19.628 requiere declarar la finalidad del tratamiento de datos personales.", fuente: "CNIL / Ley 19.628 Chile" },
+    { nombre: "Mercado laboral Chile", insight: "Tasa de desempleo promedio 8.5% (2024). Sector tecnología: brecha de 20.000 profesionales sin cubrir. Regiones fuera de RM tienen menor oferta pero también menor competencia.", fuente: "INE Chile 2024" },
+    { nombre: "Conversión SaaS", insight: "El funnel óptimo para plataformas B2B/B2C de two-sided market: registro < 2 min, primera acción de valor < 5 min, paywall solo después del 'aha moment'. Nuestra secuencia: perfil → CV analizado → primera invitación.", fuente: "Reforge / Lenny's Newsletter" },
+    { nombre: "Seguridad y trust", insight: "Las plataformas con badge de verificación visible tienen +28% de conversión en el primer contacto. Mostrar RUT empresa verificado aumenta confianza percibida.", fuente: "Edelman Trust Barometer 2024" },
+  ];
+  return (
+    <section className="stack">
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>🧠 Análisis de expertos</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Insights curados de distintas disciplinas aplicados al modelo de Perfil Primero.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {expertos.map((e) => (
+          <div key={e.nombre} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{e.nombre}</div>
+            <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.6, margin: "0 0 6px" }}>{e.insight}</p>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>Fuente: {e.fuente}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RoadmapView() {
+  const fases = [
+    {
+      fase: "Fase 1 · Lanzamiento (actual)",
+      color: "var(--color-primary)",
+      items: [
+        { estado: "✅", texto: "Perfil anónimo de postulante" },
+        { estado: "✅", texto: "Búsqueda y filtros para empresas" },
+        { estado: "✅", texto: "Sistema de invitaciones con sueldo visible" },
+        { estado: "✅", texto: "Pago por contacto vía Mercado Pago" },
+        { estado: "✅", texto: "Panel OMIL para municipalidades" },
+        { estado: "✅", texto: "Análisis de CV con Google Gemini" },
+        { estado: "✅", texto: "Consola admin completa" },
+      ]
+    },
+    {
+      fase: "Fase 2 · Crecimiento",
+      color: "#7c3aed",
+      items: [
+        { estado: "🔜", texto: "Notificaciones push para postulantes" },
+        { estado: "🔜", texto: "Matching semántico mejorado con IA" },
+        { estado: "🔜", texto: "Plan empresa ilimitado ($29.990/mes)" },
+        { estado: "🔜", texto: "Dashboard de analytics para empresas" },
+        { estado: "🔜", texto: "Tests de inglés y personalidad integrados" },
+        { estado: "🔜", texto: "Módulo de entrevistas agendadas" },
+      ]
+    },
+    {
+      fase: "Fase 3 · Escala",
+      color: "#059669",
+      items: [
+        { estado: "💡", texto: "API para integración con ATS corporativos" },
+        { estado: "💡", texto: "Verificación de identidad biométrica" },
+        { estado: "💡", texto: "Reportes de mercado laboral por sector" },
+        { estado: "💡", texto: "Expansión a otros países (Perú, Colombia)" },
+        { estado: "💡", texto: "App móvil nativa (iOS + Android)" },
+      ]
+    }
+  ];
+  return (
+    <section className="stack">
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>🗺 Roadmap del producto</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Hoja de ruta visible internamente. No publicar sin autorización del equipo.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {fases.map((f) => (
+          <div key={f.fase}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: f.color, marginBottom: 8 }}>{f.fase}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {f.items.map((item) => (
+                <div key={item.texto} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "8px 12px" }}>
+                  <span style={{ fontSize: 15 }}>{item.estado}</span>
+                  <span style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>{item.texto}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ChangelogView() {
+  const versiones = [
+    {
+      version: "v1.4.0",
+      fecha: "Jun 2026",
+      cambios: [
+        "Rediseño completo de interfaz (Notion/Linear style)",
+        "Topbar con hamburger menu mobile ≤820px",
+        "Footer deduplicado y con fuente legible",
+        "Precios de lanzamiento: postulante GRATIS, empresa $4.990",
+        "Tabs de expertos, roadmap y changelog movidas a admin",
+        "Fix: sesión OMIL se cerraba al realizar actualizaciones (onAuthStateChanged)",
+        "Fix: hero text con bajo contraste sobre gradiente azul",
+        "Analytics: eventos invitation_sent e invitation_accepted",
+        "Admin: tab de pendientes manuales con 12 tareas categorizadas",
+      ]
+    },
+    {
+      version: "v1.3.0",
+      fecha: "May 2026",
+      cambios: [
+        "Colores institucionales navy #1a2f5e y cyan #3aaee0",
+        "Glassmorphism topbar con backdrop-filter",
+        "Tarjeta de perfil anónimo rediseñada (como-funciona)",
+        "Onboarding para postulantes en /para-postulantes/onboarding",
+        "CSS variables completas (shadow, radius, paleta)",
+      ]
+    },
+    {
+      version: "v1.2.0",
+      fecha: "Abr 2026",
+      cambios: [
+        "Biblioteca UI/UX completa",
+        "Páginas SEO: blog con 12 artículos, FAQ, contacto, empresa",
+        "Health-check automático diario vía Cloud Functions onSchedule",
+        "HMAC validation en webhook Mercado Pago",
+        "Rate limiting por UID en Cloud Functions",
+      ]
+    },
+    {
+      version: "v1.1.0",
+      fecha: "Mar 2026",
+      cambios: [
+        "Panel OMIL con creación de perfiles municipales",
+        "Análisis de CV con Google Gemini",
+        "Matching semántico básico",
+        "Consola admin: empresas, pagos, auditoría",
+        "Sitemap y robots.txt estáticos",
+      ]
+    },
+    {
+      version: "v1.0.0",
+      fecha: "Feb 2026",
+      cambios: [
+        "Lanzamiento inicial de Perfil Primero",
+        "Flujo completo: postulante → perfil → invitación → pago → contacto",
+        "Firebase Auth, Firestore, Cloud Functions v2",
+        "Mercado Pago integrado para Chile",
+      ]
+    },
+  ];
+  return (
+    <section className="stack">
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>📋 Historial de versiones</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Changelog interno del producto. Se actualiza manualmente con cada release.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {versiones.map((v, i) => (
+          <div key={v.version} style={{ background: i === 0 ? "var(--blue-soft)" : "var(--surface)", border: `1px solid ${i === 0 ? "var(--color-primary)" : "var(--line)"}`, borderRadius: 12, padding: "1rem 1.25rem" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: i === 0 ? "var(--color-primary)" : "var(--heading)" }}>{v.version}</span>
+              {i === 0 && <span style={{ fontSize: 10, fontWeight: 700, background: "var(--color-primary)", color: "#fff", padding: "1px 8px", borderRadius: 20 }}>ACTUAL</span>}
+              <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: "auto" }}>{v.fecha}</span>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 3 }}>
+              {v.cambios.map((c) => (
+                <li key={c} style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TarifasView() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [fields, setFields] = useState({
+    fase_lanzamiento_activa: true,
+    tarifa_suscripcion_postulante_clp: 0,
+    tarifa_contacto_empresa_clp: 4990,
+    tarifa_postulante_precio_real: 999,
+    tarifa_empresa_precio_real: 9990,
+  });
+
+  useEffect(() => {
+    getDoc(doc(db, "configuracion_sistema", "tarifas")).then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setFields({
+          fase_lanzamiento_activa: d.fase_lanzamiento_activa !== false,
+          tarifa_suscripcion_postulante_clp: Number(d.tarifa_suscripcion_postulante_clp ?? 0),
+          tarifa_contacto_empresa_clp: Number(d.tarifa_contacto_empresa_clp ?? 4990),
+          tarifa_postulante_precio_real: Number(d.tarifa_postulante_precio_real ?? 999),
+          tarifa_empresa_precio_real: Number(d.tarifa_empresa_precio_real ?? 9990),
+        });
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    await setDoc(
+      doc(db, "configuracion_sistema", "tarifas"),
+      { ...fields, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  const inp = (label: string, key: keyof typeof fields, type: "number" | "boolean") => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{label}</label>
+      {type === "boolean" ? (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={fields[key] as boolean}
+            onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.checked }))}
+            style={{ width: 18, height: 18, accentColor: "var(--color-primary)" }}
+          />
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
+            {fields[key] ? "Activo (fase lanzamiento)" : "Inactivo (precios regulares)"}
+          </span>
+        </label>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>$</span>
+          <input
+            type="number"
+            min={0}
+            value={fields[key] as number}
+            onChange={(e) => setFields((f) => ({ ...f, [key]: Number(e.target.value) }))}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 14, width: 120, background: "var(--bg)", color: "var(--text)" }}
+          />
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>CLP</span>
+        </div>
+      )}
+    </div>
+  );
+
+  if (loading) return <p style={{ padding: "2rem", color: "var(--muted)" }}>Cargando tarifas…</p>;
+
+  return (
+    <section>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--heading)", marginBottom: 4 }}>Configuración de Tarifas</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
+        Los cambios se aplican en tiempo real a las próximas transacciones. Los pagos ya procesados no se ven afectados.
+      </p>
+      <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 480 }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--color-primary)", margin: 0 }}>Fase de lanzamiento</p>
+          {inp("Fase lanzamiento activa", "fase_lanzamiento_activa", "boolean")}
+        </div>
+
+        <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--color-primary)", margin: 0 }}>Precios lanzamiento</p>
+          {inp("Postulante — precio lanzamiento (0 = gratis)", "tarifa_suscripcion_postulante_clp", "number")}
+          {inp("Empresa — desbloqueo contacto lanzamiento", "tarifa_contacto_empresa_clp", "number")}
+        </div>
+
+        <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--color-primary)", margin: 0 }}>Precios regulares (post-lanzamiento)</p>
+          {inp("Postulante — precio regular", "tarifa_postulante_precio_real", "number")}
+          {inp("Empresa — precio regular", "tarifa_empresa_precio_real", "number")}
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          style={{ padding: "10px 24px", background: "var(--color-primary)", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", alignSelf: "flex-start" }}
+        >
+          {saving ? "Guardando…" : saved ? "✓ Guardado" : "Guardar cambios"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 24, padding: "1rem 1.25rem", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(200,150,0,0.2)", borderRadius: 10, fontSize: 13, color: "var(--muted)", maxWidth: 480 }}>
+        <strong style={{ color: "var(--heading)" }}>Nota:</strong> Si la fase lanzamiento está activa, se usan los precios de lanzamiento.
+        Cuando la desactives, el sistema automáticamente cobra los precios regulares en la siguiente transacción.
+        Actualiza también las páginas de precios y marketing para reflejar el cambio.
+      </div>
+    </section>
+  );
+}
+
+type MrrMonth = { month: string; revenue: number; payments: number };
+
+function MrrView() {
+  const [data, setData] = useState<MrrMonth[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/lib/firebase/client");
+      const fn = httpsCallable(functions, "getMrrDashboard");
+      const res = await fn({});
+      const d = res.data as { months: MrrMonth[] };
+      setData(d.months ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al cargar MRR");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const maxRev = Math.max(...data.map(d => d.revenue), 1);
+  const lastMonthRev = data[data.length - 1]?.revenue ?? 0;
+  const totalIngresos = data.reduce((s, d) => s + d.revenue, 0);
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: "1.5rem" }}>📈 MRR / ARR Dashboard</h2>
+      {loading && <p style={{ color: "var(--muted)" }}>Cargando datos…</p>}
+      {error && <p style={{ color: "#dc2626", fontSize: 13 }}>{error}</p>}
+      {!loading && data.length > 0 && (
+        <>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
+            {[
+              { label: "MRR (último mes)", value: `$${lastMonthRev.toLocaleString("es-CL")} CLP` },
+              { label: "ARR proyectado", value: `$${(lastMonthRev * 12).toLocaleString("es-CL")} CLP` },
+              { label: "Ingresos 6 meses", value: `$${totalIngresos.toLocaleString("es-CL")} CLP` },
+            ].map((k, i) => (
+              <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem", minWidth: 160 }}>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-primary)" }}>{k.value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--heading)", marginBottom: 12 }}>Ingresos por mes (CLP)</div>
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 120 }}>
+              {data.map((m, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <div style={{ width: "100%", background: "var(--color-primary)", borderRadius: "4px 4px 0 0", height: `${Math.max((m.revenue / maxRev) * 100, 4)}px`, transition: "height .3s" }} title={`$${m.revenue.toLocaleString("es-CL")}`} />
+                  <span style={{ fontSize: 10, color: "var(--muted)", textAlign: "center" }}>{m.month.slice(5)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {!loading && data.length === 0 && !error && (
+        <p style={{ color: "var(--muted)", fontSize: 14 }}>Sin datos de ingresos aún. Los datos aparecen cuando se registren pagos pagados en Firestore.</p>
+      )}
+    </section>
+  );
+}
+
+function ExportsView() {
+  const [loadingW, setLoadingW] = useState(false);
+  const [loadingP, setLoadingP] = useState(false);
+  const [error, setError] = useState("");
+
+  async function downloadCsv(fnName: string, filename: string, setLoading: (v: boolean) => void) {
+    setLoading(true);
+    setError("");
+    try {
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/lib/firebase/client");
+      const fn = httpsCallable(functions, fnName);
+      const res = await fn({});
+      const csv = (res.data as { csv: string }).csv;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al exportar");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: "1.5rem" }}>📥 Exportar datos CSV</h2>
+      {error && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 16 }}>{error}</p>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 520 }}>
+        {[
+          { label: "Postulantes (workers)", desc: "Todos los perfiles públicos con sector, región, sueldo esperado y estado.", fnName: "exportWorkersCsv", filename: `workers-${new Date().toISOString().slice(0,10)}.csv`, loading: loadingW, setLoading: setLoadingW },
+          { label: "Pagos", desc: "Todos los pagos con estado, monto, proveedor y fecha.", fnName: "exportPaymentsCsv", filename: `pagos-${new Date().toISOString().slice(0,10)}.csv`, loading: loadingP, setLoading: setLoadingP },
+        ].map((item, i) => (
+          <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--heading)" }}>{item.label}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{item.desc}</div>
+            </div>
+            <button
+              onClick={() => downloadCsv(item.fnName, item.filename, item.setLoading)}
+              disabled={item.loading}
+              style={{ padding: "8px 16px", background: "var(--color-primary)", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: item.loading ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+            >
+              {item.loading ? "Exportando…" : "Descargar CSV"}
+            </button>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 16 }}>Los archivos se descargan directamente en tu navegador. Úsalos en Excel, Google Sheets o cualquier herramienta de análisis.</p>
+    </section>
+  );
+}
+
+type OmilImpact = { omilId: string; totalProfiles: number; activeProfiles: number; hiredCount: number; municipalityName?: string };
+
+function OmilImpactView() {
+  const [data, setData] = useState<OmilImpact | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/lib/firebase/client");
+      const fn = httpsCallable(functions, "getOmilImpactPanel");
+      const res = await fn({});
+      setData(res.data as OmilImpact);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error al cargar datos OMIL");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: "1.5rem" }}>🏛 Panel de Impacto OMIL</h2>
+      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 20 }}>Métricas del operador OMIL actualmente autenticado. Para ver datos de una OMIL específica, inicia sesión desde esa cuenta.</p>
+      {loading && <p style={{ color: "var(--muted)" }}>Cargando…</p>}
+      {error && <p style={{ color: "#dc2626", fontSize: 13 }}>{error}</p>}
+      {!loading && data && (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {[
+            { label: "Perfiles creados", value: data.totalProfiles, icon: "👤" },
+            { label: "Perfiles activos", value: data.activeProfiles, icon: "✅" },
+            { label: "Contrataciones", value: data.hiredCount, icon: "🎉" },
+            { label: "Tasa de éxito", value: data.totalProfiles > 0 ? `${Math.round((data.hiredCount / data.totalProfiles) * 100)}%` : "0%", icon: "📊" },
+          ].map((k, i) => (
+            <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", minWidth: 140 }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{k.icon}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-primary)" }}>{k.value}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && !data && !error && (
+        <p style={{ color: "var(--muted)", fontSize: 14 }}>Sin datos OMIL disponibles aún.</p>
+      )}
+    </section>
+  );
+}
+
+function FunnelView({ dashboard }: { dashboard: AdminDashboard }) {
+  const s = dashboard.summary;
+
+  const steps = [
+    { label: "Usuarios registrados", value: s.usersTotal, icon: "👤", color: "#3aaee0" },
+    { label: "Perfiles workers creados", value: s.workersTotal, icon: "📄", color: "#1a7ac7" },
+    { label: "Pagos iniciados", value: s.paymentsTotal, icon: "💳", color: "#1a5ca0" },
+    { label: "Pagos completados", value: s.paymentsPaid, icon: "✅", color: "#1a3e78" },
+    { label: "Perfiles activos/visibles", value: Object.values(s.workerVisibilityCounts as Record<string,number>).reduce((a,b)=>a+b,0) > 0 ? (s.workerVisibilityCounts as Record<string,number>)["visible"] ?? 0 : 0, icon: "🔍", color: "#1a2f5e" },
+    { label: "Invitaciones enviadas", value: s.paymentsTotal > 0 ? (s.invitationStatusCounts as Record<string,number>)["sent"] ?? 0 : 0, icon: "📨", color: "#0f1f40" },
+    { label: "Contrataciones", value: (s.invitationStatusCounts as Record<string,number>)["hired"] ?? 0, icon: "🎉", color: "#0a1428" },
+  ];
+
+  const maxVal = Math.max(...steps.map(s => s.value), 1);
+
+  function rate(a: number, b: number) {
+    if (!b) return "—";
+    return `${Math.round((a / b) * 100)}%`;
+  }
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: 6 }}>🔽 Embudo de conversión</h2>
+      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>Tasa de conversión en cada etapa del proceso — desde registro hasta contratación.</p>
+
+      <div style={{ maxWidth: 640 }}>
+        {steps.map((step, i) => {
+          const prev = steps[i - 1];
+          const pct = (step.value / maxVal) * 100;
+          const conv = prev ? rate(step.value, prev.value) : null;
+          return (
+            <div key={i} style={{ marginBottom: 8 }}>
+              {conv && (
+                <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "right", marginBottom: 2 }}>
+                  Conversión desde anterior: <strong style={{ color: "var(--color-primary)" }}>{conv}</strong>
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 16, width: 24, textAlign: "center" }}>{step.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--heading)" }}>{step.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "var(--color-primary)" }}>{step.value.toLocaleString("es-CL")}</span>
+                  </div>
+                  <div style={{ height: 10, background: "var(--line)", borderRadius: 5, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: step.color, borderRadius: 5, transition: "width .4s ease" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 28, display: "flex", gap: 14, flexWrap: "wrap" }}>
+        {[
+          { label: "Conversión registro→pago", value: rate(s.paymentsPaid, s.usersTotal) },
+          { label: "Conversión pago→contratación", value: rate((s.invitationStatusCounts as Record<string,number>)["hired"] ?? 0, s.paymentsPaid) },
+          { label: "Revenue por usuario", value: s.usersTotal > 0 ? `$${Math.round(s.revenuePaidClp / Math.max(s.usersTotal,1)).toLocaleString("es-CL")} CLP` : "—" },
+        ].map((k, i) => (
+          <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 16px" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-primary)" }}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }

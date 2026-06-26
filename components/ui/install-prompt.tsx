@@ -52,7 +52,7 @@ export function InstallPrompt() {
         zIndex: 1000,
       }}
     >
-      <img src="/logo-perfil-primero.png" alt="Logo" width={40} height={40} style={{ borderRadius: 8 }} />
+      <img src="/isotipo.png" alt="Logo" width={40} height={40} style={{ borderRadius: 8 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Instala Perfil Primero</div>
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>

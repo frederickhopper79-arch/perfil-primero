@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Perfil Primero para Postulantes · Publica tu perfil gratis",
@@ -58,9 +57,7 @@ const howItWorks = [
 
 export default function ParaPostulantesPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main>
+    <>      <main>
       {/* Hero */}
       <section className="on-dark" style={{
         background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)",
@@ -92,7 +89,7 @@ export default function ParaPostulantesPage() {
             style={{
               display: "inline-block",
               background: "#fff",
-              color: "var(--green-dark)",
+              color: "var(--color-dark)",
               padding: "0.875rem 2.5rem",
               borderRadius: "0.625rem",
               textDecoration: "none",
@@ -151,8 +148,8 @@ export default function ParaPostulantesPage() {
                   flexShrink: 0,
                   width: 48, height: 48,
                   borderRadius: "50%",
-                  background: "var(--green-soft)",
-                  color: "var(--green-dark)",
+                  background: "var(--blue-soft)",
+                  color: "var(--color-primary)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontWeight: 800,
                   fontSize: "0.875rem",
@@ -181,7 +178,7 @@ export default function ParaPostulantesPage() {
           href="/bienvenida"
           style={{
             display: "inline-block",
-            background: "var(--green-dark)",
+            background: "var(--color-primary)",
             color: "#fff",
             padding: "1rem 2.5rem",
             borderRadius: "0.625rem",

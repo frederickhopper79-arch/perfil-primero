@@ -21,9 +21,9 @@ const jsonLd = {
   "areaServed": { "@type": "Country", "name": "Chile" },
   "offers": {
     "@type": "Offer",
-    "price": "9990",
+    "price": "4990",
     "priceCurrency": "CLP",
-    "description": "Pago por contacto desbloqueado",
+    "description": "Pago por contacto desbloqueado (precio lanzamiento)",
   },
 };
 
@@ -40,7 +40,7 @@ const steps = [
   { n: "1", title: "Crea tu perfil de empresa", desc: "Registra tu empresa y pasa el proceso de verificación (24-48 hrs)." },
   { n: "2", title: "Busca en el directorio", desc: "Filtra por habilidades, región, modalidad y rango salarial esperado." },
   { n: "3", title: "Envía una invitación con sueldo", desc: "El candidato ve el cargo, rango salarial y modalidad antes de aceptar." },
-  { n: "4", title: "Solo pagas si conectas", desc: "Cuando el candidato acepta, desbloqueas su contacto por $9.990 CLP." },
+  { n: "4", title: "Solo pagas si conectas", desc: "Cuando el candidato acepta, desbloqueas su contacto por $4.990 CLP (precio lanzamiento)." },
 ];
 
 export default function EmpresasPage() {
@@ -48,23 +48,10 @@ export default function EmpresasPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <main>
-        {/* Topbar */}
-        <header className="topbar siteTopbar">
-          <a className="brand" href="/">
-            <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
-          </a>
-          <nav aria-label="Principal">
-            <a href="/como-funciona">Cómo funciona</a>
-            <a href="/precios">Precios</a>
-            <a href="/blog">Blog</a>
-            <a className="navAction navButton" href="/empresa">Acceder como empresa</a>
-          </nav>
-        </header>
-
         {/* Hero */}
-        <section style={{ background: "linear-gradient(135deg, #0d1b2a 0%, #0a3d62 100%)", color: "#fff", padding: "72px 24px 80px", textAlign: "center" }}>
+        <section className="on-dark" style={{ background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)", color: "#fff", padding: "72px 24px 80px", textAlign: "center" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
-            <span style={{ background: "rgba(0,148,212,0.2)", color: "#64d2ff", border: "1px solid rgba(0,148,212,0.3)", borderRadius: 999, padding: "4px 14px", fontSize: 13, fontWeight: 700 }}>
+            <span style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 999, padding: "4px 14px", fontSize: 13, fontWeight: 700 }}>
               Para empresas en Chile
             </span>
             <h1 style={{ fontSize: "clamp(28px, 5vw, 52px)", fontWeight: 800, margin: "20px 0 16px", lineHeight: 1.1 }}>
@@ -74,7 +61,7 @@ export default function EmpresasPage() {
               Accede a cientos de trabajadores que ya quieren ser contactados. Paga solo cuando encuentras al candidato correcto.
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-              <a href="/empresa" className="button" style={{ fontSize: 16, padding: "12px 28px", background: "#0094d4", border: "none" }}>
+              <a href="/empresa" className="button" style={{ fontSize: 16, padding: "12px 28px", background: "#fff", border: "none", color: "var(--color-dark)" }}>
                 Registrar empresa gratis
               </a>
               <a href="/precios" className="button secondary" style={{ fontSize: 16, padding: "12px 28px", background: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.3)", color: "#fff" }}>
@@ -129,9 +116,11 @@ export default function EmpresasPage() {
           <p style={{ color: "var(--muted-strong)", marginBottom: 32, fontSize: 16 }}>Sin letra chica ni contratos de permanencia.</p>
           <div style={{ display: "grid", gap: 20, gridTemplateColumns: "1fr 1fr" }}>
             <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: 28 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-primary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚀 Lanzamiento</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Por contacto</div>
-              <div className="priceBlock" style={{ justifyContent: "center" }}><span className="priceAmount">$9.990</span><span className="pricePeriod">CLP</span></div>
-              <p style={{ color: "var(--muted-strong)", fontSize: 13, marginTop: 10 }}>Paga solo cuando decides ver los datos de un candidato.</p>
+              <div className="priceBlock" style={{ justifyContent: "center" }}><span className="priceAmount">$4.990</span><span className="pricePeriod">CLP</span></div>
+              <p style={{ color: "var(--muted)", fontSize: 11, marginTop: 4, textDecoration: "line-through" }}>Precio normal: $9.990 CLP</p>
+              <p style={{ color: "var(--muted-strong)", fontSize: 13, marginTop: 6 }}>Paga solo cuando decides ver los datos de un candidato.</p>
             </div>
             <div style={{ border: "2px solid var(--blue)", borderRadius: 14, padding: 28, background: "var(--blue-soft)" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--blue)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Mensual ilimitado</div>

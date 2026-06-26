@@ -182,6 +182,7 @@ export interface ConversationMessage {
   body: string;
   paymentRequired?: boolean;
   createdAt?: Date;
+  readAt?: Date | null;
 }
 
 export interface CompanyMonthlyPlan {

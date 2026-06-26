@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+import { ShareNative } from "@/components/ui/share-native";
+
 
 export const metadata: Metadata = {
   title: "Cómo crear un perfil profesional que destaque · Perfil Primero",
@@ -32,9 +33,7 @@ const articleJsonLd = {
 
 export default function GuiaPerfilPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
@@ -128,8 +127,8 @@ export default function GuiaPerfilPage() {
         </p>
 
         <div style={{
-          background: "var(--green-soft)",
-          border: "1px solid var(--green)",
+          background: "var(--blue-soft)",
+          border: "1px solid var(--color-primary)",
           borderRadius: "0.75rem",
           padding: "1.25rem 1.5rem",
           marginTop: "2rem",
@@ -148,7 +147,11 @@ export default function GuiaPerfilPage() {
           </a>
         </p>
       </footer>
-    </main>
+    
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2rem" }}>
+        <ShareNative title="Guia para crear un perfil profesional en Chile - Perfil Primero" text="Como estructurar tu perfil laboral para que las empresas te encuentren con sueldo claro." />
+      </div>
+</main>
     </>
   );
 }

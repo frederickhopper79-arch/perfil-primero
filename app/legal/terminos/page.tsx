@@ -1,19 +1,6 @@
-export default function TermsPage() {
+﻿export default function TermsPage() {
   return (
     <>
-      <header className="topbar siteTopbar">
-        <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
-          <span className="brandName">Perfil Primero</span>
-        </a>
-        <nav aria-label="Principal">
-          <a href="/como-funciona" className="navLink">Cómo funciona</a>
-          <a href="/precios" className="navLink">Precios</a>
-          <a href="/ayuda" className="navLink">Ayuda</a>
-          <a className="navButton navPostulant" href="/postulante">Soy postulante</a>
-          <a className="navAction navButton" href="/empresa">Soy empresa</a>
-        </nav>
-      </header>
       <main className="legalPage">
       <p className="eyebrow">Condiciones de uso · Versión 1.0 · Junio 2026</p>
       <h1>Términos de uso</h1>
@@ -66,7 +53,7 @@ export default function TermsPage() {
 
       <h2>7. Modelo de pago</h2>
       <p>
-        Durante el lanzamiento, el postulante activa visibilidad sin costo. La empresa paga $9.990 CLP cuando
+        Durante el lanzamiento, el postulante activa visibilidad sin costo. La empresa paga $4.990 CLP (precio lanzamiento; precio normal $9.990 CLP) cuando
         desbloquea el contacto de un postulante. El pago aprobado activa visibilidad, desbloqueo, comprobantes y
         registros contables según el tipo de servicio. Durante período de lanzamiento los precios pueden variar.
       </p>

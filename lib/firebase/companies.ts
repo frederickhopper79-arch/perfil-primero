@@ -192,6 +192,12 @@ export async function submitPlatformReview(input: {
   return result.data as PlatformReview;
 }
 
+export async function markMessagesRead(invitationId: string) {
+  const callable = httpsCallable(functions, "markMessagesRead");
+  const result = await callable({ invitationId });
+  return result.data as { marked: number };
+}
+
 export async function sendConversationMessage(invitationId: string, body: string) {
   const callable = httpsCallable(functions, "sendConversationMessage");
   const result = await callable({ invitationId, body });

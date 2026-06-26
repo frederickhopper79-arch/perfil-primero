@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+import { ShareNative } from "@/components/ui/share-native";
+
 
 export const metadata: Metadata = {
   title: "¿Cómo negociar tu sueldo en Chile en 2026? | Blog Perfil Primero",
@@ -18,12 +19,10 @@ export const metadata: Metadata = {
 
 export default function BlogPostNegociacion() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px", fontFamily: "sans-serif" }}>
-      <a href="/blog" style={{ color: "#0a66c2", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
+    <>      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px", fontFamily: "sans-serif" }}>
+      <a href="/blog" style={{ color: "var(--color-primary)", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
       <div style={{ marginTop: 24, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-        <span style={{ background: "#dce6f1", color: "#0a66c2", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Empleabilidad</span>
+        <span style={{ background: "var(--blue-soft)", color: "var(--color-primary)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Empleabilidad</span>
         <time dateTime="2026-06-01" style={{ fontSize: 12, color: "#647488" }}>1 de junio de 2026</time>
       </div>
       <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.2, marginBottom: 24 }}>
@@ -55,7 +54,7 @@ export default function BlogPostNegociacion() {
           Activa tu perfil en Perfil Primero y recibe ofertas con sueldo visible desde el primer mensaje.
           Así nunca más aceptarás una entrevista sin saber el rango salarial.
         </p>
-        <a href="/" style={{ display: "inline-block", marginTop: 12, background: "#0a66c2", color: "#fff", borderRadius: 6, padding: "8px 18px", fontWeight: 700, fontSize: 14 }}>
+        <a href="/" style={{ display: "inline-block", marginTop: 12, background: "var(--color-primary)", color: "#fff", borderRadius: 6, padding: "8px 18px", fontWeight: 700, fontSize: 14 }}>
           Crear perfil gratis
         </a>
       </div>
@@ -85,7 +84,11 @@ export default function BlogPostNegociacion() {
           ]).replace(/</g, "\\u003c"),
         }}
       />
-    </main>
+    
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2rem" }}>
+        <ShareNative title="Como negociar tu sueldo en Chile - Perfil Primero" text="Estrategias probadas y datos reales para negociar tu sueldo con confianza en Chile." />
+      </div>
+</main>
     </>
   );
 }

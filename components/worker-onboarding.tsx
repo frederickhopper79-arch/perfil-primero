@@ -37,6 +37,9 @@ import { fileToBase64 } from "@/lib/utils/file";
 import { Confetti } from "@/components/ui/confetti";
 import { useHaptic } from "@/lib/hooks/useHaptic";
 import { reorder } from "@/lib/utils/drag-drop";
+import { ProfileCompletionCard } from "@/components/profile-completion-card";
+import { ReferralPanel } from "@/components/referral-panel";
+import { NotificationPreferencesPanel } from "@/components/notification-preferences-panel";
 
 const steps = ["Cuenta", "CV + IA", "Perfil público", "Carta", "Tests", "Activación"];
 
@@ -85,7 +88,7 @@ export function WorkerOnboarding() {
   const [cvStep, setCvStep] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [companyReview, setCompanyReview] = useState({ score: "5", comment: "" });
-  const [activeView, setActiveView] = useState<"profile" | "cover" | "tests" | "interview" | "billing">("profile");
+  const [activeView, setActiveView] = useState<"profile" | "cover" | "tests" | "interview" | "billing" | "herramientas" | "notificaciones">("profile");
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [cvUrl, setCvUrl] = useState("");
@@ -531,6 +534,7 @@ export function WorkerOnboarding() {
 
     try {
       await acceptInvitation(invitationId);
+      trackEvent("invitation_accepted", { invitation_id: invitationId, role: "worker" });
       setInvitations((current) =>
         current.map((invitation) =>
           invitation.invitationId === invitationId
@@ -1003,7 +1007,9 @@ export function WorkerOnboarding() {
             ["cover", "Carta", 0],
             ["tests", "Tests opcionales", 0],
             ["interview", `Entrevistas`, pendingInvitations],
-            ["billing", "Pagos", 0]
+            ["billing", "Pagos", 0],
+            ["herramientas", "Herramientas", 0],
+            ["notificaciones", "Notificaciones", 0],
           ].map(([key, label, badge]) => (
             <button
               className={activeView === key ? "active" : ""}
@@ -1306,7 +1312,14 @@ export function WorkerOnboarding() {
           <div className="formGrid privateFields">
             <label>
               Nombre completo (privado)
-              <input value={form.legalName} onChange={(event) => update("legalName", event.target.value)} />
+              <input
+                value={form.legalName}
+                onChange={(event) => update("legalName", event.target.value)}
+                autoComplete="name"
+                autoCapitalize="words"
+                enterKeyHint="next"
+                placeholder="Ej: María González Pérez"
+              />
             </label>
             <label>
               RUT (privado)
@@ -1339,6 +1352,9 @@ export function WorkerOnboarding() {
                 onChange={(event) => update("phone", event.target.value)}
                 placeholder="+56 9 XXXX XXXX"
                 inputMode="tel"
+                type="tel"
+                autoComplete="tel"
+                enterKeyHint="next"
               />
               <span className="fieldHint">Solo visible tras desbloqueo de contacto pagado</span>
             </label>
@@ -1827,6 +1843,35 @@ export function WorkerOnboarding() {
             </section>
           ) : null}
           </>
+        ) : null}
+
+        {activeView === "herramientas" && !loadingTab ? (
+          <section className="stack">
+            <div className="formHeader">
+              <PenLine size={22} aria-hidden="true" />
+              <div>
+                <h2>Herramientas de perfil</h2>
+                <p>Completitud de tu perfil, programa de referidos y benchmark salarial.</p>
+              </div>
+            </div>
+            <ProfileCompletionCard />
+            <div style={{ marginTop: 12 }}>
+              <ReferralPanel />
+            </div>
+          </section>
+        ) : null}
+
+        {activeView === "notificaciones" && !loadingTab ? (
+          <section className="stack">
+            <div className="formHeader">
+              <CheckCircle2 size={22} aria-hidden="true" />
+              <div>
+                <h2>Preferencias de notificaciones</h2>
+                <p>Elige qué alertas quieres recibir por email y push.</p>
+              </div>
+            </div>
+            <NotificationPreferencesPanel />
+          </section>
         ) : null}
       </div>
 

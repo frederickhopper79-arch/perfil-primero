@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+import { ShareNative } from "@/components/ui/share-native";
+
 
 export const metadata: Metadata = {
   title: "Cómo contratar mejor en Chile usando Perfil Primero · Blog",
@@ -30,9 +31,7 @@ const articleJsonLd = {
 
 export default function ComoContratarPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
@@ -47,8 +46,8 @@ export default function ComoContratarPage() {
       <header style={{ marginBottom: "2rem" }}>
         <div style={{
           display: "inline-block",
-          background: "var(--green-soft)",
-          color: "var(--green-dark)",
+          background: "var(--blue-soft)",
+          color: "var(--color-primary)",
           padding: "0.25rem 0.75rem",
           borderRadius: "1rem",
           fontSize: "0.8125rem",
@@ -78,7 +77,7 @@ export default function ComoContratarPage() {
         <p>
           En Perfil Primero, los candidatos ya han publicado su perfil con sus condiciones claras:
           sueldo esperado, modalidad de trabajo, región y sector. Tú filtras, encuentras al candidato
-          adecuado y le envías una invitación. Si acepta, pagas $9.990 CLP para ver sus datos de contacto.
+          adecuado y le envías una invitación. Si acepta, pagas $4.990 CLP (lanzamiento) para ver sus datos de contacto.
         </p>
 
         <h2>Paso 1: Define tu búsqueda con filtros específicos</h2>
@@ -103,7 +102,7 @@ export default function ComoContratarPage() {
 
         <h2>Costos transparentes</h2>
         <ul>
-          <li><strong>$9.990 CLP</strong> por cada contacto desbloqueado (pago puntual)</li>
+          <li><strong>$4.990 CLP</strong> por cada contacto desbloqueado durante lanzamiento (precio normal: $9.990 CLP)</li>
           <li>Sin costo si el candidato rechaza tu invitación</li>
           <li>Sin comisión al momento de contratar</li>
         </ul>
@@ -128,7 +127,11 @@ export default function ComoContratarPage() {
           </a>
         </p>
       </footer>
-    </main>
+    
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2rem" }}>
+        <ShareNative title="Como contratar mejor en Chile - Perfil Primero" text="Guia para empresas: procesos de seleccion mas eficientes con mayor retencion en Chile." />
+      </div>
+</main>
     </>
   );
 }

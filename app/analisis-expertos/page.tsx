@@ -1,18 +1,24 @@
-﻿import type { Metadata } from "next";
-import ExpertPanel from "@/components/expert-panel";
-import { SiteTopbar } from "@/components/site-topbar";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Panel de Expertos | Perfil Primero",
-  description: "4 expertos analizan Perfil Primero: un abogado laboral, una ingeniera en administración, un psicólogo organizacional y un crítico de plataformas tecnológicas."
+  title: "Análisis de Expertos | Perfil Primero",
+  robots: { index: false, follow: false },
 };
 
 export default function AnalisisExpertosPage() {
   return (
-    <>
-      <SiteTopbar />
-      <ExpertPanel />
-    </>
+    <main style={{ maxWidth: 560, margin: "6rem auto", padding: "0 1.5rem", textAlign: "center" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--heading)", marginBottom: 12 }}>
+        Contenido interno
+      </h1>
+      <p style={{ color: "var(--muted)", lineHeight: 1.7, marginBottom: 28 }}>
+        El análisis de expertos está disponible en la consola de administración.
+        Esta sección es de uso interno del equipo Perfil Primero.
+      </p>
+      <a href="/consola-admin" className="button primary">
+        Ir a consola admin
+      </a>
+    </main>
   );
 }
-

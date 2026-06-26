@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Cómo funciona",
@@ -120,50 +120,38 @@ const faqs = [
 
 const sampleProfiles = [
   {
-    code: "PP-8F29A1B2",
-    title: "Especialista en marketing digital",
-    skills: ["Google Ads", "GA4", "Meta Ads"],
+    code: "PP-A3F8D1B2",
+    title: "Especialista en Marketing Digital",
+    skills: ["Google Ads", "GA4", "Meta Ads", "SEO"],
     salary: "$1.200.000 – $1.800.000",
     mode: "Remoto o híbrido",
-    status: "Disponible"
+    region: "Región Metropolitana",
+    status: "Disponible",
   },
   {
     code: "PP-41C73D9E",
-    title: "Supervisor de operaciones",
-    skills: ["Logística", "Turnos", "KPI"],
-    salary: "$1.000.000 – $1.400.000",
-    mode: "Presencial",
-    status: "Activo"
+    title: "Desarrollador Full Stack",
+    skills: ["React", "Node.js", "PostgreSQL", "AWS"],
+    salary: "$1.800.000 – $2.600.000",
+    mode: "100% Remoto",
+    region: "Los Lagos",
+    status: "Disponible",
   },
   {
     code: "PP-73B1F20C",
-    title: "Asistente administrativo",
-    skills: ["Excel", "Facturación", "ERP"],
-    salary: "$750.000 – $950.000",
-    mode: "Híbrido",
-    status: "Disponible en 15 días"
-  }
+    title: "Supervisor de Operaciones",
+    skills: ["Logística", "KPI", "Turnos", "WMS"],
+    salary: "$1.000.000 – $1.400.000",
+    mode: "Presencial",
+    region: "Biobío",
+    status: "Disponible en 15 días",
+  },
 ];
 
 export default function ComoFuncionaPage() {
   return (
     <main>
-      <header className="topbar siteTopbar">
-        <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
-        </a>
-        <nav aria-label="Principal">
-          <a href="/como-funciona" aria-current="page">Cómo funciona</a>
-          <a className="navButton navPostulant" href="/postulante">Postulante</a>
-          <a className="navAction navButton" href="/empresa">Empresa</a>
-        </nav>
-      </header>
-
       <div className="subpageWrap">
-        <a className="backLink" href="/">
-          <ArrowLeft size={14} /> Inicio
-        </a>
-
         <div className="subpageHeader">
           <p className="eyebrow">Plataforma laboral invertida</p>
           <h1>Cómo funciona Perfil Primero</h1>
@@ -195,18 +183,30 @@ export default function ComoFuncionaPage() {
           <p className="cfSectionDesc">Las empresas ven esto. Sin nombre, sin teléfono, sin correo.</p>
           <div className="cfProfileGrid">
             {sampleProfiles.map((p) => (
-              <article className="profileCard" key={p.code}>
-                <div className="profileTop">
-                  <span className="profileCode">{p.code}</span>
-                  <span>{p.status}</span>
+              <article className="cfAnonCard" key={p.code}>
+                {/* Fila superior: código + badge estado */}
+                <div className="cfAnonCardTop">
+                  <span className="cfAnonCode">{p.code}</span>
+                  <span className={`cfAnonBadge ${p.status === "Disponible" ? "cfAnonBadgeGreen" : "cfAnonBadgeAmber"}`}>
+                    {p.status}
+                  </span>
                 </div>
-                <h3 className="cfProfileTitle">{p.title}</h3>
-                <div className="chips">
+                {/* Título */}
+                <h3 className="cfAnonTitle">{p.title}</h3>
+                {/* Skills */}
+                <div className="cfAnonChips">
                   {p.skills.map((s) => <span key={s}>{s}</span>)}
                 </div>
-                <div className="profileMeta">
-                  <span>{p.salary}</span>
-                  <span>{p.mode}</span>
+                {/* Meta */}
+                <div className="cfAnonMeta">
+                  <span>🏠 {p.mode}</span>
+                  <span>📍 {p.region}</span>
+                  <span>💰 {p.salary}</span>
+                </div>
+                {/* Franja protección */}
+                <div className="cfAnonProtected">
+                  <EyeOff size={14} aria-hidden="true" />
+                  Nombre e información de contacto protegidos
                 </div>
               </article>
             ))}

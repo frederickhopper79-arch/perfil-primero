@@ -15,7 +15,8 @@ type ConversionEvent =
   | "company_verified"
   | "search_performed"
   | "semantic_search_performed"
-  | "worker_selected";
+  | "worker_selected"
+  | "invitation_sent";
 
 export function trackEvent(event: ConversionEvent, params?: Record<string, string | number>) {
   try {

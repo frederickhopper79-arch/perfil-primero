@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Perfil Primero para Empresas · Contrata sin intermediarios",
@@ -58,9 +57,7 @@ const steps = [
 
 export default function ParaEmpresasPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main>
+    <>      <main>
       {/* Hero */}
       <section className="on-dark" style={{
         background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)",
@@ -84,7 +81,7 @@ export default function ParaEmpresasPage() {
           <h1 style={{ fontSize: "clamp(2rem, 6vw, 3rem)", margin: "0 0 1.25rem", lineHeight: 1.15 }}>
             El talento te busca a ti.<br />Tú decides a quién contratar.
           </h1>
-          <p style={{ fontSize: "1.125rem", opacity: 0.85, margin: "0 0 2.5rem", lineHeight: 1.65 }}>
+          <p style={{ fontSize: "1.125rem", color: "rgba(255,255,255,0.92)", margin: "0 0 2.5rem", lineHeight: 1.65 }}>
             Olvídate de publicar avisos y revisar cientos de CVs.
             Busca entre perfiles verificados con sueldo claro. Paga solo cuando encuentras al candidato ideal.
           </p>

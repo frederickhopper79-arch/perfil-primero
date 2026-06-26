@@ -1,17 +1,13 @@
 User-agent: *
-Disallow: /consola-admin
-Disallow: /postulante
-Disallow: /empresa
-Disallow: /omil
-Disallow: /trabajador
-Disallow: /admin
-Disallow: /analisis-expertos
-Disallow: /r/
 Allow: /
-Allow: /como-funciona
-Allow: /precios
-Allow: /blog/
-Allow: /legal/
-Allow: /estado
+Disallow: /consola-admin
+Disallow: /admin
+Disallow: /r/
+
+User-agent: Googlebot
+Crawl-delay: 2
+
+User-agent: Bingbot
+Crawl-delay: 5
 
 Sitemap: https://perfil-primero.web.app/sitemap.xml

@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDoc, query, where, Timestamp, getCountFromServer } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase/client";
 import { Building2, CalendarClock, CheckCircle2, FileText, UserPlus } from "lucide-react";
 import { AuthCard } from "./auth-card";
 import { chileRegions, jobAreas } from "@/lib/domain/catalogs";
@@ -64,6 +65,18 @@ export function OmilWorkspace() {
     () => chileRegions.find((region) => region.name === form.region) ?? chileRegions[0],
     [form.region]
   );
+
+  // Mantiene la sesión activa aunque Firebase renueve el token o haya re-renders
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) { setUid(""); setEmail(""); return; }
+      const role = await getUserRole(user.uid).catch(() => null);
+      if (role !== "omil" && role !== "admin") { setUid(""); return; }
+      setUid(user.uid);
+      setEmail(user.email ?? "");
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!uid) return;
@@ -201,7 +214,7 @@ export function OmilWorkspace() {
           <h2>OMIL puede cargar postulantes sin cobro inicial y con vigencia controlada.</h2>
           <p>
             Cada perfil queda visible por 60 días. 7 días antes del vencimiento, el postulante recibe un
-            aviso para continuar de forma personal mediante suscripción normal ($9.990 CLP).
+            aviso para continuar de forma personal mediante suscripción normal (gratuita en fase de lanzamiento).
           </p>
           <div className="portalStatGrid">
             <div><strong>Gratis</strong><span>alta institucional</span></div>
@@ -271,6 +284,53 @@ export function OmilWorkspace() {
             <p style={{ marginTop: 4 }}>{monthlyCount !== null && monthlyCount >= 90 ? "⚠️ Cerca del límite mensual." : "Se reinicia el 1° de cada mes."}</p>
           </article>
         </section>
+
+        {/* Historial completo desde Firestore */}
+        {uid && (
+          <section className="formSurface" style={{ marginTop: 0 }}>
+            <div className="formHeader">
+              <CalendarClock size={20} aria-hidden="true" />
+              <div>
+                <h2>Historial de perfiles OMIL</h2>
+                <p>Todos los perfiles que creaste desde esta cuenta, incluyendo sesiones anteriores.</p>
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <input
+                placeholder="Buscar por código o cargo…"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                style={{ width: "100%", fontSize: 13 }}
+              />
+            </div>
+            {historyLoading ? (
+              <p style={{ fontSize: 13, color: "var(--muted)", textAlign: "center" }}>Cargando historial…</p>
+            ) : firestoreHistory.length === 0 ? (
+              <p className="emptyState">No hay perfiles creados desde esta cuenta OMIL aún.</p>
+            ) : (
+              <div className="results">
+                {firestoreHistory
+                  .filter((w) => !historySearch ||
+                    w.profileCode.toLowerCase().includes(historySearch.toLowerCase()) ||
+                    w.headline.toLowerCase().includes(historySearch.toLowerCase()))
+                  .map((w) => (
+                    <article className="resultCard" key={w.workerId}>
+                      <div>
+                        <div className="resultCardTop">
+                          <span className="profileCode">{w.profileCode}</span>
+                          <span style={{ fontSize: 11, color: w.visibilityStatus === "visible" ? "#16a34a" : "var(--muted)" }}>
+                            {w.visibilityStatus === "visible" ? "Activo" : "Vencido"}
+                          </span>
+                        </div>
+                        <h2 style={{ fontSize: 14 }}>{w.headline}</h2>
+                        <p style={{ fontSize: 12 }}>{w.region}{w.city ? ` · ${w.city}` : ""} · Vence: {w.profileExpiresAt instanceof Date ? w.profileExpiresAt.toLocaleDateString("es-CL") : new Date((w.profileExpiresAt as unknown as { seconds: number }).seconds * 1000).toLocaleDateString("es-CL")}</p>
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <form className="formSurface omilForm" onSubmit={handleSubmit}>
           <div className="formHeader">
@@ -562,52 +622,6 @@ export function OmilWorkspace() {
         </div>
       )}
 
-      {/* Historial completo desde Firestore */}
-      {uid && (
-        <section className="formSurface" style={{ marginTop: 0 }}>
-          <div className="formHeader">
-            <CalendarClock size={20} aria-hidden="true" />
-            <div>
-              <h2>Historial de perfiles OMIL</h2>
-              <p>Todos los perfiles que creaste desde esta cuenta, incluyendo sesiones anteriores.</p>
-            </div>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <input
-              placeholder="Buscar por código o cargo…"
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              style={{ width: "100%", fontSize: 13 }}
-            />
-          </div>
-          {historyLoading ? (
-            <p style={{ fontSize: 13, color: "var(--muted)", textAlign: "center" }}>Cargando historial…</p>
-          ) : firestoreHistory.length === 0 ? (
-            <p className="emptyState">No hay perfiles creados desde esta cuenta OMIL aún.</p>
-          ) : (
-            <div className="results">
-              {firestoreHistory
-                .filter((w) => !historySearch ||
-                  w.profileCode.toLowerCase().includes(historySearch.toLowerCase()) ||
-                  w.headline.toLowerCase().includes(historySearch.toLowerCase()))
-                .map((w) => (
-                  <article className="resultCard" key={w.workerId}>
-                    <div>
-                      <div className="resultCardTop">
-                        <span className="profileCode">{w.profileCode}</span>
-                        <span style={{ fontSize: 11, color: w.visibilityStatus === "visible" ? "#16a34a" : "var(--muted)" }}>
-                          {w.visibilityStatus === "visible" ? "Activo" : "Vencido"}
-                        </span>
-                      </div>
-                      <h2 style={{ fontSize: 14 }}>{w.headline}</h2>
-                      <p style={{ fontSize: 12 }}>{w.region}{w.city ? ` · ${w.city}` : ""} · Vence: {w.profileExpiresAt instanceof Date ? w.profileExpiresAt.toLocaleDateString("es-CL") : new Date((w.profileExpiresAt as unknown as { seconds: number }).seconds * 1000).toLocaleDateString("es-CL")}</p>
-                    </div>
-                  </article>
-                ))}
-            </div>
-          )}
-        </section>
-      )}
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CookieBanner } from "@/components/ui/cookie-banner";
 import { ShortcutsModal } from "@/components/ui/shortcuts-modal";
 import { CommandPalette } from "@/components/ui/command-palette";
+import { ExitIntent } from "@/components/ui/exit-intent";
 import { useShortcuts } from "@/lib/hooks/useShortcuts";
 import { useSyncQueue } from "@/lib/hooks/useSyncQueue";
 import { useToast } from "@/components/ui/toast";
@@ -38,6 +39,7 @@ export function GlobalUI() {
       <CookieBanner />
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <CommandPalette items={NAV_ITEMS} />
+      <ExitIntent />
       {pendingCount > 0 && (
         <button
           type="button"

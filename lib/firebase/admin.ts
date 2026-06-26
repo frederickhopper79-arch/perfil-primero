@@ -151,6 +151,33 @@ export async function approveManualTransfer(input: {
   return result.data as { paymentId: string; status: string };
 }
 
+export async function adminSearchUser(query: string) {
+  const callable = httpsCallable(functions, "adminSearchUser");
+  const result = await callable({ query });
+  return result.data as {
+    uid: string;
+    email: string;
+    displayName: string;
+    disabled: boolean;
+    emailVerified: boolean;
+    creationTime: string;
+    lastSignInTime: string;
+    role: string | null;
+    status: string | null;
+    managedByAdmin: boolean;
+  };
+}
+
+export async function adminUpdateUser(input: {
+  uid: string;
+  role?: "worker" | "company" | "admin" | "omil";
+  status?: "active" | "suspended";
+}) {
+  const callable = httpsCallable(functions, "adminUpdateUser");
+  const result = await callable(input);
+  return result.data as { uid: string };
+}
+
 export async function getAdminDashboard(input?: {
   pageSize?: number;
   from?: string;

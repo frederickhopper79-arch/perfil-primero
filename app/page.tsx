@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { BadgeCheck, Building2, ChevronRight, Eye, Lock, Shield, Star, TrendingUp, Users, Zap } from "lucide-react";
 import { SocialProofCounter } from "@/components/social-proof-counter";
 
@@ -58,37 +58,24 @@ const sectores = [
 export default function Home() {
   return (
     <main>
-      {/* ── Topbar ── */}
-      <header className="topbar siteTopbar">
-        <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
-        </a>
-        <nav aria-label="Principal">
-          <a href="/como-funciona">Cómo funciona</a>
-          <a href="/precios">Precios</a>
-          <a className="navButton navPostulant" href="/postulante">Postulante</a>
-          <a className="navAction navButton" href="/empresa">Empresa</a>
-        </nav>
-      </header>
-
       {/* ── Hero ── */}
       <section className="homeHero" aria-label="Propuesta de valor principal">
-        <p className="eyebrow">Plataforma laboral · Chile</p>
-        <h1>Publica tu perfil y recibe ofertas con sueldo claro desde el primer contacto.</h1>
+        <p className="eyebrow">El empleo que viene a ti · Chile</p>
+        <h1>Deja de enviar CVs al vacío. Publica tu perfil y que las empresas lleguen a ti con sueldo claro.</h1>
         <p className="lead">
-          Las empresas verificadas te encuentran. Te proponen trabajo con cargo, modalidad y renta <strong>antes</strong> de pedirte datos. Tú decides si avanzas o rechazas.
+          Las empresas verificadas te encuentran. Te proponen trabajo con cargo, modalidad y renta <strong>antes</strong> de pedirte datos. Tú decides si avanzas o rechazas — sin presión, sin sorpresas.
         </p>
         <div className="homeHeroActions">
           <a className="button primary" href="/postulante">
-            Publicar mi perfil <ChevronRight size={16} aria-hidden="true" />
+            Publicar mi perfil gratis <ChevronRight size={16} aria-hidden="true" />
           </a>
-          <a className="button secondary" href="/empresa">Soy empresa</a>
+          <a className="button secondary" href="/como-funciona">Ver cómo funciona</a>
         </div>
         <div className="heroProofStrip">
-          <span><BadgeCheck size={13} aria-hidden="true" /> Anónimo hasta aceptar</span>
-          <span><BadgeCheck size={13} aria-hidden="true" /> Empresas verificadas</span>
+          <span><BadgeCheck size={13} aria-hidden="true" /> Anónimo hasta que tú aceptas</span>
+          <span><BadgeCheck size={13} aria-hidden="true" /> Solo empresas verificadas</span>
           <span><BadgeCheck size={13} aria-hidden="true" /> Sueldo visible siempre</span>
-          <span><BadgeCheck size={13} aria-hidden="true" /> Sin CV ciego</span>
+          <span><BadgeCheck size={13} aria-hidden="true" /> Gratis para postulantes</span>
         </div>
         <SocialProofCounter />
       </section>
@@ -257,6 +244,26 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Herramientas gratuitas ── */}
+      <section style={{ maxWidth: 860, margin: "0 auto 3rem", padding: "0 24px" }}>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8, textAlign: "center" }}>Herramientas gratuitas</p>
+        <h2 style={{ textAlign: "center", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: "1.5rem" }}>Recursos para tu búsqueda de empleo</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
+          {[
+            { icon: "🧮", titulo: "Calculadora salarial", desc: "¿Cuánto vale tu cargo en tu región?", href: "/calculadora-salarial" },
+            { icon: "📊", titulo: "Estadísticas de mercado", desc: "Sueldos y demanda por sector", href: "/estadisticas" },
+            { icon: "💡", titulo: "Tips profesionales", desc: "Guías de empleabilidad", href: "/tips-profesionales" },
+            { icon: "❓", titulo: "Preguntas frecuentes", desc: "Resuelve tus dudas rápido", href: "/faq" },
+          ].map((h, i) => (
+            <a key={i} href={h.href} style={{ display: "flex", flexDirection: "column", gap: 6, background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem", textDecoration: "none", transition: "border-color .15s" }}>
+              <span style={{ fontSize: 24 }}>{h.icon}</span>
+              <strong style={{ fontSize: 14, color: "var(--heading)" }}>{h.titulo}</strong>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>{h.desc}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
       {/* ── CTA final ── */}
       <section className="homeCta" aria-label="Llamado a la acción">
         <h2>¿Listo para trabajar en tus términos?</h2>
@@ -269,7 +276,10 @@ export default function Home() {
             Soy empresa <ChevronRight size={16} aria-hidden="true" />
           </a>
         </div>
-        <a href="/como-funciona" className="homeCtaLink">Ver cómo funciona →</a>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+          <a href="/como-funciona" className="homeCtaLink">Ver cómo funciona →</a>
+          <a href="/casos-de-exito" className="homeCtaLink">Casos de éxito →</a>
+        </div>
       </section>
     </main>
   );

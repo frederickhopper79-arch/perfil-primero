@@ -14,7 +14,7 @@ export function QrCode({ url, size = 120, label, profileCode }: QrCodeProps) {
     win.document.write(
       `<html><head><title>QR Perfil Primero${profileCode ? ` — ${profileCode}` : ""}</title></head>` +
       `<body style="text-align:center;font-family:sans-serif;padding:40px">` +
-      `<img src="https://perfil-primero.web.app/logo-perfil-primero.png" width="80" style="margin-bottom:16px"/>` +
+      `<img src="https://perfil-primero.web.app/isotipo.png" width="80" style="margin-bottom:16px"/>` +
       `${profileCode ? `<h2 style="margin:0 0 12px">Perfil ${profileCode}</h2>` : ""}` +
       `<img src="https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=250x250&margin=8" width="250" height="250"/>` +
       `<p style="margin-top:16px;font-size:13px;color:#555">${url}</p>` +

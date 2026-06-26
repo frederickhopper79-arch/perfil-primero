@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Centro de Ayuda · Perfil Primero",
@@ -34,7 +33,7 @@ const faqJsonLd = {
     {
       "@type": "Question",
       "name": "¿Cómo pagan las empresas?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Las empresas pagan $9.990 CLP por cada contacto que desbloquean, usando Mercado Pago o tarjeta de crédito/débito." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Durante el lanzamiento, las empresas pagan $4.990 CLP por cada contacto que desbloquean (precio normal: $9.990 CLP), usando Mercado Pago o tarjeta de crédito/débito." }
     },
   ]
 };
@@ -52,7 +51,7 @@ const FAQ: FaqItem[] = [
   { category: "worker", q: "¿Qué pasa si rechazo una invitación?", a: "No pasa nada. Puedes rechazar invitaciones sin dar explicaciones. La empresa no sabrá tu identidad." },
   { category: "worker", q: "¿Puedo subir mi CV en PDF?", a: "Sí. Puedes subir tu CV en formato PDF o Word (máximo 5 MB). Este documento solo se comparte con empresas que hayan desbloqueado tu contacto." },
   { category: "company", q: "¿Cómo verifico mi empresa?", a: "Durante el registro, el equipo de Perfil Primero revisa tu información legal. El proceso toma entre 1 y 3 días hábiles." },
-  { category: "company", q: "¿Cuánto cuesta contactar a un candidato?", a: "Las empresas pagan $9.990 CLP por cada contacto que desbloquean. Sin comisiones adicionales al contratar." },
+  { category: "company", q: "¿Cuánto cuesta contactar a un candidato?", a: "Durante el lanzamiento, las empresas pagan $4.990 CLP por cada contacto desbloqueado (precio normal: $9.990 CLP). Sin comisiones adicionales al contratar." },
   { category: "company", q: "¿Qué pasa si el candidato rechaza mi invitación?", a: "No se cobra nada. El pago solo se efectúa cuando el candidato acepta y decides ver sus datos de contacto." },
   { category: "company", q: "¿Cómo sé si un candidato sigue disponible?", a: "Los perfiles muestran fecha de última actividad y estado de disponibilidad. Los candidatos activos aparecen primero." },
   { category: "general", q: "¿Cómo funciona el modelo de Perfil Primero?", a: "Los trabajadores publican perfiles anónimos con sus condiciones. Las empresas los encuentran y envían invitaciones. Solo si ambas partes acuerdan se comparte la información de contacto." },
@@ -68,9 +67,7 @@ const categories = [
 
 export default function AyudaPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>      <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}

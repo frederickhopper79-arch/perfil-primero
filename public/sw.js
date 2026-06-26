@@ -1,7 +1,7 @@
-// Perfil Primero — Service Worker v4
-const CACHE_STATIC = "pp-static-v4";
-const CACHE_PAGES = "pp-pages-v4";
-const CACHE_API = "pp-api-v4";
+// Perfil Primero — Service Worker v5
+const CACHE_STATIC = "pp-static-v5";
+const CACHE_PAGES = "pp-pages-v5";
+const CACHE_API = "pp-api-v5";
 const OFFLINE_URL = "/offline";
 
 // Assets a pre-cachear en install
@@ -11,9 +11,16 @@ const PRECACHE = [
   "/precios",
   "/bienvenida",
   "/offline",
-  "/logo-perfil-primero.png",
+  "/isotipo.png",
   "/manifest.json",
   "/robots.txt",
+  "/feed.xml",
+  "/blog",
+  "/para-postulantes",
+  "/para-empresas",
+  "/faq",
+  "/ayuda",
+  "/contacto",
 ];
 
 // Estrategias
@@ -32,9 +39,12 @@ self.addEventListener("install", (event) => {
 // ── Activate ──────────────────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   const KEEP = [CACHE_STATIC, CACHE_PAGES, CACHE_API];
+  // Limpiar versiones anteriores del cache
+  const OBSOLETE_PREFIXES = ["pp-static-v", "pp-pages-v", "pp-api-v"];
+  const isObsolete = (k) => OBSOLETE_PREFIXES.some((p) => k.startsWith(p)) && !KEEP.includes(k);
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => !KEEP.includes(k)).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter(isObsolete).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -162,8 +172,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body || "",
-    icon: "/logo-perfil-primero.png",
-    badge: "/logo-perfil-primero.png",
+    icon: "/isotipo.png",
+    badge: "/isotipo.png",
     image: payload.image,
     tag: payload.tag || "pp-notification",
     renotify: Boolean(payload.renotify),

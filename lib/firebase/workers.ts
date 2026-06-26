@@ -9,6 +9,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where,
   writeBatch
@@ -135,31 +136,35 @@ export async function listVisibleWorkers(options?: {
   region?: string;
   sector?: string;
   salaryMax?: number;
-}) {
+  cursor?: import("firebase/firestore").QueryDocumentSnapshot | null;
+}): Promise<{ workers: WorkerPublicProfile[]; hasMore: boolean; lastDoc: import("firebase/firestore").QueryDocumentSnapshot | null }> {
   const pageSize = Math.max(1, Math.min(50, Number(options?.pageSize ?? 50)));
 
-  const constraints = [
+  const constraints: import("firebase/firestore").QueryConstraint[] = [
     where("visibilityStatus", "==", "visible"),
     where("subscriptionStatus", "==", "active"),
     ...(options?.region ? [where("region", "==", options.region)] : []),
     ...(options?.sector ? [where("sectors", "array-contains", options.sector)] : []),
     orderBy("expectedSalaryMax", "asc"),
-    limit(pageSize)
+    ...(options?.cursor ? [startAfter(options.cursor)] : []),
+    limit(pageSize + 1)
   ];
 
   const q = query(collection(db, "workerPublicProfiles"), ...constraints);
   const snap = await getDocs(q);
-  let workers = snap.docs.map((item) => item.data() as WorkerPublicProfile);
+  const hasMore = snap.docs.length > pageSize;
+  const docs = hasMore ? snap.docs.slice(0, pageSize) : snap.docs;
+  let workers = docs.map((item) => item.data() as WorkerPublicProfile);
 
   if (options?.salaryMax) {
     workers = workers.filter((w) => w.expectedSalaryMin <= options.salaryMax!);
   }
 
-  if (snap.docs.length) {
+  if (docs.length) {
     const CHUNK = 400;
-    for (let i = 0; i < snap.docs.length; i += CHUNK) {
+    for (let i = 0; i < docs.length; i += CHUNK) {
       const batch = writeBatch(db);
-      snap.docs.slice(i, i + CHUNK).forEach((d) => {
+      docs.slice(i, i + CHUNK).forEach((d) => {
         batch.update(d.ref, {
           "analytics.totalImpressions": increment(1),
           "analytics.weekImpressions": increment(1)
@@ -169,7 +174,12 @@ export async function listVisibleWorkers(options?: {
     }
   }
 
-  return workers.length ? workers : demoPostulants;
+  const result = workers.length ? workers : (options?.cursor ? [] : demoPostulants);
+  return {
+    workers: result,
+    hasMore: workers.length ? hasMore : false,
+    lastDoc: docs.length > 0 ? docs[docs.length - 1] : null
+  };
 }
 
 export async function createWorkerSubscriptionCheckout(couponCode?: string) {

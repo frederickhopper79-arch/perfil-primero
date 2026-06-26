@@ -11,18 +11,6 @@ export const metadata: Metadata = {
 export default function PostulantPage() {
   return (
     <main className="workspace">
-      <section className="workspaceHeader">
-        <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.png" alt="" />
-          <span>Perfil Primero</span>
-        </a>
-        <div className="workspaceHeaderMeta">
-          <a className="backLink" href="/"><ArrowLeft size={13} /> Inicio</a>
-          <p className="eyebrow">Panel postulante</p>
-          <h1>Crea un perfil visible sin exponer tus datos privados.</h1>
-        </div>
-      </section>
-
       <WorkerOnboarding />
       <WorkerTour />
     </main>

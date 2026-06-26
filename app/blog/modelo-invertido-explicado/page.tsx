@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+import { ShareNative } from "@/components/ui/share-native";
+
 
 export const metadata: Metadata = {
   title: "El modelo de empleo invertido: por qué funciona | Blog Perfil Primero",
@@ -10,12 +11,10 @@ export const metadata: Metadata = {
 
 export default function BlogPostModeloInvertido() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px" }}>
-      <a href="/blog" style={{ color: "#0a66c2", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
+    <>      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px" }}>
+      <a href="/blog" style={{ color: "var(--color-primary)", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
       <div style={{ marginTop: 24, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-        <span style={{ background: "#dce6f1", color: "#0a66c2", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Plataforma</span>
+        <span style={{ background: "var(--blue-soft)", color: "var(--color-primary)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Plataforma</span>
         <time dateTime="2026-05-15" style={{ fontSize: 12, color: "#647488" }}>15 de mayo de 2026</time>
       </div>
       <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.2, marginBottom: 24 }}>
@@ -55,7 +54,11 @@ export default function BlogPostModeloInvertido() {
           { "@type": "ListItem", "position": 3, "name": "El modelo invertido", "item": "https://perfil-primero.web.app/blog/modelo-invertido-explicado" },
         ]},
       ]).replace(/</g, "\\u003c") }} />
-    </main>
+    
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2rem" }}>
+        <ShareNative title="El modelo de empleo invertido - Perfil Primero" text="Por que publicar tu perfil es mejor que enviar CVs a ciegas en Chile." />
+      </div>
+</main>
     </>
   );
 }

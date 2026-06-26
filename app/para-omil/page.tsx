@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+﻿import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Programa OMIL · Perfil Primero para Municipios",
@@ -32,9 +31,7 @@ const benefits = [
 
 export default function ParaOmilPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main>
+    <>      <main>
       <section className="on-dark" style={{
         background: "linear-gradient(135deg, var(--color-dark) 0%, var(--color-primary) 100%)",
         color: "#fff",
@@ -65,7 +62,7 @@ export default function ParaOmilPage() {
             style={{
               display: "inline-block",
               background: "#fff",
-              color: "#1e3a5f",
+              color: "var(--color-dark)",
               padding: "0.875rem 2.5rem",
               borderRadius: "0.625rem",
               textDecoration: "none",

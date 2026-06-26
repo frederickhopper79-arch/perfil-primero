@@ -16,15 +16,7 @@ export default function ReferralPage() {
 
   return (
     <main>
-      <header className="topbar siteTopbar">
-        <a className="brand" href="/">
-          <img className="brandLogo" src="/logo-perfil-primero.png" alt="Perfil Primero" />
-        </a>
-        <nav aria-label="Principal">
-          <a className="navButton navPostulant" href="/postulante">Soy postulante</a>
-          <a className="navAction navButton" href="/empresa">Soy empresa</a>
-        </nav>
-      </header>
+
 
       <div className="subpageWrap">
         <div className="referralHero">

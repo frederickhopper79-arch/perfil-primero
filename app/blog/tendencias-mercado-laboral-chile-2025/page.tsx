@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { SiteTopbar } from "@/components/site-topbar";
+﻿import type { Metadata } from "next";
+import { ShareNative } from "@/components/ui/share-native";
 
 export const metadata: Metadata = {
   title: "Tendencias del mercado laboral en Chile 2025 · Perfil Primero",
@@ -43,9 +43,7 @@ const STATS: TrendStat[] = [
 
 export default function TendenciasPage() {
   return (
-    <>
-      <SiteTopbar />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
+    <>      <main style={{ maxWidth: 760, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
@@ -165,13 +163,14 @@ export default function TendenciasPage() {
         </p>
       </article>
 
-      <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)" }}>
-        <p style={{ color: "var(--muted)", fontSize: "0.9375rem" }}>
+      <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
+        <p style={{ color: "var(--muted)", fontSize: "0.9375rem", margin: 0 }}>
           Explora más en{" "}
           <a href="/analisis-expertos" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
             Análisis de mercado por sector →
           </a>
         </p>
+        <ShareNative title="Tendencias del mercado laboral en Chile 2025 · Perfil Primero" text="Trabajo remoto, IA y transparencia salarial: las tendencias que definen el empleo en Chile." />
       </footer>
     </main>
     </>
