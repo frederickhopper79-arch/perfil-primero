@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { WorkerOnboarding } from "@/components/worker-onboarding";
 import { WorkerTour } from "@/components/worker-tour";
+import { HelpWidget } from "@/components/ui/help-widget";
 
 export const metadata: Metadata = {
   title: "Panel Postulante | Perfil Primero",
@@ -13,6 +14,7 @@ export default function PostulantPage() {
     <main className="workspace">
       <WorkerOnboarding />
       <WorkerTour />
+      <HelpWidget context="worker" />
     </main>
   );
 }

@@ -7,6 +7,7 @@ import { FieldValue, getFirestore, Query, Timestamp } from "firebase-admin/fires
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import type { CallableOptions } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import Stripe from "stripe";
 import { GoogleGenAI, Type } from "@google/genai";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -4961,15 +4962,24 @@ export const createContactTicket = onCall<{
   if (!name || !email || !subject || !message) throw new HttpsError("invalid-argument", "Todos los campos son requeridos.");
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRe.test(email)) throw new HttpsError("invalid-argument", "Email inválido.");
+  const userType = request.data.userType ?? "other";
+  // Auto-asignación por userType y asunto
+  const assignedTo =
+    userType === "omil" || subject.toLowerCase().includes("omil") || subject.toLowerCase().includes("alianza") ? "omil"
+    : userType === "company" || subject.toLowerCase().includes("empresa") || subject.toLowerCase().includes("contratación") ? "empresas"
+    : subject.toLowerCase().includes("prensa") ? "prensa"
+    : subject.toLowerCase().includes("pago") || subject.toLowerCase().includes("factura") ? "soporte"
+    : "soporte";
   await db.collection("contactTickets").add({
     name, email, subject, message,
-    userType: request.data.userType ?? "other",
+    userType,
+    assignedTo,
     uid: request.auth?.uid ?? null,
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
     ip: request.rawRequest.ip ?? null,
   });
-  log("INFO", "contact_ticket_created", { email, subject });
+  log("INFO", "contact_ticket_created", { email, subject, assignedTo });
   return { ok: true };
 });
 
@@ -5303,3 +5313,30 @@ export const getOmilImpactPanel = onCall(async (request) => {
     contratacionesConfirmadas: contrataciones
   };
 });
+
+// ── Trigger: notificación push al admin cuando llega un ticket de contacto ────
+export const onContactTicketCreated = onDocumentCreated(
+  { document: "contactTickets/{ticketId}", region: "us-central1" },
+  async (event) => {
+    const ticket = event.data?.data();
+    if (!ticket) return;
+    const { name, subject, assignedTo, userType } = ticket as {
+      name: string; subject: string; assignedTo: string; userType: string;
+    };
+    // Buscar todos los admins
+    const adminsSnap = await db.collection("users").where("role", "==", "admin").limit(5).get();
+    if (adminsSnap.empty) return;
+    const label = assignedTo === "omil" ? "OMIL/Alianza" : assignedTo === "empresas" ? "Empresa" : assignedTo === "prensa" ? "Prensa" : "Soporte";
+    await Promise.all(
+      adminsSnap.docs.map(adminDoc =>
+        sendFcmToUser(
+          adminDoc.id,
+          `Nuevo ticket [${label}]`,
+          `${name}: ${subject}`,
+          "/consola-admin"
+        ).catch(() => null)
+      )
+    );
+    log("INFO", "contact_ticket_push_sent", { subject, assignedTo, userType, admins: adminsSnap.size });
+  }
+);

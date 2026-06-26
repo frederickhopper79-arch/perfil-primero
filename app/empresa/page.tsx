@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 import { CompanyWorkspace } from "@/components/company-workspace";
+import { HelpWidget } from "@/components/ui/help-widget";
 
 export const metadata: Metadata = {
   title: "Panel Empresa | Perfil Primero",
@@ -11,6 +12,7 @@ export default function CompanyPage() {
   return (
     <main className="workspace">
       <CompanyWorkspace />
+      <HelpWidget context="company" />
     </main>
   );
 }
