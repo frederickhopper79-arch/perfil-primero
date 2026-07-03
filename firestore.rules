@@ -222,9 +222,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Coupons — leer solo admin o usuario autenticado (para validar descuento)
+    // Coupons — la validación ocurre server-side en las funciones de checkout.
+    // Sin lectura de cliente: evita que usuarios enumeren códigos de descuento.
     match /coupons/{couponId} {
-      allow read: if signedIn();
+      allow read: if false;
       allow write: if false;
     }
 

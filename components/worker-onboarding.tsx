@@ -270,7 +270,8 @@ export function WorkerOnboarding() {
           setScores(loadedScores);
           setSavedScores(loadedScores);
           setAttemptCounts(publicProfile.testAttemptCounts ?? { english: 0, spanish: 0, personality: 0 });
-          setCvUrl(publicProfile.cvFileUrl ?? "");
+          // cvFileUrl migró al perfil privado; fallback legacy al público
+          setCvUrl((publicProfile as { cvFileUrl?: string }).cvFileUrl ?? "");
           setForm((current) => ({
             ...current,
             headline: publicProfile.headline ?? current.headline,
@@ -293,6 +294,8 @@ export function WorkerOnboarding() {
 
         if (privateProfile) {
           setVerifiedInviteCount((privateProfile as { verifiedInviteCount?: number }).verifiedInviteCount ?? 0);
+          const privCvUrl = (privateProfile as { cvFileUrl?: string }).cvFileUrl;
+          if (privCvUrl) setCvUrl(privCvUrl);
           setForm((current) => ({
             ...current,
             legalName: privateProfile.legalName ?? current.legalName,
@@ -540,7 +543,6 @@ export function WorkerOnboarding() {
         visibilityStatus: profileState.visibilityStatus as "visible" | "paused" | "hidden" | "expired" | "suspended",
         subscriptionStatus: profileState.subscriptionStatus as "inactive" | "active" | "expired" | "cancelled",
         assessmentScores: nextScores,
-        cvFileUrl: nextCvUrl,
         cvAnalysisSummary: nextForm.cvAnalysisSummary || nextForm.summary,
         formattedCv: nextForm.formattedCv,
         coverLetter: nextForm.coverLetter
@@ -553,6 +555,7 @@ export function WorkerOnboarding() {
         email,
         phone: nextForm.phone,
         portfolioLinks: nextForm.portfolio ? [nextForm.portfolio] : [],
+        cvFileUrl: nextCvUrl,
         formattedCv: nextForm.formattedCv,
         cvAnalysisSummary: nextForm.cvAnalysisSummary,
         coverLetter: nextForm.coverLetter
@@ -679,7 +682,6 @@ export function WorkerOnboarding() {
           visibilityStatus: "paused",
           subscriptionStatus: profileState.subscriptionStatus as "inactive" | "active" | "expired" | "cancelled",
           assessmentScores: scores,
-          cvFileUrl: cvUrl,
           cvAnalysisSummary: form.cvAnalysisSummary,
           formattedCv: form.formattedCv,
           coverLetter: form.coverLetter
@@ -692,6 +694,7 @@ export function WorkerOnboarding() {
           email,
           phone: form.phone,
           portfolioLinks: form.portfolio ? [form.portfolio] : [],
+          cvFileUrl: cvUrl,
           formattedCv: form.formattedCv,
           cvAnalysisSummary: form.cvAnalysisSummary,
           coverLetter: form.coverLetter

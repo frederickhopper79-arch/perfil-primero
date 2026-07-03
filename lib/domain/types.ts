@@ -78,7 +78,6 @@ export interface WorkerPublicProfile {
   cvAnalysisSummary?: string;
   formattedCv?: string;
   coverLetter?: string;
-  cvFileUrl?: string;
   badges?: string[];
   referralCode?: string;
   experienceLevel: "junior" | "mid" | "senior" | "lead";
@@ -105,6 +104,7 @@ export interface WorkerPrivateProfile {
   email: string;
   phone: string;
   portfolioLinks: string[];
+  cvFileUrl?: string;
   formattedCv?: string;
   cvAnalysisSummary?: string;
   coverLetter?: string;

@@ -1792,8 +1792,26 @@ export const unlockWorkerContact = onCall<{ invitationId: string; paymentId?: st
     } else {
       if (!resolvedPaymentId) throw new HttpsError("invalid-argument", "Se requiere paymentId.");
       const payment = await db.collection("payments").doc(resolvedPaymentId).get();
-      if (!payment.exists || payment.data()?.status !== "paid") {
+      const paymentData = payment.data();
+      if (!payment.exists || paymentData?.status !== "paid") {
         throw new HttpsError("failed-precondition", "El pago no está confirmado.");
+      }
+      // El pago debe pertenecer a esta empresa
+      if (paymentData.userId !== companyId) {
+        throw new HttpsError("permission-denied", "El pago no pertenece a tu empresa.");
+      }
+      // El pago debe corresponder a esta invitación (si fue emitido para una)
+      if (paymentData.relatedInvitationId && paymentData.relatedInvitationId !== invitationRef.id) {
+        throw new HttpsError("failed-precondition", "El pago corresponde a otra invitación.");
+      }
+      // Un pago solo puede usarse una vez
+      const priorUnlock = await db
+        .collection("contactUnlocks")
+        .where("paymentId", "==", resolvedPaymentId)
+        .limit(1)
+        .get();
+      if (!priorUnlock.empty) {
+        throw new HttpsError("failed-precondition", "Este pago ya fue utilizado para desbloquear un contacto.");
       }
     }
 
@@ -2139,6 +2157,7 @@ export const analyzeCvWithAi = onCall<{
     "summary: string de 2-3 oraciones resumiendo la experiencia.",
     "cvAnalysisSummary: string de 1-2 oraciones evaluando el CV.",
     "formattedCv: string de texto plano con el CV formateado, usando saltos de linea \\n para separar secciones (Perfil, Experiencia, Habilidades). SIN objetos ni arrays, solo texto plano.",
+    "IMPORTANTE - ANONIMATO: en formattedCv, summary y cvAnalysisSummary NO incluyas nombre de la persona, RUT, telefono, email, direccion exacta ni URLs de redes sociales. Reemplaza el nombre por 'Profesional' si es necesario. Los datos personales van SOLO en extractedName/extractedPhone/extractedLinkedIn.",
     "extractedName: nombre completo de la persona si aparece en el CV, si no string vacio.",
     "extractedPhone: telefono de contacto si aparece en el CV, si no string vacio.",
     "extractedLinkedIn: URL de LinkedIn si aparece en el CV, si no string vacio.",
@@ -4870,7 +4889,7 @@ export const getProfileCompletionScore = onCall(CALL_OPTS_FAST, async (request) 
     { field: "expectedSalary", label: "Expectativa salarial", done: pub.expectedSalaryMin > 0 && pub.expectedSalaryMax > 0, weight: 10 },
     { field: "workModes", label: "Modalidad de trabajo", done: (pub.workModes?.length ?? 0) >= 1, weight: 5 },
     { field: "region", label: "Región o ciudad", done: Boolean(pub.region?.trim()), weight: 5 },
-    { field: "cvFileUrl", label: "CV adjunto", done: Boolean(pub.cvFileUrl || priv.formattedCv), weight: 15 },
+    { field: "cvFileUrl", label: "CV adjunto", done: Boolean((priv as Record<string, unknown>).cvFileUrl || pub.cvFileUrl || priv.formattedCv), weight: 15 },
     { field: "phone", label: "Teléfono de contacto", done: Boolean((priv as Record<string,unknown>).phone), weight: 5 },
     { field: "yearsOfExperience", label: "Años de experiencia", done: pub.yearsOfExperience >= 0, weight: 5 },
     { field: "experienceLevel", label: "Nivel de experiencia", done: Boolean(pub.experienceLevel), weight: 5 },

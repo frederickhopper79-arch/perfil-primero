@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -33,6 +34,7 @@ export type WorkerProfileDraft = {
     email: string;
     phone: string;
     portfolioLinks: string[];
+    cvFileUrl?: string;
     formattedCv?: string;
     cvAnalysisSummary?: string;
     coverLetter?: string;
@@ -75,6 +77,9 @@ export async function saveWorkerProfile(
     expectedSalaryMax: salaryMax,
     // formattedCv trimmed to avoid approaching Firestore 1MB doc limit
     formattedCv: (draft.publicProfile.formattedCv ?? "").slice(0, 12_000),
+    // Anonimato: la URL del CV original vive solo en el perfil privado.
+    // deleteField() limpia el campo legacy en perfiles guardados antes de la migración.
+    cvFileUrl: deleteField(),
     profileExpiresAt: expiresAt,
     updatedAt: serverTimestamp()
   };
