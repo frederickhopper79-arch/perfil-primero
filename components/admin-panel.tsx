@@ -63,6 +63,7 @@ type AdminView =
   | "changelog"
   | "tarifas"
   | "mrr"
+  | "finanzas"
   | "exports"
   | "omil-impact"
   | "funnel";
@@ -154,6 +155,7 @@ const views: Array<{ key: AdminView; label: string }> = [
   { key: "changelog", label: "📋 Changelog" },
   { key: "tarifas", label: "💰 Config. tarifas" },
   { key: "mrr", label: "📈 MRR / ARR" },
+  { key: "finanzas", label: "🚦 Salud financiera" },
   { key: "exports", label: "📥 Exportar CSV" },
   { key: "omil-impact", label: "🏛 Impacto OMIL" },
   { key: "funnel", label: "🔽 Embudo conversión" }
@@ -596,6 +598,7 @@ export function AdminPanel() {
         {activeView === "changelog" ? <ChangelogView /> : null}
         {activeView === "tarifas" ? <TarifasView /> : null}
         {activeView === "mrr" ? <MrrView /> : null}
+        {activeView === "finanzas" ? <FinanzasView /> : null}
         {activeView === "exports" ? <ExportsView /> : null}
         {activeView === "omil-impact" ? <OmilImpactView /> : null}
         {activeView === "funnel" ? <FunnelView dashboard={data} /> : null}
@@ -2848,6 +2851,224 @@ function MrrView() {
       {!loading && data.length === 0 && !error && (
         <p style={{ color: "var(--muted)", fontSize: 14 }}>Sin datos de ingresos aún. Los datos aparecen cuando se registren pagos confirmados en la plataforma.</p>
       )}
+    </section>
+  );
+}
+
+// ── Semáforo de salud financiera ─────────────────────────────────────────────
+const SEMAFORO_CONFIG = {
+  verde:    { color: "#16a34a", bg: "#dcfce7", label: "OPERACIÓN SANA", icon: "🟢" },
+  amarillo: { color: "#ca8a04", bg: "#fef9c3", label: "ATENCIÓN — REVISAR", icon: "🟡" },
+  rojo:     { color: "#dc2626", bg: "#fee2e2", label: "RIESGO — ACTUAR AHORA", icon: "🔴" },
+} as const;
+
+function clp(n: number) {
+  return `$${n.toLocaleString("es-CL")} CLP`;
+}
+
+function FinanzasView() {
+  const [data, setData] = useState<import("@/lib/firebase/admin").FinancialHealthData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editConfig, setEditConfig] = useState(false);
+  const [costos, setCostos] = useState<Array<{ nombre: string; montoClp: string }>>([]);
+  const [params, setParams] = useState({ comisionMpPct: "", primeraCategoriaPct: "", cajaDisponibleClp: "", margenObjetivoPct: "" });
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const { getFinancialHealth } = await import("@/lib/firebase/admin");
+      const d = await getFinancialHealth();
+      setData(d);
+      setCostos(d.config.costosMensualesClp.map((c) => ({ nombre: c.nombre, montoClp: String(c.montoClp) })));
+      setParams({
+        comisionMpPct: String(d.config.comisionMpPct),
+        primeraCategoriaPct: String(d.config.primeraCategoriaPct),
+        cajaDisponibleClp: String(d.config.cajaDisponibleClp),
+        margenObjetivoPct: String(d.config.margenObjetivoPct),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cargar la salud financiera.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function saveConfig() {
+    setSaving(true);
+    setError("");
+    try {
+      const { updateFinancialConfig } = await import("@/lib/firebase/admin");
+      await updateFinancialConfig({
+        costosMensualesClp: costos
+          .filter((c) => c.nombre.trim())
+          .map((c) => ({ nombre: c.nombre.trim(), montoClp: Number(c.montoClp) || 0 })),
+        comisionMpPct: Number(params.comisionMpPct) || 0,
+        primeraCategoriaPct: Number(params.primeraCategoriaPct) || 0,
+        cajaDisponibleClp: Number(params.cajaDisponibleClp) || 0,
+        margenObjetivoPct: Number(params.margenObjetivoPct) || 0,
+      });
+      setEditConfig(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar la configuración.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <section style={{ padding: "1.5rem" }}><p style={{ color: "var(--muted)" }}>Calculando salud financiera…</p></section>;
+  if (error && !data) return <section style={{ padding: "1.5rem" }}><p style={{ color: "#dc2626", fontSize: 13 }}>{error}</p></section>;
+  if (!data) return null;
+
+  const sem = SEMAFORO_CONFIG[data.semaforo];
+  const r = data.resumen;
+
+  const lineas: Array<{ label: string; valor: string; destacado?: boolean; negativo?: boolean }> = [
+    { label: `Ingresos brutos (${r.pagosConfirmados} pagos confirmados)`, valor: clp(r.ingresoBruto) },
+    { label: `(−) IVA débito fiscal ${data.config.ivaPct}% — a provisionar para el SII`, valor: `−${clp(r.ivaDebito)}` },
+    { label: "Ingreso neto", valor: clp(r.ingresoNeto), destacado: true },
+    { label: `(−) Comisión Mercado Pago ${data.config.comisionMpPct}%`, valor: `−${clp(r.comisionMp)}` },
+    { label: "(−) Costos operativos de plataforma", valor: `−${clp(r.costosFijos)}` },
+    { label: "Utilidad antes de impuesto", valor: clp(r.utilidadAntesImpuesto), destacado: true, negativo: r.utilidadAntesImpuesto < 0 },
+    { label: `(−) 1ª Categoría Pro Pyme ${data.config.primeraCategoriaPct}%`, valor: `−${clp(r.impuestoPrimeraCategoria)}` },
+    { label: "UTILIDAD NETA OPERATIVA", valor: clp(r.utilidadNeta), destacado: true, negativo: r.utilidadNeta < 0 },
+  ];
+
+  return (
+    <section className="stack" style={{ gap: 20 }}>
+      <div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>🚦 Salud financiera operativa</h2>
+        <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+          Ingresos confirmados vs costos de plataforma e impuestos (Chile). No incluye remuneraciones. Mes: <strong>{data.mes}</strong>.
+        </p>
+      </div>
+
+      {/* Semáforo principal */}
+      <div style={{ background: sem.bg, border: `2px solid ${sem.color}`, borderRadius: 16, padding: "1.5rem", display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ fontSize: 52, lineHeight: 1 }}>{sem.icon}</div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: sem.color, letterSpacing: ".03em", marginBottom: 6 }}>{sem.label}</div>
+          {data.razones.map((rz, i) => (
+            <p key={i} style={{ fontSize: 13, color: "var(--text)", margin: "0 0 4px", lineHeight: 1.55 }}>{rz}</p>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {[
+            { label: "Margen neto", value: r.margenPct !== null ? `${r.margenPct}%` : "—" },
+            { label: "Runway", value: r.runwayMeses !== null ? `${r.runwayMeses} meses` : "—" },
+            { label: "vs mes anterior", value: r.variacionPct !== null ? `${r.variacionPct > 0 ? "+" : ""}${r.variacionPct}%` : "—" },
+          ].map((k, i) => (
+            <div key={i} style={{ background: "var(--surface)", borderRadius: 10, padding: "10px 14px", textAlign: "center", minWidth: 90 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: sem.color }}>{k.value}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recomendaciones */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--heading)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>Acciones recomendadas</div>
+        <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
+          {data.recomendaciones.map((rec, i) => (
+            <li key={i} style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.55 }}>{rec}</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Estado de resultados del mes */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", fontSize: 12, fontWeight: 700, color: "var(--heading)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+          Estado de resultados operativo — {data.mes}
+        </div>
+        {lineas.map((l, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 16px", borderBottom: i < lineas.length - 1 ? "1px solid var(--line)" : "none", background: l.destacado ? "var(--bg-soft)" : "transparent" }}>
+            <span style={{ fontSize: 13, color: l.destacado ? "var(--heading)" : "var(--muted)", fontWeight: l.destacado ? 700 : 400 }}>{l.label}</span>
+            <span style={{ fontSize: 13, fontWeight: l.destacado ? 800 : 500, color: l.negativo ? "#dc2626" : l.destacado ? "var(--color-primary)" : "var(--text)", whiteSpace: "nowrap" }}>{l.valor}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Historial 3 meses */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {data.historial.map((m, i) => (
+          <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 16px", minWidth: 150 }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "capitalize" }}>{m.label}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--heading)" }}>{clp(m.bruto)}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{m.pagos} pagos</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Configuración de costos */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--heading)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+            Costos operativos mensuales y parámetros tributarios
+          </div>
+          <button className="button ghost" type="button" style={{ fontSize: 12 }} onClick={() => setEditConfig((v) => !v)}>
+            {editConfig ? "Cancelar" : "✏️ Editar"}
+          </button>
+        </div>
+
+        {!editConfig ? (
+          <>
+            {data.config.costosMensualesClp.map((c, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px dashed var(--line)", fontSize: 13 }}>
+                <span style={{ color: "var(--muted)" }}>{c.nombre}</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{clp(c.montoClp)}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: "var(--muted)" }}>
+              <span>Comisión MP: <strong>{data.config.comisionMpPct}%</strong></span>
+              <span>IVA: <strong>{data.config.ivaPct}%</strong></span>
+              <span>1ª Categoría: <strong>{data.config.primeraCategoriaPct}%</strong></span>
+              <span>Caja disponible: <strong>{clp(data.config.cajaDisponibleClp)}</strong></span>
+              <span>Margen objetivo: <strong>{data.config.margenObjetivoPct}%</strong></span>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {costos.map((c, i) => (
+              <div key={i} style={{ display: "flex", gap: 8 }}>
+                <input value={c.nombre} onChange={(e) => setCostos((prev) => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} placeholder="Nombre del costo" style={{ flex: 1, fontSize: 13 }} />
+                <input value={c.montoClp} onChange={(e) => setCostos((prev) => prev.map((x, j) => j === i ? { ...x, montoClp: e.target.value.replace(/\D/g, "") } : x))} inputMode="numeric" placeholder="CLP/mes" style={{ width: 110, fontSize: 13 }} />
+                <button className="button ghost" type="button" style={{ fontSize: 12 }} onClick={() => setCostos((prev) => prev.filter((_, j) => j !== i))}>✕</button>
+              </div>
+            ))}
+            <button className="button ghost" type="button" style={{ fontSize: 12, alignSelf: "flex-start" }} onClick={() => setCostos((prev) => [...prev, { nombre: "", montoClp: "0" }])}>
+              + Agregar costo
+            </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 8, marginTop: 6 }}>
+              {([
+                ["comisionMpPct", "Comisión MP (%)"],
+                ["primeraCategoriaPct", "1ª Categoría (%)"],
+                ["cajaDisponibleClp", "Caja disponible (CLP)"],
+                ["margenObjetivoPct", "Margen objetivo (%)"],
+              ] as const).map(([key, label]) => (
+                <label key={key} style={{ fontSize: 11, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 3 }}>
+                  {label}
+                  <input value={params[key]} onChange={(e) => setParams((prev) => ({ ...prev, [key]: e.target.value.replace(/[^\d.]/g, "") }))} inputMode="decimal" style={{ fontSize: 13 }} />
+                </label>
+              ))}
+            </div>
+            <button className="button primary" type="button" disabled={saving} onClick={saveConfig} style={{ alignSelf: "flex-start", marginTop: 4 }}>
+              {saving ? "Guardando…" : "Guardar configuración"}
+            </button>
+          </div>
+        )}
+        {error && <p style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>{error}</p>}
+      </div>
+
+      <p style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic" }}>
+        Tasa 1ª Categoría Pro Pyme: 12,5% vigente 2025-2027, 15% desde 2028 (Ley 21.755). Precios al consumidor incluyen IVA 19%.
+        Este panel es una herramienta de gestión — la declaración formal la hace tu contador con los libros del SII.
+      </p>
     </section>
   );
 }

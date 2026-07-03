@@ -3507,6 +3507,35 @@ export const dailyHealthCheck = onSchedule("every 24 hours", async () => {
     warnings.push(`${stalePendingSnap.size} pagos en estado "pending" por más de 48h`);
   }
 
+  // 5. Semáforo financiero — alerta proactiva si la operación está en rojo
+  try {
+    const finanzas = await computeFinancialHealth();
+    if (finanzas.semaforo === "rojo") {
+      issues.push(`🚦 SEMÁFORO FINANCIERO EN ROJO: ${finanzas.razones.join(" ")}`);
+      const adminsSnap = await db.collection("users").where("role", "==", "admin").limit(5).get();
+      const adminEmails = adminsSnap.docs.map((d) => d.data().email as string).filter(Boolean);
+      if (adminEmails.length > 0) {
+        await sendEmail(
+          adminEmails[0],
+          "🔴 Alerta financiera: la operación está en riesgo",
+          `<p>El semáforo financiero de Perfil Primero pasó a <strong style="color:#dc2626">ROJO</strong>.</p>
+           <ul>${finanzas.razones.map((rz) => `<li>${rz}</li>`).join("")}</ul>
+           <p><strong>Acciones recomendadas:</strong></p>
+           <ul>${finanzas.recomendaciones.map((rec) => `<li>${rec}</li>`).join("")}</ul>
+           <p><a href="${appUrl}/consola-admin" style="background:#dc2626;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Ver salud financiera →</a></p>`
+        ).catch(() => null);
+      }
+      await Promise.all(adminsSnap.docs.map((adminDoc) =>
+        sendFcmToUser(adminDoc.id, "🔴 Semáforo financiero en ROJO",
+          finanzas.razones[0] ?? "La operación requiere acción inmediata.", "/consola-admin").catch(() => null)
+      ));
+    } else if (finanzas.semaforo === "amarillo") {
+      warnings.push(`🚦 Semáforo financiero en amarillo: ${finanzas.razones.join(" ")}`);
+    }
+  } catch {
+    warnings.push("No se pudo calcular el semáforo financiero");
+  }
+
   const status = issues.length > 0 ? "degraded" : warnings.length > 0 ? "warning" : "healthy";
 
   await db.collection("configuracion_sistema").doc("healthCheck").set({
@@ -3514,7 +3543,7 @@ export const dailyHealthCheck = onSchedule("every 24 hours", async () => {
     issues,
     warnings,
     lastCheckedAt: FieldValue.serverTimestamp(),
-    checksRan: 4
+    checksRan: 5
   });
 
   if (issues.length > 0) {
@@ -5270,6 +5299,192 @@ export const getMrrDashboard = onCall(async (request) => {
   const currentMonthRevenue = months[months.length - 1]?.revenue ?? 0;
   return { months, mrr: currentMonthRevenue, arr: currentMonthRevenue * 12 };
 });
+
+// ── Semáforo financiero — salud económica operativa ─────────────────────────
+// Perspectiva Contador Auditor: ingresos confirmados vs costos operativos de
+// plataforma (sin remuneraciones) + impuestos Chile (IVA 19%, 1ª Categoría
+// Pro Pyme 12,5% vigente 2025-2027, 15% desde 2028 — Ley 21.755).
+
+type FinancialCostItem = { nombre: string; montoClp: number };
+
+interface FinancialConfig {
+  costosMensualesClp: FinancialCostItem[];
+  comisionMpPct: number;
+  ivaPct: number;
+  primeraCategoriaPct: number;
+  cajaDisponibleClp: number;
+  margenObjetivoPct: number;
+}
+
+const FINANZAS_DEFAULTS: FinancialConfig = {
+  costosMensualesClp: [
+    { nombre: "Firebase Blaze (hosting, Firestore, Functions, Storage)", montoClp: 25000 },
+    { nombre: "APIs de IA (Gemini / Groq)", montoClp: 15000 },
+    { nombre: "SendGrid (email transaccional)", montoClp: 18000 },
+    { nombre: "Dominio + DNS", montoClp: 1500 },
+    { nombre: "Otros servicios de plataforma", montoClp: 10000 },
+  ],
+  comisionMpPct: 3.49,
+  ivaPct: 19,
+  primeraCategoriaPct: 12.5,
+  cajaDisponibleClp: 0,
+  margenObjetivoPct: 20,
+};
+
+async function getFinancialConfig(): Promise<FinancialConfig> {
+  const snap = await db.collection("configuracion_sistema").doc("finanzas").get();
+  if (!snap.exists) return FINANZAS_DEFAULTS;
+  const d = snap.data()!;
+  return {
+    costosMensualesClp: Array.isArray(d.costosMensualesClp) && d.costosMensualesClp.length
+      ? d.costosMensualesClp : FINANZAS_DEFAULTS.costosMensualesClp,
+    comisionMpPct: Number(d.comisionMpPct ?? FINANZAS_DEFAULTS.comisionMpPct),
+    ivaPct: Number(d.ivaPct ?? FINANZAS_DEFAULTS.ivaPct),
+    primeraCategoriaPct: Number(d.primeraCategoriaPct ?? FINANZAS_DEFAULTS.primeraCategoriaPct),
+    cajaDisponibleClp: Number(d.cajaDisponibleClp ?? 0),
+    margenObjetivoPct: Number(d.margenObjetivoPct ?? FINANZAS_DEFAULTS.margenObjetivoPct),
+  };
+}
+
+export const updateFinancialConfig = onCall<Partial<FinancialConfig>>(async (request) => {
+  const adminId = await assertAdmin(request.auth?.uid);
+  const input = request.data ?? {};
+  const clean: Partial<FinancialConfig> = {};
+  if (Array.isArray(input.costosMensualesClp)) {
+    clean.costosMensualesClp = input.costosMensualesClp
+      .filter((c) => c && typeof c.nombre === "string" && c.nombre.trim())
+      .map((c) => ({ nombre: String(c.nombre).trim().slice(0, 120), montoClp: Math.max(0, Number(c.montoClp) || 0) }))
+      .slice(0, 30);
+  }
+  for (const key of ["comisionMpPct", "ivaPct", "primeraCategoriaPct", "cajaDisponibleClp", "margenObjetivoPct"] as const) {
+    if (input[key] !== undefined) clean[key] = Math.max(0, Number(input[key]) || 0);
+  }
+  await db.collection("configuracion_sistema").doc("finanzas").set(
+    { ...clean, updatedAt: FieldValue.serverTimestamp(), updatedBy: adminId },
+    { merge: true }
+  );
+  await writeAudit(adminId, "admin", "updateFinancialConfig", "config", "finanzas", {});
+  return { ok: true };
+});
+
+export const getFinancialHealth = onCall(async (request) => {
+  await assertAdmin(request.auth?.uid);
+  return computeFinancialHealth();
+});
+
+async function computeFinancialHealth() {
+  const config = await getFinancialConfig();
+  const now = new Date();
+
+  // Ingresos brutos (IVA incluido) de los últimos 3 meses
+  const meses: { label: string; bruto: number; pagos: number }[] = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = Timestamp.fromDate(d);
+    const end = Timestamp.fromDate(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    const snap = await db.collection("payments")
+      .where("status", "==", "paid")
+      .where("createdAt", ">=", start)
+      .where("createdAt", "<", end)
+      .get();
+    meses.push({
+      label: d.toLocaleDateString("es-CL", { month: "long", year: "numeric" }),
+      bruto: snap.docs.reduce((s, doc) => s + Number(doc.data().amount ?? 0), 0),
+      pagos: snap.size,
+    });
+  }
+
+  const mesActual = meses[meses.length - 1];
+  const mesAnterior = meses[meses.length - 2];
+
+  // Desglose tributario del mes actual (precios al consumidor incluyen IVA)
+  const ivaFactor = 1 + config.ivaPct / 100;
+  const ingresoNeto = Math.round(mesActual.bruto / ivaFactor);
+  const ivaDebito = mesActual.bruto - ingresoNeto;
+  const comisionMp = Math.round(mesActual.bruto * (config.comisionMpPct / 100));
+  const costosFijos = config.costosMensualesClp.reduce((s, c) => s + c.montoClp, 0);
+  const costosTotales = costosFijos + comisionMp;
+  const utilidadAntesImpuesto = ingresoNeto - costosTotales;
+  const impuestoPrimeraCategoria = Math.max(0, Math.round(utilidadAntesImpuesto * (config.primeraCategoriaPct / 100)));
+  const utilidadNeta = utilidadAntesImpuesto - impuestoPrimeraCategoria;
+  const margenPct = ingresoNeto > 0 ? Math.round((utilidadNeta / ingresoNeto) * 100) : null;
+
+  // Burn y runway (meses de caja disponibles al ritmo actual)
+  const burnMensual = utilidadNeta < 0 ? -utilidadNeta : 0;
+  const runwayMeses = burnMensual > 0 && config.cajaDisponibleClp > 0
+    ? Math.round((config.cajaDisponibleClp / burnMensual) * 10) / 10
+    : null;
+
+  // Tendencia mes contra mes
+  const brutoAnterior = mesAnterior?.bruto ?? 0;
+  const variacionPct = brutoAnterior > 0
+    ? Math.round(((mesActual.bruto - brutoAnterior) / brutoAnterior) * 100)
+    : null;
+
+  // ── Semáforo ──
+  let semaforo: "verde" | "amarillo" | "rojo";
+  const razones: string[] = [];
+  const recomendaciones: string[] = [];
+
+  if (utilidadNeta < 0) {
+    semaforo = "rojo";
+    razones.push(`La operación quema $${Math.abs(utilidadNeta).toLocaleString("es-CL")} CLP al mes: los costos superan los ingresos netos.`);
+    recomendaciones.push("Revisar y recortar costos variables de plataforma (APIs de IA, servicios no esenciales).");
+    recomendaciones.push("Acelerar conversión de empresas: cada contacto desbloqueado es margen directo.");
+    if (runwayMeses !== null) {
+      razones.push(`Runway estimado: ${runwayMeses} meses de caja al ritmo actual.`);
+      if (runwayMeses < 3) recomendaciones.push("⚠️ URGENTE: menos de 3 meses de caja. Definir plan de contingencia esta semana.");
+    } else if (config.cajaDisponibleClp === 0) {
+      recomendaciones.push("Registrar la caja disponible en la configuración para calcular el runway.");
+    }
+  } else if (runwayMeses !== null && runwayMeses < 3) {
+    semaforo = "rojo";
+    razones.push(`Runway crítico: ${runwayMeses} meses de caja disponibles.`);
+    recomendaciones.push("Priorizar ingresos inmediatos y congelar gastos no esenciales.");
+  } else if (margenPct !== null && margenPct < config.margenObjetivoPct) {
+    semaforo = "amarillo";
+    razones.push(`Margen neto ${margenPct}% bajo el objetivo de ${config.margenObjetivoPct}%.`);
+    recomendaciones.push("Optimizar costos por transacción o evaluar ajuste gradual de tarifas post-lanzamiento.");
+  } else if (variacionPct !== null && variacionPct < -20) {
+    semaforo = "amarillo";
+    razones.push(`Ingresos cayeron ${Math.abs(variacionPct)}% respecto al mes anterior.`);
+    recomendaciones.push("Investigar causa de la caída: churn de empresas, estacionalidad o fricción en el checkout.");
+  } else if (ingresoNeto === 0) {
+    semaforo = "amarillo";
+    razones.push("Sin ingresos confirmados este mes (fase de lanzamiento).");
+    recomendaciones.push("Verificar que el flujo de pagos esté operativo (webhook Mercado Pago) y activar campañas de adquisición de empresas.");
+  } else {
+    semaforo = "verde";
+    razones.push(`Margen neto ${margenPct}% sobre el objetivo, sin caídas relevantes de ingresos.`);
+    recomendaciones.push("Mantener monitoreo mensual y provisionar IVA e impuesto de 1ª categoría en cuenta separada.");
+  }
+
+  return {
+    semaforo,
+    razones,
+    recomendaciones,
+    mes: mesActual.label,
+    resumen: {
+      ingresoBruto: mesActual.bruto,
+      pagosConfirmados: mesActual.pagos,
+      ivaDebito,
+      ingresoNeto,
+      comisionMp,
+      costosFijos,
+      costosTotales,
+      utilidadAntesImpuesto,
+      impuestoPrimeraCategoria,
+      utilidadNeta,
+      margenPct,
+      burnMensual,
+      runwayMeses,
+      variacionPct,
+    },
+    historial: meses,
+    config,
+    generadoEl: new Date().toISOString(),
+  };
+}
 
 // ── Exportar datos a CSV ───────────────────────────────────────────────────
 export const exportWorkerscsv = onCall(async (request) => {

@@ -200,3 +200,58 @@ export async function getAdminDashboard(input?: {
   const result = await callable(input ?? {});
   return result.data as AdminDashboard;
 }
+
+// ── Semáforo financiero ──────────────────────────────────────────────────────
+export interface FinancialCostItem { nombre: string; montoClp: number }
+
+export interface FinancialHealthData {
+  semaforo: "verde" | "amarillo" | "rojo";
+  razones: string[];
+  recomendaciones: string[];
+  mes: string;
+  resumen: {
+    ingresoBruto: number;
+    pagosConfirmados: number;
+    ivaDebito: number;
+    ingresoNeto: number;
+    comisionMp: number;
+    costosFijos: number;
+    costosTotales: number;
+    utilidadAntesImpuesto: number;
+    impuestoPrimeraCategoria: number;
+    utilidadNeta: number;
+    margenPct: number | null;
+    burnMensual: number;
+    runwayMeses: number | null;
+    variacionPct: number | null;
+  };
+  historial: Array<{ label: string; bruto: number; pagos: number }>;
+  config: {
+    costosMensualesClp: FinancialCostItem[];
+    comisionMpPct: number;
+    ivaPct: number;
+    primeraCategoriaPct: number;
+    cajaDisponibleClp: number;
+    margenObjetivoPct: number;
+  };
+  generadoEl: string;
+}
+
+export async function getFinancialHealth() {
+  const callable = httpsCallable(functions, "getFinancialHealth");
+  const result = await callable({});
+  return result.data as FinancialHealthData;
+}
+
+export async function updateFinancialConfig(input: {
+  costosMensualesClp?: FinancialCostItem[];
+  comisionMpPct?: number;
+  ivaPct?: number;
+  primeraCategoriaPct?: number;
+  cajaDisponibleClp?: number;
+  margenObjetivoPct?: number;
+}) {
+  const callable = httpsCallable(functions, "updateFinancialConfig");
+  const result = await callable(input);
+  return result.data as { ok: boolean };
+}
