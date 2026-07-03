@@ -2575,6 +2575,13 @@ function ChangelogView() {
         "feat: E2E smoke test actualizado con selectores correctos (Playwright)",
         "refactor: código FCM muerto eliminado (notifications.ts, usePushNotifications.ts)",
         "fix: texto referidos actualizado — beneficios 30 días activos, no 'próximamente'",
+        "security: pago de desbloqueo verificado (propiedad + invitación + uso único)",
+        "security: cvFileUrl migrado a perfil privado + IA anonimiza CV público",
+        "security: cupones sin lectura de cliente (anti-enumeración de códigos)",
+        "security: perfiles públicos solo visibles para empresas verificadas",
+        "legal: testimonios y casos marcados como ilustrativos (Ley 21.081)",
+        "legal: /empleos sin vacantes ficticias; JobPosting JSON-LD eliminado",
+        "fix: matemática plan ilimitado corregida (breakeven 7 contactos en lanzamiento)",
       ]
     },
     {
