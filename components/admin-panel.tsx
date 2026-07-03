@@ -2552,6 +2552,23 @@ function RoadmapView() {
 function ChangelogView() {
   const versiones = [
     {
+      version: "v1.5.0",
+      fecha: "Jul 2026",
+      cambios: [
+        "Fix: reCAPTCHA placeholder error — App Check eliminado (no hay enforcement en Cloud Functions)",
+        "Fix: topbar mobile — hamburger funcional, layout space-between, altura 56px compacta",
+        "Fix: backToTop no se superpone al bottom nav en móvil (calc + env safe-area-inset)",
+        "Fix: React hydration error #418 — suppressHydrationWarning en html/body",
+        "Fix: api/vitals 404 eliminado — sendBeacon removido de web-vitals.ts",
+        "Fix: botón stuck 'Procesando…' en AuthCard — protección mounted.current ref",
+        "feat: Cloud Function createCoupon + CouponsView con formulario real",
+        "feat: onCompanyPendingVerification — trigger push + email al admin cuando empresa envía perfil",
+        "feat: E2E smoke test actualizado con selectores correctos (Playwright)",
+        "refactor: código FCM muerto eliminado (notifications.ts, usePushNotifications.ts)",
+        "fix: texto referidos actualizado — beneficios 30 días activos, no 'próximamente'",
+      ]
+    },
+    {
       version: "v1.4.0",
       fecha: "Jun 2026",
       cambios: [
