@@ -2873,7 +2873,7 @@ function FinanzasView() {
   const [saving, setSaving] = useState(false);
   const [editConfig, setEditConfig] = useState(false);
   const [costos, setCostos] = useState<Array<{ nombre: string; montoClp: string }>>([]);
-  const [params, setParams] = useState({ comisionMpPct: "", primeraCategoriaPct: "", cajaDisponibleClp: "", margenObjetivoPct: "" });
+  const [params, setParams] = useState({ comisionMpPct: "", primeraCategoriaPct: "", cajaDisponibleClp: "", margenObjetivoPct: "", mesesColchonCaja: "" });
 
   async function load() {
     setLoading(true);
@@ -2888,6 +2888,7 @@ function FinanzasView() {
         primeraCategoriaPct: String(d.config.primeraCategoriaPct),
         cajaDisponibleClp: String(d.config.cajaDisponibleClp),
         margenObjetivoPct: String(d.config.margenObjetivoPct),
+        mesesColchonCaja: String(d.config.mesesColchonCaja),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar la salud financiera.");
@@ -2911,6 +2912,7 @@ function FinanzasView() {
         primeraCategoriaPct: Number(params.primeraCategoriaPct) || 0,
         cajaDisponibleClp: Number(params.cajaDisponibleClp) || 0,
         margenObjetivoPct: Number(params.margenObjetivoPct) || 0,
+        mesesColchonCaja: Number(params.mesesColchonCaja) || 3,
       });
       setEditConfig(false);
       await load();
@@ -2994,6 +2996,52 @@ function FinanzasView() {
         ))}
       </div>
 
+      {/* Caja de sustento mensual */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--heading)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
+          💵 Caja de sustento — cuánto necesitas tener mes a mes
+        </div>
+        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.5 }}>
+          Cubre operación + provisiones tributarias (IVA débito {data.config.ivaPct}% + 1ª categoría). El colchón recomendado
+          es {data.config.mesesColchonCaja} {data.config.mesesColchonCaja === 1 ? "mes" : "meses"} de cobertura.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
+          {[
+            { label: "Caja mínima mensual", value: clp(r.cajaMinimaMensual), sub: `operación ${clp(r.costosTotales)} + provisiones ${clp(r.provisionTributariaMes)}`, color: "var(--heading)" },
+            { label: `Caja de sustento (${data.config.mesesColchonCaja} meses)`, value: clp(r.cajaSustentoRecomendada), sub: "nivel recomendado a mantener", color: "var(--color-primary)" },
+            { label: "Caja disponible hoy", value: r.cajaDisponible > 0 ? clp(r.cajaDisponible) : "Sin registrar", sub: r.cajaDisponible > 0 ? "según configuración" : "regístrala en ✏️ Editar", color: r.cajaDisponible > 0 ? "var(--heading)" : "var(--muted)" },
+            {
+              label: r.brechaCaja >= 0 ? "Excedente sobre sustento" : "Falta para el sustento",
+              value: r.cajaDisponible > 0 ? clp(Math.abs(r.brechaCaja)) : "—",
+              sub: r.cajaDisponible === 0 ? "requiere caja registrada" : r.brechaCaja >= 0 ? "✓ colchón cubierto" : "acumular antes de nuevos gastos",
+              color: r.cajaDisponible === 0 ? "var(--muted)" : r.brechaCaja >= 0 ? "#16a34a" : "#dc2626",
+            },
+          ].map((k, i) => (
+            <div key={i} style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 3 }}>{k.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: k.color }}>{k.value}</div>
+              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 3, lineHeight: 1.4 }}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+        {r.cajaDisponible > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ height: 8, background: "var(--bg-soft)", borderRadius: 6, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, Math.round((r.cajaDisponible / Math.max(1, r.cajaSustentoRecomendada)) * 100))}%`,
+                background: r.brechaCaja >= 0 ? "#16a34a" : r.cajaDisponible >= r.cajaMinimaMensual ? "#ca8a04" : "#dc2626",
+                borderRadius: 6,
+                transition: "width .4s",
+              }} />
+            </div>
+            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>
+              Cobertura: {Math.min(999, Math.round((r.cajaDisponible / Math.max(1, r.cajaSustentoRecomendada)) * 100))}% del nivel de sustento
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Historial 3 meses */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {data.historial.map((m, i) => (
@@ -3030,6 +3078,7 @@ function FinanzasView() {
               <span>1ª Categoría: <strong>{data.config.primeraCategoriaPct}%</strong></span>
               <span>Caja disponible: <strong>{clp(data.config.cajaDisponibleClp)}</strong></span>
               <span>Margen objetivo: <strong>{data.config.margenObjetivoPct}%</strong></span>
+              <span>Colchón de caja: <strong>{data.config.mesesColchonCaja} meses</strong></span>
             </div>
           </>
         ) : (
@@ -3050,6 +3099,7 @@ function FinanzasView() {
                 ["primeraCategoriaPct", "1ª Categoría (%)"],
                 ["cajaDisponibleClp", "Caja disponible (CLP)"],
                 ["margenObjetivoPct", "Margen objetivo (%)"],
+                ["mesesColchonCaja", "Colchón de caja (meses)"],
               ] as const).map(([key, label]) => (
                 <label key={key} style={{ fontSize: 11, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 3 }}>
                   {label}

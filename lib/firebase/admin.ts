@@ -224,6 +224,11 @@ export interface FinancialHealthData {
     burnMensual: number;
     runwayMeses: number | null;
     variacionPct: number | null;
+    provisionTributariaMes: number;
+    cajaMinimaMensual: number;
+    cajaSustentoRecomendada: number;
+    cajaDisponible: number;
+    brechaCaja: number;
   };
   historial: Array<{ label: string; bruto: number; pagos: number }>;
   config: {
@@ -233,6 +238,7 @@ export interface FinancialHealthData {
     primeraCategoriaPct: number;
     cajaDisponibleClp: number;
     margenObjetivoPct: number;
+    mesesColchonCaja: number;
   };
   generadoEl: string;
 }
@@ -250,6 +256,7 @@ export async function updateFinancialConfig(input: {
   primeraCategoriaPct?: number;
   cajaDisponibleClp?: number;
   margenObjetivoPct?: number;
+  mesesColchonCaja?: number;
 }) {
   const callable = httpsCallable(functions, "updateFinancialConfig");
   const result = await callable(input);

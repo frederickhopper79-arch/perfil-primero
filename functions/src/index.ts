@@ -5314,6 +5314,7 @@ interface FinancialConfig {
   primeraCategoriaPct: number;
   cajaDisponibleClp: number;
   margenObjetivoPct: number;
+  mesesColchonCaja: number;
 }
 
 const FINANZAS_DEFAULTS: FinancialConfig = {
@@ -5329,6 +5330,7 @@ const FINANZAS_DEFAULTS: FinancialConfig = {
   primeraCategoriaPct: 12.5,
   cajaDisponibleClp: 0,
   margenObjetivoPct: 20,
+  mesesColchonCaja: 3,
 };
 
 async function getFinancialConfig(): Promise<FinancialConfig> {
@@ -5343,6 +5345,7 @@ async function getFinancialConfig(): Promise<FinancialConfig> {
     primeraCategoriaPct: Number(d.primeraCategoriaPct ?? FINANZAS_DEFAULTS.primeraCategoriaPct),
     cajaDisponibleClp: Number(d.cajaDisponibleClp ?? 0),
     margenObjetivoPct: Number(d.margenObjetivoPct ?? FINANZAS_DEFAULTS.margenObjetivoPct),
+    mesesColchonCaja: Math.max(1, Number(d.mesesColchonCaja ?? FINANZAS_DEFAULTS.mesesColchonCaja)),
   };
 }
 
@@ -5356,7 +5359,7 @@ export const updateFinancialConfig = onCall<Partial<FinancialConfig>>(async (req
       .map((c) => ({ nombre: String(c.nombre).trim().slice(0, 120), montoClp: Math.max(0, Number(c.montoClp) || 0) }))
       .slice(0, 30);
   }
-  for (const key of ["comisionMpPct", "ivaPct", "primeraCategoriaPct", "cajaDisponibleClp", "margenObjetivoPct"] as const) {
+  for (const key of ["comisionMpPct", "ivaPct", "primeraCategoriaPct", "cajaDisponibleClp", "margenObjetivoPct", "mesesColchonCaja"] as const) {
     if (input[key] !== undefined) clean[key] = Math.max(0, Number(input[key]) || 0);
   }
   await db.collection("configuracion_sistema").doc("finanzas").set(
@@ -5421,6 +5424,16 @@ async function computeFinancialHealth() {
     ? Math.round(((mesActual.bruto - brutoAnterior) / brutoAnterior) * 100)
     : null;
 
+  // ── Caja de sustento ──
+  // Lo que hay que tener disponible cada mes para que la operación se sostenga:
+  // costos de operar + provisiones tributarias del período (IVA débito que se
+  // paga al SII en el F29 del mes siguiente + provisión de 1ª categoría).
+  const provisionTributariaMes = ivaDebito + impuestoPrimeraCategoria;
+  const cajaMinimaMensual = costosTotales + provisionTributariaMes;
+  // Colchón recomendado: N meses de operación cubiertos (default 3).
+  const cajaSustentoRecomendada = cajaMinimaMensual * config.mesesColchonCaja;
+  const brechaCaja = config.cajaDisponibleClp - cajaSustentoRecomendada;
+
   // ── Semáforo ──
   let semaforo: "verde" | "amarillo" | "rojo";
   const razones: string[] = [];
@@ -5441,6 +5454,14 @@ async function computeFinancialHealth() {
     semaforo = "rojo";
     razones.push(`Runway crítico: ${runwayMeses} meses de caja disponibles.`);
     recomendaciones.push("Priorizar ingresos inmediatos y congelar gastos no esenciales.");
+  } else if (config.cajaDisponibleClp > 0 && config.cajaDisponibleClp < cajaMinimaMensual) {
+    semaforo = "rojo";
+    razones.push(`La caja disponible ($${config.cajaDisponibleClp.toLocaleString("es-CL")} CLP) no cubre ni un mes de operación con provisiones ($${cajaMinimaMensual.toLocaleString("es-CL")} CLP).`);
+    recomendaciones.push("Inyectar caja o recortar costos de inmediato: sin un mes de cobertura cualquier imprevisto detiene la plataforma.");
+  } else if (config.cajaDisponibleClp > 0 && brechaCaja < 0) {
+    semaforo = "amarillo";
+    razones.push(`Caja bajo el nivel de sustento: faltan $${Math.abs(brechaCaja).toLocaleString("es-CL")} CLP para cubrir ${config.mesesColchonCaja} meses de operación.`);
+    recomendaciones.push(`Acumular caja hasta $${cajaSustentoRecomendada.toLocaleString("es-CL")} CLP antes de asumir nuevos gastos fijos.`);
   } else if (margenPct !== null && margenPct < config.margenObjetivoPct) {
     semaforo = "amarillo";
     razones.push(`Margen neto ${margenPct}% bajo el objetivo de ${config.margenObjetivoPct}%.`);
@@ -5479,6 +5500,11 @@ async function computeFinancialHealth() {
       burnMensual,
       runwayMeses,
       variacionPct,
+      provisionTributariaMes,
+      cajaMinimaMensual,
+      cajaSustentoRecomendada,
+      cajaDisponible: config.cajaDisponibleClp,
+      brechaCaja,
     },
     historial: meses,
     config,
