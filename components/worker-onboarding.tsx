@@ -1930,7 +1930,7 @@ export function WorkerOnboarding() {
                 <button className="button secondary" type="button" onClick={handleCopyReferral} style={{ marginTop: 6 }}>
                   {copiedRef ? "✓ Enlace copiado" : "Copiar enlace de referido"}
                 </button>
-                <p className="helperText">Cuando alguien se registra con tu enlace, aparece vinculado a tu cuenta. Próximamente se habilitarán beneficios por referido.</p>
+                <p className="helperText">Por cada amigo que active su perfil con tu enlace, <strong>ambos ganan 30 días gratis</strong>. Revisa tu historial en la pestaña Herramientas.</p>
               </div>
             </section>
           ) : null}
