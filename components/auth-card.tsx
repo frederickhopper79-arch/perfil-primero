@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { ensureUserRecord, getUserRole, loginWithEmail, loginWithGoogle, logout, registerWithEmail, resetPassword } from "@/lib/firebase/auth";
 import type { UserRole } from "@/lib/domain/types";
 import { GoogleIcon } from "./brand-icons";
@@ -19,6 +19,9 @@ export function AuthCard({
   const [mode, setMode] = useState<"register" | "login" | "reset">(isInstitutional ? "login" : "register");
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const safeSet = <T,>(setter: (v: T) => void) => (v: T) => { if (mounted.current) setter(v); };
 
   function passwordStrength(p: string): 0 | 1 | 2 | 3 | 4 {
     if (!p) return 0;
@@ -43,18 +46,18 @@ export function AuthCard({
       return;
     }
 
-    setIsLoading(true);
-    setStatus("Procesando...");
+    safeSet(setIsLoading)(true);
+    safeSet(setStatus)("Procesando...");
 
     if (mode === "reset") {
       try {
         await resetPassword(trimmedEmail);
-        setStatus("Correo de recuperación enviado. Revisa tu bandeja de entrada.");
-        setMode("login");
+        safeSet(setStatus)("Correo de recuperación enviado. Revisa tu bandeja de entrada.");
+        safeSet(setMode)("login");
       } catch {
-        setStatus("No se pudo enviar el correo. Verifica que esté registrado.");
+        safeSet(setStatus)("No se pudo enviar el correo. Verifica que esté registrado.");
       } finally {
-        setIsLoading(false);
+        safeSet(setIsLoading)(false);
       }
       return;
     }
@@ -67,39 +70,39 @@ export function AuthCard({
       await ensureUserRecord(user.uid, user.email ?? trimmedEmail, role);
       await assertExpectedRole(user.uid);
       onReady(user.uid, user.email ?? trimmedEmail);
-      setStatus("Sesión lista.");
+      safeSet(setStatus)("Sesión lista.");
     } catch (error) {
       const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("email-already-in-use")) setStatus("Este correo ya tiene una cuenta. Inicia sesión.");
-      else if (msg.includes("wrong-password") || msg.includes("invalid-credential")) setStatus("Contraseña incorrecta. Inténtalo de nuevo.");
-      else if (msg.includes("user-not-found")) setStatus("No hay cuenta con ese correo. ¿Quieres crear una?");
-      else if (msg.includes("too-many-requests")) setStatus("Demasiados intentos. Espera unos minutos e inténtalo de nuevo.");
-      else setStatus(msg || "No se pudo iniciar sesión. Intenta de nuevo.");
+      if (msg.includes("email-already-in-use")) safeSet(setStatus)("Este correo ya tiene una cuenta. Inicia sesión.");
+      else if (msg.includes("wrong-password") || msg.includes("invalid-credential")) safeSet(setStatus)("Contraseña incorrecta. Inténtalo de nuevo.");
+      else if (msg.includes("user-not-found")) safeSet(setStatus)("No hay cuenta con ese correo. ¿Quieres crear una?");
+      else if (msg.includes("too-many-requests")) safeSet(setStatus)("Demasiados intentos. Espera unos minutos e inténtalo de nuevo.");
+      else safeSet(setStatus)(msg || "No se pudo iniciar sesión. Intenta de nuevo.");
     } finally {
-      setIsLoading(false);
+      safeSet(setIsLoading)(false);
     }
   }
 
   async function handleGoogle() {
     if (isLoading) return;
-    setIsLoading(true);
-    setStatus("");
+    safeSet(setIsLoading)(true);
+    safeSet(setStatus)("");
     try {
       const user = await loginWithGoogle(role);
       await assertExpectedRole(user.uid);
       onReady(user.uid, user.email ?? "");
-      setStatus("Sesión lista.");
+      safeSet(setStatus)("Sesión lista.");
     } catch (error) {
       const msg = error instanceof Error ? error.message : "";
       if (msg.includes("popup-closed") || msg.includes("popup-blocked")) {
-        setStatus("El navegador bloqueó el popup. Permite ventanas emergentes para este sitio e intenta de nuevo.");
+        safeSet(setStatus)("El navegador bloqueó el popup. Permite ventanas emergentes para este sitio e intenta de nuevo.");
       } else if (msg.includes("cancelled-popup-request")) {
-        setStatus("Solicitud cancelada. Inténtalo de nuevo.");
+        safeSet(setStatus)("Solicitud cancelada. Inténtalo de nuevo.");
       } else {
-        setStatus(msg || "No se pudo iniciar con Google. Inténtalo de nuevo.");
+        safeSet(setStatus)(msg || "No se pudo iniciar con Google. Inténtalo de nuevo.");
       }
     } finally {
-      setIsLoading(false);
+      safeSet(setIsLoading)(false);
     }
   }
 

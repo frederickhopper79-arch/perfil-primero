@@ -22,11 +22,7 @@ function sendToAnalytics(metric: Metric) {
         non_interaction: true,
       });
     }
-    // Enviar también vía navigator.sendBeacon para confiabilidad
-    const body = JSON.stringify({ metric: metric.name, value: metric.value, rating: metric.rating });
-    if ("sendBeacon" in navigator) {
-      navigator.sendBeacon("/api/vitals", body);
-    }
+    // Static export: no hay API routes, solo gtag
   } catch {
     // nunca propagar errores de analytics
   }

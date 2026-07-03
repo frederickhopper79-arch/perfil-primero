@@ -61,7 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-CL">
+    <html lang="es-CL" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -72,7 +72,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://cloudfunctions.net" />
         <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
-        <link rel="preload" href="/isotipo.png" as="image" />
         <link rel="icon" href="/isotipo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/isotipo.png" />
         <link rel="alternate" type="application/rss+xml" title="Blog Perfil Primero" href="/feed.xml" />
@@ -152,7 +151,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <a href="#main-content" className="skipLink">Saltar al contenido</a>
         <SiteTopbar />
         <ToastProvider>

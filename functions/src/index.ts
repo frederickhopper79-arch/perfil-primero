@@ -7,7 +7,7 @@ import { FieldValue, getFirestore, Query, Timestamp } from "firebase-admin/fires
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import type { CallableOptions } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import Stripe from "stripe";
 import { GoogleGenAI, Type } from "@google/genai";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -5323,6 +5323,54 @@ export const onContactTicketCreated = onDocumentCreated(
       )
     );
     log("INFO", "contact_ticket_push_sent", { subject, assignedTo, userType, admins: adminsSnap.size });
+  }
+);
+
+// ── Trigger: notificación admin cuando empresa pasa a revisión pendiente ─────
+export const onCompanyPendingVerification = onDocumentWritten(
+  { document: "companyProfiles/{companyId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!after) return;
+
+    const wasPending = before?.verificationStatus === "pending";
+    const isPending = after.verificationStatus === "pending";
+    if (wasPending || !isPending) return; // solo cuando CAMBIA a pending
+
+    const companyName: string = after.companyName ?? "Sin nombre";
+    const companyId = event.params.companyId;
+
+    // Push a todos los admins
+    const adminsSnap = await db.collection("users").where("role", "==", "admin").limit(5).get();
+    if (!adminsSnap.empty) {
+      await Promise.all(
+        adminsSnap.docs.map(adminDoc =>
+          sendFcmToUser(
+            adminDoc.id,
+            "Nueva empresa pendiente de verificación",
+            `${companyName} envió su perfil para revisión`,
+            "/consola-admin"
+          ).catch(() => null)
+        )
+      );
+    }
+
+    // Email al admin principal
+    const adminEmails: string[] = adminsSnap.docs
+      .map(d => d.data().email as string)
+      .filter(Boolean);
+
+    if (adminEmails.length > 0) {
+      await sendEmail(
+        adminEmails[0],
+        `Nueva empresa pendiente: ${companyName}`,
+        `<p>La empresa <strong>${companyName}</strong> (ID: <code>${companyId}</code>) acaba de enviar su perfil para revisión.</p>
+         <p><a href="${appUrl}/consola-admin" style="background:#0094d4;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:8px">Revisar en consola →</a></p>`
+      );
+    }
+
+    log("INFO", "company_pending_notification_sent", { companyId, companyName, admins: adminsSnap.size });
   }
 );
 
