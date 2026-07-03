@@ -1655,7 +1655,7 @@ export const sendConversationMessage = onCall<{ invitationId: string; body: stri
     throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
-  checkRateLimit(senderId, "sendMessage", 30, 60_000);
+  await checkRateLimitPersistent(senderId, "sendMessage", 30, 60_000);
 
   const body = String(request.data.body ?? "").trim();
 

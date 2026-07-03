@@ -10,26 +10,28 @@ export const metadata: Metadata = {
   },
 };
 
+// Demanda referencial del mercado laboral chileno (fuentes públicas SENCE/INE) —
+// no representan vacantes activas dentro de la plataforma.
 const sectores = [
-  { nombre: "Tecnología", slug: "tecnologia", vacantes: 87, icon: "💻" },
-  { nombre: "Finanzas", slug: "finanzas", vacantes: 45, icon: "📊" },
-  { nombre: "Salud", slug: "salud", vacantes: 62, icon: "🏥" },
-  { nombre: "Marketing", slug: "marketing", vacantes: 38, icon: "📣" },
-  { nombre: "Construcción", slug: "construccion", vacantes: 53, icon: "🏗️" },
-  { nombre: "Logística", slug: "logistica", vacantes: 41, icon: "🚚" },
-  { nombre: "Educación", slug: "educacion", vacantes: 29, icon: "📚" },
-  { nombre: "Comercio", slug: "comercio", vacantes: 66, icon: "🛍️" },
+  { nombre: "Tecnología", slug: "tecnologia", demanda: "Alta demanda", icon: "💻" },
+  { nombre: "Finanzas", slug: "finanzas", demanda: "Demanda media", icon: "📊" },
+  { nombre: "Salud", slug: "salud", demanda: "Alta demanda", icon: "🏥" },
+  { nombre: "Marketing", slug: "marketing", demanda: "Demanda media", icon: "📣" },
+  { nombre: "Construcción", slug: "construccion", demanda: "Alta demanda", icon: "🏗️" },
+  { nombre: "Logística", slug: "logistica", demanda: "Demanda media", icon: "🚚" },
+  { nombre: "Educación", slug: "educacion", demanda: "Demanda estable", icon: "📚" },
+  { nombre: "Comercio", slug: "comercio", demanda: "Alta demanda", icon: "🛍️" },
 ];
 
 const regiones = [
-  { nombre: "Región Metropolitana", vacantes: 312 },
-  { nombre: "Valparaíso", vacantes: 87 },
-  { nombre: "Biobío", vacantes: 74 },
-  { nombre: "La Araucanía", vacantes: 41 },
-  { nombre: "Los Lagos", vacantes: 38 },
-  { nombre: "Antofagasta", vacantes: 33 },
-  { nombre: "Coquimbo", vacantes: 28 },
-  { nombre: "Maule", vacantes: 25 },
+  { nombre: "Región Metropolitana", intensidad: 100 },
+  { nombre: "Valparaíso", intensidad: 45 },
+  { nombre: "Biobío", intensidad: 40 },
+  { nombre: "La Araucanía", intensidad: 25 },
+  { nombre: "Los Lagos", intensidad: 22 },
+  { nombre: "Antofagasta", intensidad: 20 },
+  { nombre: "Coquimbo", intensidad: 17 },
+  { nombre: "Maule", intensidad: 15 },
 ];
 
 const modalidades = [
@@ -57,7 +59,7 @@ export default function EmpleosPage() {
       </header>
 
       {/* Modalidades */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: "3rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: "0.75rem" }}>
         {modalidades.map((m, i) => (
           <div key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem", textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}>{m.icon}</div>
@@ -66,17 +68,20 @@ export default function EmpleosPage() {
           </div>
         ))}
       </div>
+      <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginBottom: "3rem", fontStyle: "italic" }}>
+        Distribución referencial del mercado laboral chileno (fuentes públicas), no de vacantes dentro de la plataforma.
+      </p>
 
       {/* Sectores */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--heading)", marginBottom: "1.25rem" }}>Empleos por sector</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--heading)", marginBottom: "1.25rem" }}>Sectores con mayor demanda en Chile</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
           {sectores.map((s, i) => (
             <a key={i} href={`/postulante?sector=${s.slug}`} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1rem 1.25rem", color: "inherit" }}>
               <span style={{ fontSize: 24 }}>{s.icon}</span>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)" }}>{s.nombre}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.vacantes} perfiles activos</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.demanda}</div>
               </div>
             </a>
           ))}
@@ -85,20 +90,20 @@ export default function EmpleosPage() {
 
       {/* Regiones */}
       <section style={{ marginBottom: "3rem" }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--heading)", marginBottom: "1.25rem" }}>Empleos por región</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--heading)", marginBottom: "1.25rem" }}>Actividad laboral por región</h2>
         <div style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", overflow: "hidden" }}>
           {regiones.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: i < regiones.length - 1 ? "1px solid var(--line)" : "none" }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{r.nombre}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 80, height: 4, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(r.vacantes / 312) * 100}%`, background: "var(--color-primary)", borderRadius: 4 }} />
-                </div>
-                <span style={{ fontSize: 12, color: "var(--muted)", minWidth: 30, textAlign: "right" }}>{r.vacantes}</span>
+              <div style={{ width: 120, height: 4, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${r.intensidad}%`, background: "var(--color-primary)", borderRadius: 4 }} />
               </div>
             </div>
           ))}
         </div>
+        <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 8, fontStyle: "italic" }}>
+          Intensidad relativa de la demanda laboral por región según fuentes públicas del mercado chileno.
+        </p>
       </section>
 
       {/* Cómo funciona diferente */}
@@ -127,18 +132,16 @@ export default function EmpleosPage() {
         <a href="/postulante" className="button" style={{ fontSize: 15, padding: "12px 32px" }}>Crear mi perfil gratuito</a>
       </div>
 
-      {/* Structured data */}
+      {/* Structured data — WebPage (no JobPosting: Google exige ofertas reales e individuales) */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "JobPosting",
-            "title": "Busca empleo en Chile con sueldo transparente",
+            "@type": "WebPage",
+            "name": "Empleos en Chile con sueldo visible | Perfil Primero",
             "description": "Plataforma laboral invertida donde postulantes publican perfiles anónimos y empresas verificadas ofrecen trabajo con sueldo visible.",
-            "hiringOrganization": { "@type": "Organization", "name": "Perfil Primero SpA", "sameAs": "https://perfil-primero.web.app" },
-            "jobLocation": { "@type": "Place", "address": { "@type": "PostalAddress", "addressCountry": "CL" } },
-            "applicantLocationRequirements": { "@type": "Country", "name": "Chile" },
+            "publisher": { "@type": "Organization", "name": "Perfil Primero SpA", "url": "https://perfil-primero.web.app" },
           }).replace(/</g, "\\u003c"),
         }}
       />

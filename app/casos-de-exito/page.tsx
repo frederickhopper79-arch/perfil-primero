@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Casos de Éxito | Empresas y Trabajadores que encontraron el match perfecto",
-  description: "Historias reales de trabajadores y empresas que usaron Perfil Primero. Conoce cómo el modelo invertido transformó sus procesos de selección.",
+  description: "Casos ilustrativos de cómo el modelo invertido de Perfil Primero mejora los procesos de selección para trabajadores y empresas en Chile.",
   alternates: { canonical: "https://perfil-primero.web.app/casos-de-exito" },
 };
 
@@ -73,7 +73,7 @@ export default function CasosDeExitoPage() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Resultados reales</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>El modelo en acción</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Empresas y profesionales que encontraron el match perfecto</h1>
         <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
           Casos ilustrativos del modelo Perfil Primero: cómo la transparencia salarial y el modelo invertido mejoran los procesos de selección.

@@ -12,8 +12,7 @@ import {
   setDoc,
   startAfter,
   updateDoc,
-  where,
-  writeBatch
+  where
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -156,7 +155,14 @@ export async function listVisibleWorkers(options?: {
   ];
 
   const q = query(collection(db, "workerPublicProfiles"), ...constraints);
-  const snap = await getDocs(q);
+  let snap;
+  try {
+    snap = await getDocs(q);
+  } catch {
+    // Empresas no verificadas no tienen permiso de lectura (reglas de anonimato):
+    // reciben perfiles de demostración hasta que pasen la verificación.
+    return { workers: options?.cursor ? [] : demoPostulants, hasMore: false, lastDoc: null };
+  }
   const hasMore = snap.docs.length > pageSize;
   const docs = hasMore ? snap.docs.slice(0, pageSize) : snap.docs;
   let workers = docs.map((item) => item.data() as WorkerPublicProfile);
@@ -165,19 +171,8 @@ export async function listVisibleWorkers(options?: {
     workers = workers.filter((w) => w.expectedSalaryMin <= options.salaryMax!);
   }
 
-  if (docs.length) {
-    const CHUNK = 400;
-    for (let i = 0; i < docs.length; i += CHUNK) {
-      const batch = writeBatch(db);
-      docs.slice(i, i + CHUNK).forEach((d) => {
-        batch.update(d.ref, {
-          "analytics.totalImpressions": increment(1),
-          "analytics.weekImpressions": increment(1)
-        });
-      });
-      batch.commit().catch(() => {});
-    }
-  }
+  // Las impresiones se registran vía Cloud Function recordProfileImpression
+  // (el cliente no tiene permiso de update sobre perfiles ajenos).
 
   const result = workers.length ? workers : (options?.cursor ? [] : demoPostulants);
   return {

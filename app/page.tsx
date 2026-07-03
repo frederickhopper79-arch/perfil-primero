@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from "next";
-import { BadgeCheck, Building2, ChevronRight, Eye, Lock, Shield, Star, TrendingUp, Users, Zap } from "lucide-react";
+import { BadgeCheck, Building2, ChevronRight, Eye, Lock, Shield, TrendingUp, Users, Zap } from "lucide-react";
 import { SocialProofCounter } from "@/components/social-proof-counter";
 
 export const metadata: Metadata = {
@@ -211,18 +211,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Testimoniales ── */}
-      <section className="homeTestimonials" aria-label="Testimonios de usuarios">
+      {/* ── Testimoniales ilustrativos ── */}
+      <section className="homeTestimonials" aria-label="Ejemplos de experiencias en la plataforma">
         <div className="homeTestimonialsHeader">
-          <p className="eyebrow">Lo dicen quienes lo usaron</p>
-          <h2>Resultados reales de personas reales</h2>
+          <p className="eyebrow">Así funciona el modelo</p>
+          <h2>La experiencia que Perfil Primero hace posible</h2>
         </div>
         <div className="homeTestimonialsGrid">
           {testimonials.map((t) => (
             <article key={t.name} className="homeTestimonialCard">
-              <div className="homeTestimonialStars" aria-label="5 estrellas">
-                {[1,2,3,4,5].map((i) => <Star key={i} size={14} fill="currentColor" aria-hidden="true" />)}
-              </div>
               <blockquote className="homeTestimonialQuote">"{t.quote}"</blockquote>
               <div className="homeTestimonialAuthor">
                 <span className="homeTestimonialIcon">{t.icon}</span>
@@ -234,6 +231,9 @@ export default function Home() {
             </article>
           ))}
         </div>
+        <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 12, fontStyle: "italic" }}>
+          Historias ilustrativas del modelo. Publicaremos testimonios reales verificados a medida que se concreten contrataciones.
+        </p>
       </section>
 
       {/* ── Herramientas gratuitas ── */}

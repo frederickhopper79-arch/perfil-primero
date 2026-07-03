@@ -77,8 +77,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    function isVerifiedCompany() {
+      return isCompany()
+        && get(/databases/$(database)/documents/companyProfiles/$(request.auth.uid)).data.verificationStatus == "verified";
+    }
+
     match /workerPublicProfiles/{workerId} {
-      allow read: if signedIn();
+      // Anonimato: solo el dueño, admin, la OMIL que lo creó o empresas VERIFICADAS.
+      // Empresas pendientes ven perfiles de demostración en la UI.
+      allow read: if isOwner(workerId)
+        || isAdmin()
+        || (isOmil() && resource.data.createdByOmilId == request.auth.uid)
+        || isVerifiedCompany();
       allow create: if isOwner(workerId) && isWorker() && ownerCreatesWorkerDraft();
       allow update: if isAdmin() || (isOwner(workerId) && isWorker() && ownerUpdatesWorkerProfile());
       allow delete: if isAdmin();

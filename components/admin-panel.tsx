@@ -2295,7 +2295,7 @@ const TAREAS_PENDIENTES: TareaPendiente[] = [
   {
     id: "ga4-measurement-id",
     titulo: "Confirmar que GA4 Measurement ID está activo",
-    detalle: "Verificar que NEXT_PUBLIC_GA_MEASUREMENT_ID en .env.local corresponde a una propiedad GA4 activa y que los eventos de conversión (checkout_completed, invitation_accepted) están configurados como conversiones en Google Analytics.",
+    detalle: "Verificar que NEXT_PUBLIC_GA_ID en .env.local corresponde a una propiedad GA4 activa y que los eventos de conversión (checkout_completed, invitation_accepted) están configurados como conversiones en Google Analytics.",
     prioridad: "medio",
     categoria: "Marketing / Analytics",
     accion: "Google Analytics",

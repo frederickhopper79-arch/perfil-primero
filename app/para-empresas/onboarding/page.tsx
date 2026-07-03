@@ -51,7 +51,7 @@ const pasos = [
     tips: [
       "El candidato también ve tus datos de contacto cuando acepta",
       "Te recomendamos contactar dentro de las primeras 24 horas: la motivación es máxima",
-      "El plan mensual ilimitado es más conveniente si tienes más de 3 búsquedas activas",
+      "El plan mensual ilimitado ($29.990) conviene si desbloqueas 7 o más contactos al mes con precio de lanzamiento",
     ],
     estado: "pago",
   },

@@ -41,14 +41,16 @@ const accounts = [
     mode: process.env.E2E_COMPANY_EMAIL ? "login" : "register",
     expected: /buscar talento|panel.*empresa|cerrar sesion|dashboard|verificac/i
   },
-  {
+  // Admin solo se prueba si las credenciales llegan por variables de entorno —
+  // nunca contraseñas hardcodeadas en el repo.
+  ...(process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD ? [{
     role: "admin",
     path: "/consola-admin",
-    email: process.env.E2E_ADMIN_EMAIL ?? "admin@perfilprimero.cl",
-    password: process.env.E2E_ADMIN_PASSWORD ?? "1234",
+    email: process.env.E2E_ADMIN_EMAIL,
+    password: process.env.E2E_ADMIN_PASSWORD,
     mode: "login",
     expected: /consola operativa|control interno|empresas|pagos/i
-  }
+  }] : [])
 ];
 
 const chromePath = process.env.CHROME_PATH ??

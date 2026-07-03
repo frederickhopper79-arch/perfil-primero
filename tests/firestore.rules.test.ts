@@ -34,12 +34,28 @@ beforeEach(async () => {
     const db = context.firestore();
     await setDoc(doc(db, "users/worker-1"), { role: "worker", status: "active" });
     await setDoc(doc(db, "users/company-1"), { role: "company", status: "active" });
+    await setDoc(doc(db, "users/company-2"), { role: "company", status: "active" });
     await setDoc(doc(db, "users/admin-1"), { role: "admin", status: "active" });
     await setDoc(doc(db, "users/omil-1"), { role: "omil", status: "active" });
     await setDoc(doc(db, "workerPublicProfiles/worker-1"), {
       workerId: "worker-1",
       subscriptionStatus: "inactive",
       visibilityStatus: "hidden"
+    });
+    await setDoc(doc(db, "workerPublicProfiles/omil-worker-1"), {
+      workerId: "omil-worker-1",
+      subscriptionStatus: "inactive",
+      visibilityStatus: "hidden",
+      createdByOmilId: "omil-1"
+    });
+    await setDoc(doc(db, "companyProfiles/company-2"), {
+      companyId: "company-2",
+      verificationStatus: "verified"
+    });
+    await setDoc(doc(db, "coupons/TEST10"), {
+      couponCode: "TEST10",
+      discountPercent: 10,
+      active: true
     });
     await setDoc(doc(db, "workerPrivateProfiles/worker-1"), {
       workerId: "worker-1",
@@ -98,8 +114,25 @@ describe("Firestore Rules - Perfil Primero", () => {
     await assertFails(getDoc(doc(anon(), "workerPrivateProfiles/worker-1")));
   });
 
-  it("permite leer perfiles publicos solo a usuarios autenticados", async () => {
-    await assertSucceeds(getDoc(doc(authed("company-1"), "workerPublicProfiles/worker-1")));
+  it("bloquea perfiles publicos a empresas NO verificadas (anonimato)", async () => {
+    await assertFails(getDoc(doc(authed("company-1"), "workerPublicProfiles/worker-1")));
+  });
+
+  it("permite perfiles publicos a empresas verificadas, dueño y admin", async () => {
+    await assertSucceeds(getDoc(doc(authed("company-2"), "workerPublicProfiles/worker-1")));
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "workerPublicProfiles/worker-1")));
+    await assertSucceeds(getDoc(doc(authed("admin-1"), "workerPublicProfiles/worker-1")));
+  });
+
+  it("permite a OMIL leer solo los perfiles que creó", async () => {
+    await assertSucceeds(getDoc(doc(authed("omil-1"), "workerPublicProfiles/omil-worker-1")));
+    await assertFails(getDoc(doc(authed("omil-1"), "workerPublicProfiles/worker-1")));
+  });
+
+  it("bloquea lectura de cupones a todos los clientes (anti-enumeración)", async () => {
+    await assertFails(getDoc(doc(authed("worker-1"), "coupons/TEST10")));
+    await assertFails(getDoc(doc(authed("company-2"), "coupons/TEST10")));
+    await assertFails(getDocs(collection(authed("company-1"), "coupons")));
   });
 
   it("bloquea datos privados del postulante a empresas no desbloqueadas", async () => {

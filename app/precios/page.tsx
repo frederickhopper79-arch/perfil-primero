@@ -146,10 +146,10 @@ export default function PreciosPage() {
             <li><BadgeCheck size={16} aria-hidden="true" /> Búsqueda ilimitada de perfiles</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Alertas automáticas de candidatos</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Panel de seguimiento por candidato</li>
-            <li><BadgeCheck size={16} aria-hidden="true" /> Equivale a 3 contactos individuales</li>
+            <li><BadgeCheck size={16} aria-hidden="true" /> Equivale a 3 contactos a precio normal</li>
           </ul>
           <a className="button primary full" href="/empresa">Contratar plan ilimitado</a>
-          <p className="pricingNote">Ideal si contratas 4 o más personas al mes. Desde el 4.° es gratis.</p>
+          <p className="pricingNote">Conviene desde 7 desbloqueos al mes con precio de lanzamiento (desde el 4.° a precio normal).</p>
         </article>
       </section>
 
@@ -233,7 +233,7 @@ export default function PreciosPage() {
           </details>
           <details className="faqItem">
             <summary>¿Cuándo conviene el plan ilimitado?</summary>
-            <p>Si esperas desbloquear 4 o más contactos en el mes, el plan ilimitado es más económico. A partir del 4.º contacto, cada uno sale gratis comparado con el pago por contacto.</p>
+            <p>Con el precio de lanzamiento ($4.990 por contacto), el plan ilimitado de $29.990 conviene si esperas desbloquear 7 o más contactos en el mes. Cuando rija el precio normal ($9.990), convendrá a partir del 4.º contacto.</p>
           </details>
           <details className="faqItem">
             <summary>¿Qué pasa si mi perfil vence?</summary>
