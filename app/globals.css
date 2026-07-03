@@ -6173,7 +6173,8 @@ textarea {
     overflow-x: hidden;
   }
 
-  .topbar {
+  /* Workspace topbars internos — no aplica al siteTopbar */
+  .topbar:not(.siteTopbar) {
     align-items: stretch;
     border-radius: 0 0 20px 20px;
     gap: 12px;
@@ -6186,7 +6187,7 @@ textarea {
   }
 
   .brandLogo {
-    height: 36px;
+    height: 32px;
     width: auto;
   }
 
@@ -10884,13 +10885,16 @@ textarea {
 
 /* ── Mobile fixes (≤ 820px): topbar ── */
 @media (max-width: 820px) {
-  /* Ocultar nav completo en mobile — los botones ya están en el hero */
-  .siteTopbar nav {
+  /* Ocultar solo nav desktop — la nav móvil debe permanecer visible al abrirse */
+  .siteTopbar .topbarNavDesktop {
     display: none !important;
   }
 
   .siteTopbar {
-    justify-content: flex-start;
+    justify-content: space-between;
+    padding: 0 16px;
+    min-height: 56px;
+    align-items: center;
   }
 
   /* Perfiles anónimos: card en columna para que no desborden */
@@ -12333,6 +12337,34 @@ nav[aria-label="Breadcrumb"] ol li a:hover { text-decoration: underline; }
 .profileCard,
 .resultCard {
   contain: layout style;
+}
+
+/* ── Volver arriba ───────────────────────────────────────────────────── */
+.backToTopBtn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(10,102,194,0.35);
+  font-size: 18px;
+}
+@media (max-width: 620px) {
+  .backToTopBtn {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
 }
 
 /* ── Barra de progreso de lectura ─────────────────────────────────────── */
