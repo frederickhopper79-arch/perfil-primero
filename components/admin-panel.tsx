@@ -2239,6 +2239,15 @@ const TAREAS_PENDIENTES: TareaPendiente[] = [
     categoria: "API / Infraestructura",
   },
   {
+    id: "sendgrid-from-email",
+    titulo: "SENDGRID_FROM_EMAIL no configurado — emails rebotan",
+    detalle: "El remitente actual es contacto@perfil-primero.cl (default). Como ese dominio no existe, SendGrid rechaza los envíos o van a spam. Solución: (1) verificar un Single Sender en SendGrid con un email real, (2) agregar SENDGRID_FROM_EMAIL=ese-email en functions/.env, (3) redesplegar.",
+    prioridad: "critico",
+    categoria: "API / Infraestructura",
+    accion: "SendGrid Senders",
+    urlAccion: "https://app.sendgrid.com/settings/sender_auth",
+  },
+  {
     id: "gemini-key-rotation",
     titulo: "Rotar GEMINI_API_KEY — clave expuesta en historial git",
     detalle: "La clave AQ.Ab8RN6II… quedó registrada en .claude/settings.local.json antes de ser eliminada del historial via filter-branch. Aunque el historial está limpio, la clave podría haber sido indexada. Revocarla en GCP Console → APIs & Services → Credentials y generar una nueva. Actualizar functions/.env y redesplegar.",
