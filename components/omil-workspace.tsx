@@ -410,8 +410,8 @@ export function OmilWorkspace() {
               Modalidad
               <select value={form.workMode} onChange={(event) => update("workMode", event.target.value)}>
                 <option value="onsite">Presencial</option>
-                <option value="hybrid">Híbrida</option>
-                <option value="remote">Remota</option>
+                <option value="hybrid">Híbrido</option>
+                <option value="remote">Remoto</option>
               </select>
             </label>
             <label>
@@ -492,7 +492,7 @@ export function OmilWorkspace() {
                   className="button ghost"
                   style={{ fontSize: 12, color: "#dc2626" }}
                   onClick={() => {
-                    setForm({ legalName: "", email: "", phone: "", headline: "", summary: "", skills: "", area: "Oficios y Otros", region: "Region Metropolitana", city: "Santiago", salaryMin: "0", salaryMax: "0", workMode: "onsite", urgency: "media", origin: "espontanea", internalNotes: "" });
+                    setForm({ legalName: "", email: "", phone: "", headline: "", summary: "", skills: "", area: "Oficios y Otros", region: "Región Metropolitana", city: "Santiago", salaryMin: "0", salaryMax: "0", workMode: "onsite", urgency: "media", origin: "espontanea", internalNotes: "" });
                     setCvFile(null);
                     setConfirmClear(false);
                   }}

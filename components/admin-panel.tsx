@@ -676,7 +676,7 @@ function SummaryView({ dashboard, onVerification }: { dashboard: AdminDashboard;
     { icon: <Users />, label: "Postulantes", value: dashboard.summary.workersTotal, detail: statusCounts(dashboard.summary.workerVisibilityCounts) },
     { icon: <BriefcaseBusiness />, label: "Ofertas", value: dashboard.summary.jobOffersTotal, detail: `${dashboard.summary.jobOffersVisible} visibles` },
     { icon: <BadgeDollarSign />, label: "Pagos", value: dashboard.summary.paymentsTotal, detail: `${dashboard.summary.paymentsPaid} pagados / ${dashboard.summary.paymentsPending} pendientes` },
-    { icon: <FileSpreadsheet />, label: "Ingresos pagados", value: money(dashboard.summary.revenuePaidClp), detail: "CLP confirmado por pagos paid" },
+    { icon: <FileSpreadsheet />, label: "Ingresos pagados", value: money(dashboard.summary.revenuePaidClp), detail: "CLP confirmado en la plataforma" },
     { icon: <ReceiptText />, label: "Facturación pendiente", value: dashboard.summary.accountingPending, detail: "Sin folio/PDF/XML proveedor" },
     { icon: <Tag />, label: "Cupones activos", value: dashboard.summary.couponsActive, detail: "Disponibles para checkout" },
     { icon: <CalendarClock />, label: "Entrevistas", value: dashboard.summary.interviewsScheduled, detail: "Programadas en plataforma" },
@@ -1107,8 +1107,8 @@ function AdministrationView({
 
 const DEFAULT_FLAGS: Array<{ key: string; label: string; description: string; defaultOn: boolean }> = [
   { key: "omil_enabled", label: "OMIL habilitado", description: "Permite acceso al módulo OMIL para municipios", defaultOn: true },
-  { key: "semantic_search", label: "Búsqueda semántica IA", description: "Activa búsqueda vectorial con Gemini en la vista empresa", defaultOn: true },
-  { key: "cv_analysis", label: "Análisis de CV con IA", description: "Usa Gemini para extraer datos del CV del postulante automáticamente", defaultOn: true },
+  { key: "semantic_search", label: "Búsqueda semántica IA", description: "Activa búsqueda asistida por IA en la búsqueda de talento", defaultOn: true },
+  { key: "cv_analysis", label: "Análisis de CV con IA", description: "Usa IA para extraer datos del CV del postulante automáticamente", defaultOn: true },
   { key: "mercadopago_enabled", label: "Mercado Pago activo", description: "Habilita el flujo de pago con Mercado Pago", defaultOn: true },
   { key: "stripe_enabled", label: "Stripe activo", description: "Habilita el flujo de pago con Stripe como respaldo", defaultOn: false },
   { key: "worker_registration", label: "Registro de postulantes", description: "Permite que nuevos postulantes se registren en la plataforma", defaultOn: true },
@@ -1393,7 +1393,7 @@ function MessagesView({
 }) {
   return (
     <section className="stack">
-      <AdminTable title="Mensajeria interna" rows={messages} columns={[
+      <AdminTable title="Mensajería interna" rows={messages} columns={[
         ["messageId", "Mensaje"],
         ["invitationId", "Invitación"],
         ["senderRole", "Emisor"],
@@ -2463,7 +2463,7 @@ function RoadmapView() {
         { estado: "✅", texto: "Sistema de invitaciones con sueldo visible" },
         { estado: "✅", texto: "Pago por contacto vía Mercado Pago" },
         { estado: "✅", texto: "Panel OMIL para municipalidades" },
-        { estado: "✅", texto: "Análisis de CV con Google Gemini" },
+        { estado: "✅", texto: "Análisis de CV con IA" },
         { estado: "✅", texto: "Consola admin completa" },
       ]
     },

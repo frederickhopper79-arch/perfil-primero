@@ -488,7 +488,7 @@ export function WorkerOnboarding() {
       trackEvent("profile_completed", { role: "worker" });
       setStatus(profileState.subscriptionStatus === "active"
         ? "Perfil actualizado y sigue visible para empresas verificadas."
-        : "Perfil guardado como borrador privado. Activa Mercado Pago para hacerlo visible por 30 días.");
+        : "Perfil guardado como borrador privado. Actívalo para que aparezca en búsquedas de empresas verificadas.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar el perfil.");
     }
@@ -500,7 +500,7 @@ export function WorkerOnboarding() {
       return;
     }
 
-    setStatus("Creando checkout...");
+    setStatus("Preparando el pago...");
 
     try {
       trackEvent("checkout_initiated", { role: "worker" });
@@ -586,7 +586,7 @@ export function WorkerOnboarding() {
     ].join("\n");
 
     update("coverLetter", nextCoverLetter);
-    setStatus("Carta de presentación generada. Revisala, ajustala y guarda el perfil.");
+    setStatus("Carta de presentación generada. Revísala, ajústala y guarda el perfil.");
   }
 
   async function handleSaveCoverLetter() {
@@ -612,7 +612,7 @@ export function WorkerOnboarding() {
             : invitation
         )
       );
-      setStatus("Invitación aceptada. La empresa ya puede pagar el desbloqueo.");
+      setStatus("Invitación aceptada. La empresa puede solicitar el desbloqueo de tus datos de contacto.");
       setActiveView("interview");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo aceptar la invitación.");
@@ -630,7 +630,7 @@ export function WorkerOnboarding() {
       const result = await sendConversationMessage(activeInvitationId, messageBody);
       setMessageBody("");
       setStatus(result.paymentRequired
-        ? "El chat quedó bloqueado: la empresa está realizando el pago para cerrar trato contigo."
+        ? "El chat requiere pago para continuar. La empresa está procesando el desbloqueo de contacto."
         : "Mensaje enviado.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo enviar el mensaje.");
@@ -1074,10 +1074,10 @@ export function WorkerOnboarding() {
           {[
             ["profile", "Perfil", 0],
             ["cover", "Carta", 0],
-            ["tests", "Tests de habilidades", 0],
+            ["tests", "Evaluaciones", 0],
             ["interview", `Entrevistas`, pendingInvitations],
             ["billing", "Pagos", 0],
-            ["herramientas", "Mi cuenta", 0],
+            ["herramientas", "Herramientas", 0],
             ["notificaciones", "Notificaciones", 0],
           ].map(([key, label, badge]) => (
             <button
@@ -1240,7 +1240,7 @@ export function WorkerOnboarding() {
                 value={form.salaryMin}
                 onChange={(event) => update("salaryMin", event.target.value)}
                 onBlur={(event) => { const f = formatClp(event.target.value); if (f) update("salaryMin", f.replace(/\./g, "")); }}
-                placeholder="Ej: 800000"
+                placeholder="Ej: 800.000 CLP"
                 inputMode="numeric"
                 required
               />
@@ -1252,7 +1252,7 @@ export function WorkerOnboarding() {
                 value={form.salaryMax}
                 onChange={(event) => update("salaryMax", event.target.value)}
                 onBlur={(event) => { const f = formatClp(event.target.value); if (f) update("salaryMax", f.replace(/\./g, "")); }}
-                placeholder="Ej: 1200000"
+                placeholder="Ej: 1.200.000 CLP"
                 inputMode="numeric"
                 required
               />
@@ -1506,7 +1506,7 @@ export function WorkerOnboarding() {
         {activeView === "tests" && !loadingTab ? (
         <section className="formSurface">
           <div className="assessmentIntro">
-            <h2>Tests de habilidades</h2>
+            <h2>Evaluaciones</h2>
             <p>
               Opcionales pero valiosos: empresas verificadas ven tus resultados junto al perfil antes de invitarte.
               Completar al menos uno aumenta tu visibilidad y genera más confianza en el proceso.
@@ -1942,7 +1942,7 @@ export function WorkerOnboarding() {
             <div className="formHeader">
               <PenLine size={22} aria-hidden="true" />
               <div>
-                <h2>Mi cuenta</h2>
+                <h2>Herramientas</h2>
                 <p>Completitud del perfil, programa de referidos y comparador salarial.</p>
               </div>
             </div>

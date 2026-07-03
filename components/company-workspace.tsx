@@ -1143,7 +1143,7 @@ export function CompanyWorkspace() {
         <section className="sidePanel">
           <div className="sidePanelHeader">
             <MercadoPagoIcon />
-            <strong>Pago por éxito</strong>
+            <strong>Modelo de cobro</strong>
           </div>
           <strong className="activationPrice">$9.990 CLP</strong>
           <p className="helperText">La empresa paga solo cuando desbloquea el contacto de un postulante.</p>
@@ -1172,7 +1172,7 @@ export function CompanyWorkspace() {
             ["jobs", "Publicaciones"],
             ["talent", "Buscar talento"],
             ["interview", "Entrevista"],
-            ["kanban", "Pipeline"],
+            ["kanban", "Embudo"],
             ["billing", "Pagos"],
             ["metrics", "Métricas"],
             ["benchmark", "Benchmark salarial"],
@@ -1331,7 +1331,7 @@ export function CompanyWorkspace() {
             <article>
               <span className="smallLabel">Perfiles activos</span>
               <strong>{workers.length}</strong>
-              <p>perfiles activos con pago confirmado.</p>
+              <p>perfiles activos en búsquedas de empresas.</p>
             </article>
             <article>
               <span className="smallLabel">Tasa de aceptación</span>
