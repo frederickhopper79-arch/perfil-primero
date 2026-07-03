@@ -12651,3 +12651,164 @@ nav[aria-label="Migas de pan"] a:hover {
   .chatbotPanel { width: calc(100vw - 24px); right: 12px; bottom: 134px; }
   .chatbotToggle { right: 12px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROFESSIONALIZED MOBILE EXPERIENCE — phones & tablets
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. iOS AUTO-ZOOM PREVENTION
+   iOS zooms the page on tap when font-size < 16px. Critical fix for all forms. */
+@media (max-width: 620px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* 2. ADMIN TABS — horizontal scrollable row
+   12+ tabs stacked in a single column at ≤620px is completely unusable.
+   Replace with a horizontally scrollable pill strip. */
+@media (max-width: 820px) {
+  .adminTabs {
+    display: flex;
+    grid-template-columns: unset;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .adminTabs::-webkit-scrollbar { display: none; }
+  .adminTabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 0 16px;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+}
+
+/* 3. WORKSPACE TABS — scrollable on the smallest phones (≤390px)
+   2-column grid becomes cramped at 320-375px with long tab labels. */
+@media (max-width: 390px) {
+  .workspaceTabs {
+    display: flex;
+    grid-template-columns: unset;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .workspaceTabs::-webkit-scrollbar { display: none; }
+  .workspaceTabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 0 14px;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+}
+
+/* 4. DASHBOARD KPI GRID — 2 columns on phone
+   1-column cards (≤980px rule) wastes horizontal space on phones. */
+@media (max-width: 620px) {
+  .dashboardGrid       { grid-template-columns: repeat(2, 1fr); }
+  .adminDashboardGrid  { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 5. PIPELINE — 2 columns on phone
+   5-7 full-width steps (from the ≤980px 1fr rule) is excessive scrolling. */
+@media (max-width: 620px) {
+  .pipeline { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 6. PROGRESS STEPS — compact 3-column grid on phone
+   5 steps at 58px each = 290px of nav before any content. Compact them. */
+@media (max-width: 620px) {
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .step  { min-height: 48px; }
+  .step p { font-size: 11px; }
+}
+
+/* 7. SIDE PANEL — compact horizontal strip on tablet/mobile
+   Vertical column below steps wastes space. Flip to a horizontal row. */
+@media (max-width: 980px) {
+  .sidePanel {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .activationPrice { font-size: 16px; }
+  .miniRule { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+
+/* 8. COMPANY GRID — main content before sidebar on mobile
+   Steps + pricing (≈400px) appearing before the main form forces too much
+   initial scrolling. Reorder: show main content (stack) first. */
+@media (max-width: 980px) {
+  .companyGrid > aside { order: 2; }
+  .companyGrid > .stack { order: 1; }
+}
+
+/* 9. FORM HEADER — wrap on narrow screens
+   Long titles next to a 42px icon may clip at 320-375px width. */
+@media (max-width: 480px) {
+  .formHeader         { flex-wrap: wrap; }
+  .formHeader h2      { font-size: 17px; }
+  .formHeader p       { font-size: 13px; }
+}
+
+/* 10. CHATBOT — clear fixed bottom navigation on phones
+    Bottom nav occupies 52px + safe-area (≈34px on iPhone 15). Adjust
+    the floating toggle so it sits visibly above the nav. */
+@media (max-width: 620px) {
+  .chatbotToggle {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+  }
+  .chatbotPanel {
+    bottom: calc(134px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: calc(100vw - 32px);
+  }
+}
+
+/* 11. BUTTON EXCEPTIONS — prevent forced full-width in card contexts
+    The global .button { width: 100% } at ≤620px is too broad for inline
+    action buttons inside cards, pipelines and message composers. */
+@media (max-width: 620px) {
+  .resultCard .button,
+  .adminCompanyCard .button,
+  .pipeline .pipelineStep,
+  .messageComposer .button,
+  .workspaceTabs button,
+  .adminTabs button { width: auto; }
+}
+
+/* 12. WORKSPACE BOTTOM PADDING — clear the fixed bottom nav
+    Ensures last visible content isn't hidden behind the 52px nav bar. */
+@media (max-width: 620px) {
+  .adminShell, .flowLayout, .companyGrid {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* 13. COMPARISON TABLE — scroll long content on narrow screens */
+@media (max-width: 620px) {
+  .comparisonTable { padding: 14px; }
+  .candidateDetail  { padding: 14px; }
+}
+
+/* 14. WORKSPACE HEADER — tighter padding on phones */
+@media (max-width: 620px) {
+  .workspaceHeader { padding: 16px; }
+}
+
+/* 15. MESSAGE BUBBLE — full width on mobile for readability */
+@media (max-width: 620px) {
+  .messageBubble { max-width: 92%; }
+}
+
+/* 16. RESULT CARDS — tighter gap on mobile */
+@media (max-width: 620px) {
+  .resultCard { gap: 10px; padding: 12px 14px; }
+}
