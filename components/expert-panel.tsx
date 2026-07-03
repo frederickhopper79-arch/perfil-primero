@@ -158,7 +158,7 @@ export default function ExpertPanel() {
           </div>
           {generatedAt && (
             <p style={{ textAlign: "center", color: "var(--muted)", fontSize: "12px", marginTop: "1.5rem" }}>
-              Análisis generado el {new Date(generatedAt).toLocaleString("es-CL")} · Powered by Google Gemini
+              Análisis generado el {new Date(generatedAt).toLocaleString("es-CL")} · Powered by Groq AI
             </p>
           )}
         </>

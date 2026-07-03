@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 const dolorPymes = [
   { dolor: "No tengo equipo de RRHH", solucion: "En Perfil Primero tú eres el buscador y el decisor. El proceso es tan simple que lo maneja cualquier gerente o dueño." },
   { dolor: "Los portales tradicionales me inundan de CVs irrelevantes", solucion: "Los candidatos ya filtraron por tu rango salarial antes de aparecer. Solo ves quienes calzan." },
-  { dolor: "No puedo pagar headhunters que cobran 1-2 sueldos por candidato", solucion: "Pagas $4.990 CLP (lanzamiento) cuando hay calce confirmado. Sin éxito, sin costo." },
+  { dolor: "No puedo pagar headhunters que cobran 1-2 sueldos por candidato", solucion: "Pagas $4.990 CLP (lanzamiento) solo cuando decides desbloquear el contacto de un postulante. Hasta ese momento, todo es gratis." },
   { dolor: "No sé si el candidato es real antes de gastar tiempo en una entrevista", solucion: "Los perfiles en Perfil Primero están validados. La OMIL verifica los perfiles de derivación municipal." },
   { dolor: "Mis procesos son largos y pierdo candidatos en el camino", solucion: "El candidato ya te está esperando. El proceso puede cerrarse en menos de una semana." },
 ];
@@ -77,7 +77,7 @@ export default function ParaPymesPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 16, padding: "1.75rem", textAlign: "center", marginBottom: "2rem" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)", marginBottom: 4 }}>Precio final para una PyME</div>
         <div style={{ fontSize: 32, fontWeight: 800, color: "var(--color-primary)", margin: "8px 0" }}>$4.990 CLP</div>
-        <div style={{ fontSize: 13, color: "var(--muted)" }}>por contacto desbloqueado · Solo pagas cuando hay calce confirmado · Sin suscripción mensual</div>
+        <div style={{ fontSize: 13, color: "var(--muted)" }}>por contacto desbloqueado · Pagas solo al pedir los datos del postulante · Sin suscripción mensual</div>
         <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4, textDecoration: "line-through" }}>Precio normal: $9.990 CLP</div>
       </div>
 

@@ -16,17 +16,25 @@ export function AiProfileAdvisor({
   onApply?: (summary: string) => void;
 }) {
   const [advice, setAdvice] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const canAnalyze = headline.trim().length > 0 && summary.trim().length > 0;
+
   async function handleAdvice() {
+    if (!canAnalyze) {
+      setError("Completa al menos el título y resumen profesional antes de analizar.");
+      return;
+    }
     setLoading(true);
     setAdvice("");
+    setError("");
 
     try {
       const result = await getProfileAiAdvice({ headline, summary, skills });
       setAdvice(result.advice);
-    } catch (error) {
-      setAdvice(error instanceof Error ? error.message : "No se pudo generar una recomendacion.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo generar una recomendación.");
     } finally {
       setLoading(false);
     }
@@ -39,7 +47,7 @@ export function AiProfileAdvisor({
           <Sparkles size={20} aria-hidden="true" />
         </span>
         <div>
-          <p className="eyebrow">IA de Google</p>
+          <p className="eyebrow">IA Perfil Primero</p>
           <h2>Mejora tu perfil antes de publicarlo</h2>
         </div>
       </div>
@@ -47,19 +55,45 @@ export function AiProfileAdvisor({
         La IA revisa tu titulo, resumen y habilidades para sugerir una version
         mas clara, atractiva y compatible con busquedas de empresas.
       </p>
-      <button className="button secondary full" type="button" onClick={handleAdvice} disabled={loading}>
+
+      {!canAnalyze && (
+        <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>
+          Completa el título y resumen profesional para habilitar el análisis.
+        </p>
+      )}
+
+      <button
+        className="button secondary full"
+        type="button"
+        onClick={handleAdvice}
+        disabled={loading || !canAnalyze}
+      >
         {loading ? "Analizando perfil..." : "Analizar con IA"}
       </button>
-      {advice ? (
+
+      {error && (
+        <p style={{ color: "var(--error, #c0392b)", fontSize: 13, marginTop: 8 }}>
+          {error}
+        </p>
+      )}
+
+      {advice && (
         <div className="aiResponse">
-          {advice}
-          {onApply ? (
-            <button className="button primary full" type="button" onClick={() => onApply(extractSuggestedSummary(advice))}>
+          {advice.split("\n").map((line, i) => (
+            line.trim() ? <p key={i} style={{ margin: "0 0 6px" }}>{line}</p> : <br key={i} />
+          ))}
+          {onApply && (
+            <button
+              className="button primary full"
+              type="button"
+              style={{ marginTop: 12 }}
+              onClick={() => onApply(extractSuggestedSummary(advice))}
+            >
               Aplicar mejora al resumen
             </button>
-          ) : null}
+          )}
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

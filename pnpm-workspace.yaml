@@ -13,6 +13,14 @@ overrides:
   postcss: ^8.5.15
   uuid: ^11.1.1
 
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@google/genai'
+  - protobufjs
+  - re2
+  - sharp
+  - unrs-resolver
+
 allowBuilds:
   '@firebase/util': set this to true or false
   '@google/genai': set this to true or false

@@ -655,7 +655,7 @@ export function CompanyWorkspace() {
       await saveCompanyProfile({ ...company, logoUrl, companyId: uid });
       const profile = await getCompanyProfile(uid);
       setCompanyProfile(profile);
-      setStatus("Empresa enviada a revisión. Un admin debe verificarla para habilitar invitaciones reales.");
+      setStatus("Empresa enviada a revisión. Un administrador debe verificarla para habilitar invitaciones reales.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar la empresa.");
     }
@@ -706,7 +706,7 @@ export function CompanyWorkspace() {
       setActiveInvitationId(result.invitationId);
       setActiveView("interview");
       trackEvent("invitation_sent", { invitation_id: result.invitationId, salary_min: invite.salaryMin, salary_max: invite.salaryMax });
-      setStatus(`Invitación creada: ${result.invitationId}`);
+      setStatus("Invitación enviada. El postulante recibirá la oferta en su consola.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
     }
@@ -805,7 +805,7 @@ export function CompanyWorkspace() {
       return;
     }
 
-    setStatus("Analizando compatibilidad con Google IA...");
+    setStatus("Analizando compatibilidad con IA...");
 
     try {
       const advice = await getCandidateMatchAdvice({
@@ -840,7 +840,8 @@ export function CompanyWorkspace() {
 
     try {
       await updateInvitationStatus(activeInvitation.invitationId, statusKey);
-      setStatus(`Proceso actualizado a ${statusKey}.`);
+      const statusLabels: Record<string, string> = { sent: "enviada", viewed: "vista", accepted: "aceptada", in_process: "en proceso", offer_sent: "oferta enviada", hired: "contratado", closed: "cerrada" };
+      setStatus(`Proceso actualizado a "${statusLabels[statusKey] ?? statusKey}".`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo actualizar el proceso.");
     }
@@ -901,7 +902,7 @@ export function CompanyWorkspace() {
       const result = await sendConversationMessage(activeInvitation.invitationId, messageBody);
       setMessageBody("");
       if (result.paymentRequired) {
-        setStatus(result.reason ?? "La entrevista quedo bloqueada hasta confirmar pago.");
+        setStatus(result.reason ?? "La entrevista quedó bloqueada hasta confirmar pago.");
         if (result.checkoutUrl) {
           window.location.href = result.checkoutUrl;
         }
@@ -992,7 +993,7 @@ export function CompanyWorkspace() {
 
           {wizardStep === 1 && (
             <>
-              <h2>Bienvenida a Perfil Primero</h2>
+              <h2>Bienvenido/a a Perfil Primero</h2>
               <p className="wizardSubtitle">Completa los datos básicos de tu empresa para empezar a buscar talento.</p>
               <div className="formGrid">
                 <label className="wide">
@@ -1437,7 +1438,7 @@ export function CompanyWorkspace() {
               {jobOffers.length ? jobOffers.map((offer) => (
                 <article className="resultCard" key={offer.jobOfferId}>
                   <div>
-                    <span className="profileCode">{offer.visibilityStatus}</span>
+                    <span className="profileCode">{{ active: "Activa", paused: "Pausada", closed: "Cerrada", draft: "Borrador" }[offer.visibilityStatus as string] ?? offer.visibilityStatus}</span>
                     <h2>{offer.title}</h2>
                     <p>{offer.area} - {offer.region} - {offer.vacanciesAvailable}/{offer.vacanciesTotal} vacantes</p>
                   </div>
@@ -1454,7 +1455,7 @@ export function CompanyWorkspace() {
                     Usar en invitación
                   </button>
                 </article>
-              )) : <p className="emptyState">Aún no tienes publicaciones creadas aún.</p>}
+              )) : <p className="emptyState">Aún no tienes publicaciones creadas.</p>}
             </div>
           </section>
         ) : null}
@@ -1566,7 +1567,7 @@ export function CompanyWorkspace() {
                     <div className="resultCardTop">
                       <span className="profileCode">{worker.profileCode}</span>
                       <span className="matchScoreBadge" style={{ color: matchColor(matchScore) }} title="Compatibilidad estimada">
-                        {matchScore}% calce
+                        {matchScore}% compatibilidad
                       </span>
                     </div>
                     <h2>{worker.headline}</h2>
@@ -1662,7 +1663,7 @@ export function CompanyWorkspace() {
               <CheckCircle2 size={22} aria-hidden="true" />
               <div>
                 <h2>Comparación de postulantes</h2>
-                <p>Máximo tres perfiles para decidir sin ruido.</p>
+                <p>Máximo tres perfiles para comparar en detalle.</p>
               </div>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -1681,7 +1682,7 @@ export function CompanyWorkspace() {
                 </thead>
                 <tbody>
                   {[
-                    { label: "Titular", fn: (w: WorkerPublicProfile) => w.headline },
+                    { label: "Cargo / Titular", fn: (w: WorkerPublicProfile) => w.headline },
                     { label: "Región", fn: (w: WorkerPublicProfile) => `${w.region} – ${w.city}` },
                     { label: "Sueldo pretendido", fn: (w: WorkerPublicProfile) => `$${w.expectedSalaryMin.toLocaleString("es-CL")} – $${w.expectedSalaryMax.toLocaleString("es-CL")}` },
                     { label: "Disponibilidad", fn: (w: WorkerPublicProfile) => w.availability === "actively_looking" ? "Buscando activamente" : w.availability === "listening" ? "Abierto a propuestas" : "No disponible" },
@@ -2058,7 +2059,7 @@ export function CompanyWorkspace() {
             </button>
             <button className="button secondary" type="button" onClick={handleUnlock}>
               <MercadoPagoIcon />
-              Pagar $9.990 CLP
+              Desbloquear contacto — $9.990
             </button>
           </div>
           <label>
@@ -2077,26 +2078,51 @@ export function CompanyWorkspace() {
               <p>Conserva la conversación y la trazabilidad dentro de la plataforma.</p>
             </div>
           </div>
-          <div className="messageList">
-            {messages.length ? messages.map((message) => (
-              <div className={`messageBubble ${message.senderRole}`} key={message.messageId}>
-                <strong>{message.senderRole === "company" ? "Empresa" : message.senderRole === "worker" ? "Postulante" : "Sistema"}</strong>
-                <p>{message.body}</p>
-                {message.senderRole === "company" && uid && message.senderId === uid && (
-                  <span className="messageReadStatus" title={message.readAt ? "Visto" : "Enviado"}>
-                    {message.readAt ? "✓✓" : "✓"}
-                  </span>
-                )}
-              </div>
-            )) : <p className="emptyState">Abre o crea una invitación para iniciar conversación.</p>}
-            <div ref={messagesEndRef} />
+          <div
+            className="messageList"
+            role="log"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-label="Conversación con el postulante"
+          >
+            {messages.length ? messages.map((message) => {
+              const senderLabel = message.senderRole === "company" ? "Empresa" : message.senderRole === "worker" ? "Postulante" : "Sistema";
+              const rawCreatedAt = (message as unknown as { createdAt?: { seconds?: number } }).createdAt;
+              const ts = rawCreatedAt?.seconds ? new Date(rawCreatedAt.seconds * 1000) : null;
+              return (
+                <div
+                  className={`messageBubble ${message.senderRole}`}
+                  key={message.messageId}
+                  aria-label={`${senderLabel}${ts ? `: ${ts.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}` : ""}`}
+                >
+                  <strong aria-hidden="true">{senderLabel}</strong>
+                  {ts && (
+                    <time dateTime={ts.toISOString()} style={{ fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>
+                      {ts.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                    </time>
+                  )}
+                  <p>{message.body}</p>
+                  {message.senderRole === "company" && uid && message.senderId === uid && (
+                    <span
+                      className="messageReadStatus"
+                      aria-label={message.readAt ? "Mensaje visto por el postulante" : "Mensaje enviado"}
+                      title={message.readAt ? "Visto" : "Enviado"}
+                    >
+                      {message.readAt ? "✓✓" : "✓"}
+                    </span>
+                  )}
+                </div>
+              );
+            }) : <p className="emptyState">Abre o crea una invitación para iniciar conversación.</p>}
+            <div ref={messagesEndRef} aria-hidden="true" />
           </div>
           {!interviewReady ? (
             <p className="paymentLockNotice">La entrevista se habilita cuando empresa y postulante aceptan las reglas.</p>
           ) : null}
           <div className="messageComposer">
+            <label htmlFor="company-msg-input" className="sr-only">Escribe tu mensaje al postulante</label>
             <textarea
-              aria-label="Escribe tu mensaje"
+              id="company-msg-input"
               placeholder="Escribe tu mensaje aquí... (Ctrl+Enter para enviar)"
               value={messageBody}
               onChange={(event) => setMessageBody(event.target.value)}
@@ -2106,8 +2132,10 @@ export function CompanyWorkspace() {
                   handleMessage();
                 }
               }}
+              aria-describedby="company-msg-hint"
             />
-            <button className="button primary" disabled={!interviewReady || !messageBody.trim()} type="button" onClick={handleMessage}>Enviar mensaje</button>
+            <span id="company-msg-hint" className="sr-only">Presiona Ctrl+Enter para enviar sin usar el botón</span>
+            <button className="button primary" disabled={!interviewReady || !messageBody.trim()} type="button" onClick={handleMessage} aria-label="Enviar mensaje al postulante">Enviar mensaje</button>
           </div>
         </section>
         ) : null}
@@ -2117,7 +2145,7 @@ export function CompanyWorkspace() {
             <div className="formHeader">
               <BriefcaseBusiness size={22} aria-hidden="true" />
               <div>
-                <h2>Pipeline de contratación</h2>
+                <h2>Embudo de contratación</h2>
                 <p>Vista por etapas de todos tus procesos activos. Usa los botones para mover candidatos.</p>
               </div>
             </div>
@@ -2348,8 +2376,8 @@ export function CompanyWorkspace() {
                 >
                   <option value="">Cualquiera</option>
                   <option value="onsite">Presencial</option>
-                  <option value="hybrid">Híbrida</option>
-                  <option value="remote">Remota</option>
+                  <option value="hybrid">Híbrido</option>
+                  <option value="remote">Remoto</option>
                 </select>
               </label>
             </div>
@@ -2419,7 +2447,7 @@ export function CompanyWorkspace() {
                 <article key={payment.paymentId}>
                   <strong>${payment.amount.toLocaleString("es-CL")}</strong>
                   <span>{payment.paymentType}</span>
-                  <span className={payment.status === "paid" ? "statusBadgePaid" : ""}>{payment.status === "paid" ? "✓ Pagado" : payment.status}</span>
+                  <span className={payment.status === "paid" ? "statusBadgePaid" : ""}>{ payment.status === "paid" ? "✓ Pagado" : payment.status === "pending" ? "Pendiente" : payment.status === "failed" ? "Fallido" : payment.status === "refunded" ? "Reembolsado" : payment.status}</span>
                 </article>
               )) : <p className="emptyState">Aún no hay pagos registrados.</p>}
             </div>
@@ -2591,7 +2619,7 @@ function verificationLabel(status?: string) {
 
 function verificationText(status?: string) {
   if (status === "verified") return "Puedes enviar invitaciones con sueldo y condiciones claras.";
-  if (status === "pending") return "El equipo interno revisara identidad, RUT y presencia web.";
+  if (status === "pending") return "El equipo interno revisará identidad, RUT y presencia web.";
   if (status === "rejected") return "Corrige los datos o agrega información verificable.";
   if (status === "suspended") return "El acceso a contactos está bloqueado por seguridad.";
   return "Guarda la empresa para iniciar la revisión interna.";
@@ -2618,11 +2646,11 @@ export function InterviewRulesCard({
         <li>La entrevista ocurre dentro de Perfil Primero y queda monitoreada por IA y reglas automáticas.</li>
         <li>No se permite entregar correo, teléfono, WhatsApp, LinkedIn ni datos externos antes del cierre.</li>
         <li>Si aparece intento de intercambio de contacto, el chat se bloquea y se activa el pago de cierre a la empresa.</li>
-        <li>El postulante vera que la empresa esta realizando el pago para cerrar trato.</li>
+        <li>El postulante verá que la empresa está realizando el pago para cerrar trato.</li>
         <li>Una vez confirmado el pago, se desbloquea el contacto privado y la conversación puede continuar.</li>
       </ul>
       <div className="rulesStatus">
-        <span className={accepted ? "ok" : ""}>{role === "company" ? "Empresa" : "Postulante"}: {accepted ? "aceptado" : "pendiente"}</span>
+        <span className={accepted ? "ok" : ""}>{role === "company" ? "Empresa" : "Postulante"}: {accepted ? "aceptada" : "pendiente"}</span>
         <span className={otherAccepted ? "ok" : ""}>{role === "company" ? "Postulante" : "Empresa"}: {otherAccepted ? "aceptado" : "pendiente"}</span>
       </div>
       <button className="button secondary" disabled={accepted} type="button" onClick={onAccept}>

@@ -11,7 +11,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import Stripe from "stripe";
 import { GoogleGenAI, Type } from "@google/genai";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
+const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { data: Buffer }) => { getText: () => Promise<{ text: string }> } };
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 
 initializeApp();
@@ -186,7 +186,6 @@ type ManualTransferApprovalInput = {
 
 type AdminCompanyStatus = "verified" | "rejected" | "suspended";
 
-type JsonSchema = Record<string, unknown>;
 type ManagedUserRole = "worker" | "company" | "admin" | "omil";
 const invitationFlowStatuses = ["sent", "accepted", "in_process", "offer_sent", "hired", "closed", "rejected"] as const;
 
@@ -2042,15 +2041,11 @@ export const getProfileAiAdvice = onCall<{
   ].join("\n");
 
   let parsed: Record<string, unknown>;
-  let source = "gemini";
+  let source = "groq";
 
   try {
-    parsed = await generateJsonWithGemini(prompt, profileAdviceSchema());
-  } catch (error) {
-    if (!isGeminiRecoverableError(error)) {
-      throw error;
-    }
-
+    parsed = await generateJsonWithGroq(prompt);
+  } catch {
     source = "fallback";
     parsed = {
       advice: [
@@ -2066,9 +2061,7 @@ export const getProfileAiAdvice = onCall<{
     };
   }
 
-  await writeAudit(request.auth.uid, "worker", "ai_profile_advice_generated", "worker", request.auth.uid, {
-    source
-  });
+  writeAudit(request.auth.uid, "worker", "ai_profile_advice_generated", "worker", request.auth.uid, { source }).catch(() => {});
 
   return { advice: String(parsed.advice ?? "") };
 });
@@ -2077,6 +2070,7 @@ export const analyzeCvWithAi = onCall<{
   fileName: string;
   mimeType: string;
   base64: string;
+  preExtractedText?: string;
 }>({ region: "us-central1", timeoutSeconds: 120 }, async (request) => {
   const workerId = request.auth?.uid;
 
@@ -2084,70 +2078,124 @@ export const analyzeCvWithAi = onCall<{
     throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
 
-  await checkRateLimitPersistent(workerId, "analyzeCv", 5, 3_600_000);
-
-  const { fileName, mimeType, base64 } = request.data;
+  const { fileName, mimeType, base64, preExtractedText } = request.data;
 
   if (!fileName || !mimeType || !base64) {
     throw new HttpsError("invalid-argument", "Falta el archivo del CV.");
   }
 
-  // Extraer texto del PDF para usar quota de texto (no multimodal)
-  let cvText = "";
-  try {
-    const buffer = Buffer.from(base64, "base64");
-    if (mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) {
-      const parsed = await pdfParse(buffer);
-      cvText = parsed.text?.trim() ?? "";
-    } else {
-      cvText = buffer.toString("utf-8").trim();
+  // Preferir texto pre-extraído desde el browser (más confiable)
+  let cvText = preExtractedText?.trim() ?? "";
+
+  // Fallback: extraer en servidor si el browser no pudo
+  if (!cvText) {
+    try {
+      const buffer = Buffer.from(base64, "base64");
+      if (mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) {
+        const parser = new PDFParse({ data: buffer });
+        const result = await parser.getText();
+        cvText = result.text?.trim() ?? "";
+      } else {
+        cvText = buffer.toString("utf-8").trim();
+      }
+    } catch (extractErr) {
+      console.error("[analyzeCv] server pdf extraction error:", extractErr instanceof Error ? extractErr.message : String(extractErr));
     }
-  } catch {
-    // Si falla la extraccion, igual intentamos con el archivo
   }
 
+  console.log(`[analyzeCv] cvText length: ${cvText.length}, source: ${preExtractedText ? "browser" : "server"}, first100: ${cvText.slice(0, 100)}`);
+
   const cvContent = cvText
-    ? `Texto extraido del CV:\n${cvText.slice(0, 12000)}`
+    ? `Texto extraido del CV:\n${cvText.slice(0, 6000)}`
     : `Nombre archivo: ${fileName} (no se pudo extraer texto, infiere desde el nombre)`;
+
+  const regionesChile = [
+    { name: "Region XV", comunas: ["Arica", "Camarones", "General Lagos", "Putre"] },
+    { name: "Region I", comunas: ["Iquique", "Alto Hospicio"] },
+    { name: "Region II", comunas: ["Antofagasta", "Calama", "Tocopilla"] },
+    { name: "Region III", comunas: ["Copiapo", "Vallenar", "Chanaral"] },
+    { name: "Region IV", comunas: ["La Serena", "Coquimbo", "Ovalle", "Illapel"] },
+    { name: "Region V", comunas: ["Valparaiso", "Vina del Mar", "San Antonio", "Los Andes", "Quillota", "Quilpue"] },
+    { name: "Region Metropolitana", comunas: ["Santiago", "Providencia", "Las Condes", "Maipu", "La Florida", "Puente Alto", "San Bernardo", "Nunoa"] },
+    { name: "Region VI", comunas: ["Rancagua", "San Fernando", "Pichilemu"] },
+    { name: "Region VII", comunas: ["Talca", "Curico", "Linares", "Constitucion"] },
+    { name: "Region XVI", comunas: ["Chillan", "Los Angeles"] },
+    { name: "Region VIII", comunas: ["Concepcion", "Talcahuano", "Los Angeles", "Coronel", "Tome"] },
+    { name: "Region IX", comunas: ["Temuco", "Villarrica", "Angol", "Pucón"] },
+    { name: "Region XIV", comunas: ["Valdivia", "Osorno", "La Union"] },
+    { name: "Region X", comunas: ["Puerto Montt", "Puerto Varas", "Castro", "Osorno", "Ancud", "Frutillar", "Calbuco", "Llanquihue", "Los Muermos"] },
+    { name: "Region XI", comunas: ["Coyhaique", "Aysen"] },
+    { name: "Region XII", comunas: ["Punta Arenas", "Natales"] }
+  ];
 
   const prompt = [
     "Eres un analista laboral chileno. Extrae informacion de un curriculum.",
-    "No inventes datos. Si un dato no existe, usa una inferencia prudente o valor neutro.",
-    "Devuelve SOLO JSON valido con estas claves exactas:",
-    "headline, summary, skills, sectors, yearsOfExperience, suggestedSalaryMin, suggestedSalaryMax, cvAnalysisSummary, formattedCv.",
-    "skills y sectors deben ser arrays de strings. Salarios en CLP como numeros.",
-    "formattedCv debe ser un curriculum profesional breve con secciones: Perfil, Experiencia, Habilidades, Educacion/Certificaciones si existen.",
-    "El resumen no debe incluir nombre, telefono, correo ni datos privados.",
+    "No inventes datos. Extrae SOLO lo que aparece explicitamente en el CV.",
+    `Regiones validas de Chile y sus comunas: ${JSON.stringify(regionesChile)}`,
+    "Devuelve SOLO JSON con estas claves exactas: headline, summary, skills, sectors, yearsOfExperience, suggestedSalaryMin, suggestedSalaryMax, cvAnalysisSummary, formattedCv, extractedName, extractedPhone, extractedLinkedIn, extractedRegion, extractedComuna.",
+    "skills: array de strings (habilidades). sectors: array de strings (rubros).",
+    "suggestedSalaryMin y suggestedSalaryMax: renta bruta mensual en pesos chilenos (CLP), numeros enteros. Ejemplo: 800000 para ochocientos mil pesos. Minimo 450000.",
+    "headline: string de 1 linea con cargo o perfil profesional.",
+    "summary: string de 2-3 oraciones resumiendo la experiencia.",
+    "cvAnalysisSummary: string de 1-2 oraciones evaluando el CV.",
+    "formattedCv: string de texto plano con el CV formateado, usando saltos de linea \\n para separar secciones (Perfil, Experiencia, Habilidades). SIN objetos ni arrays, solo texto plano.",
+    "extractedName: nombre completo de la persona si aparece en el CV, si no string vacio.",
+    "extractedPhone: telefono de contacto si aparece en el CV, si no string vacio.",
+    "extractedLinkedIn: URL de LinkedIn si aparece en el CV, si no string vacio.",
+    "extractedRegion: nombre EXACTO de la region segun la lista proporcionada (ej: 'Region X'). Si la localidad del CV (ej: Alerce, Puerto Montt) corresponde a una region, usa ese nombre exacto. Si no hay info de ubicacion, string vacio.",
+    "extractedComuna: nombre de la comuna mas cercana de la lista de comunas de esa region. Si no hay info, string vacio.",
     cvContent
   ].join("\n");
 
   let parsed: Record<string, unknown>;
   let aiStatus: "completed" | "quota_exceeded" = "completed";
+  let aiSource = "groq";
 
   try {
-    parsed = await generateJsonWithGemini(prompt, cvAnalysisSchema());
-  } catch (error) {
-    if (!isGeminiRecoverableError(error)) {
-      throw error;
-    }
+    // llama-3.1-8b-instant: 30.000 TPM (vs 6.000 del 70b) — necesario para CVs largos
+    parsed = await generateJsonWithGroq(prompt, "llama-3.1-8b-instant");
+    console.log("[analyzeCv] groq ok, headline:", parsed.headline);
+  } catch (groqError) {
+    console.error("[analyzeCv] groq error:", groqError instanceof Error ? groqError.message : String(groqError));
     aiStatus = "quota_exceeded";
+    aiSource = "fallback";
     parsed = buildCvQuotaFallback(fileName);
   }
 
-  await writeAudit(workerId, "worker", aiStatus === "completed" ? "cv_analyzed_with_ai" : "cv_uploaded_ai_quota_pending", "worker", workerId, {
-    fileName
-  });
+  try {
+    await db.collection("aiUsageLogs").doc().set({
+      endpointApi: "cv-analysis-chain",
+      source: aiSource,
+      status: aiStatus,
+      createdAt: FieldValue.serverTimestamp()
+    });
+    await writeAudit(workerId, "worker", aiStatus === "completed" ? "cv_analyzed_with_ai" : "cv_uploaded_ai_quota_pending", "worker", workerId, {
+      fileName
+    });
+  } catch (logErr) {
+    console.warn("[analyzeCv] log/audit write failed (non-fatal):", logErr instanceof Error ? logErr.message : String(logErr));
+  }
 
+  console.log("[analyzeCv] returning aiStatus:", aiStatus, "source:", aiSource);
   return {
     headline: String(parsed.headline ?? "Perfil profesional"),
     summary: String(parsed.summary ?? ""),
     skills: Array.isArray(parsed.skills) ? parsed.skills.map(String).slice(0, 12) : [],
     sectors: Array.isArray(parsed.sectors) ? parsed.sectors.map(String).slice(0, 4) : ["Servicios"],
     yearsOfExperience: Number(parsed.yearsOfExperience ?? 0),
-    suggestedSalaryMin: Number(parsed.suggestedSalaryMin ?? 750000),
-    suggestedSalaryMax: Number(parsed.suggestedSalaryMax ?? 1000000),
+    suggestedSalaryMin: normalizeCLPSalary(Number(parsed.suggestedSalaryMin ?? 0), 750000),
+    suggestedSalaryMax: normalizeCLPSalary(Number(parsed.suggestedSalaryMax ?? 0), 1000000),
     cvAnalysisSummary: String(parsed.cvAnalysisSummary ?? ""),
-    formattedCv: String(parsed.formattedCv ?? parsed.summary ?? ""),
+    extractedName: String(parsed.extractedName ?? ""),
+    extractedPhone: String(parsed.extractedPhone ?? ""),
+    extractedLinkedIn: String(parsed.extractedLinkedIn ?? ""),
+    extractedRegion: String(parsed.extractedRegion ?? ""),
+    extractedComuna: String(parsed.extractedComuna ?? ""),
+    formattedCv: typeof parsed.formattedCv === "string"
+      ? parsed.formattedCv
+      : typeof parsed.formattedCv === "object" && parsed.formattedCv !== null
+        ? JSON.stringify(parsed.formattedCv, null, 2)
+        : String(parsed.summary ?? ""),
     aiStatus
   };
 });
@@ -2184,20 +2232,16 @@ export const getCandidateMatchAdvice = onCall<{
   ].join("\n");
 
   let parsed: Record<string, unknown>;
-  let source = "gemini";
+  let source = "groq";
 
   try {
-    parsed = await generateJsonWithGemini(prompt, candidateMatchSchema());
-  } catch (error) {
-    if (!isGeminiRecoverableError(error)) {
-      throw error;
-    }
-
+    parsed = await generateJsonWithGroq(prompt);
+  } catch {
     source = "fallback";
     parsed = {
       score: calculateFallbackMatchScore(request.data.requiredSkills, request.data.worker),
       verdict: "Analisis automatico pendiente. Revisa manualmente experiencia, renta, comuna, disponibilidad y habilidades declaradas.",
-      reasons: ["Comparacion base generada sin IA por configuracion/cuota de Google."],
+      reasons: ["Comparacion base generada sin IA — Groq no disponible en este momento."],
       risks: ["La recomendacion no reemplaza revision humana de antecedentes y entrevista."]
     };
   }
@@ -2265,14 +2309,14 @@ async function detectContactSignal(text: string) {
   }
 
   try {
-    const aiResult = await generateJsonWithGemini([
+    const aiResult = await generateJsonWithGroq([
       "Eres un monitor de seguridad de entrevistas laborales.",
       "Detecta si el mensaje intenta compartir o pedir datos de contacto externos antes del pago.",
       "Datos de contacto incluyen telefono, correo, WhatsApp, LinkedIn, redes sociales, direccion, reunion externa o instrucciones para salir de la plataforma.",
       "Devuelve JSON con contactDetected boolean y signal string.",
       "",
       `Mensaje: ${text}`
-    ].join("\n"), contactSignalSchema());
+    ].join("\n"));
 
     return aiResult.contactDetected ? String(aiResult.signal ?? "ai_contact_intent") : "";
   } catch {
@@ -3058,6 +3102,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
+function normalizeCLPSalary(raw: number, fallback: number): number {
+  if (!raw || raw <= 0) return fallback;
+  // Groq a veces devuelve en miles o millones en lugar de CLP real
+  const v = raw < 1000 ? raw * 1_000_000 : raw < 100_000 ? raw * 1_000 : raw;
+  return Math.max(450_000, v);
+}
+
 function buildCvQuotaFallback(fileName: string) {
   const cleanName = fileName
     .replace(/\.[^/.]+$/, "")
@@ -3093,14 +3144,6 @@ function buildCvQuotaFallback(fileName: string) {
   };
 }
 
-function isGeminiRecoverableError(error: unknown) {
-  if (!(error instanceof HttpsError)) {
-    return false;
-  }
-
-  return ["resource-exhausted", "failed-precondition"].includes(error.code);
-}
-
 function calculateFallbackMatchScore(requiredSkills: string, worker: unknown) {
   const requirements = requiredSkills
     .toLowerCase()
@@ -3114,111 +3157,7 @@ function calculateFallbackMatchScore(requiredSkills: string, worker: unknown) {
   return Math.max(20, Math.min(85, base + availabilityBoost));
 }
 
-function profileAdviceSchema(): JsonSchema {
-  return {
-    type: Type.OBJECT,
-    properties: {
-      advice: { type: Type.STRING }
-    },
-    required: ["advice"]
-  };
-}
 
-function cvAnalysisSchema(): JsonSchema {
-  return {
-    type: Type.OBJECT,
-    properties: {
-      headline: { type: Type.STRING },
-      summary: { type: Type.STRING },
-      skills: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
-      },
-      sectors: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
-      },
-      yearsOfExperience: { type: Type.NUMBER },
-      suggestedSalaryMin: { type: Type.NUMBER },
-      suggestedSalaryMax: { type: Type.NUMBER },
-      cvAnalysisSummary: { type: Type.STRING },
-      formattedCv: { type: Type.STRING }
-    },
-    required: [
-      "headline",
-      "summary",
-      "skills",
-      "sectors",
-      "yearsOfExperience",
-      "suggestedSalaryMin",
-      "suggestedSalaryMax",
-      "cvAnalysisSummary",
-      "formattedCv"
-    ]
-  };
-}
-
-function candidateMatchSchema(): JsonSchema {
-  return {
-    type: Type.OBJECT,
-    properties: {
-      score: { type: Type.NUMBER },
-      verdict: { type: Type.STRING },
-      reasons: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
-      },
-      risks: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
-      }
-    },
-    required: ["score", "verdict", "reasons", "risks"]
-  };
-}
-
-function contactSignalSchema(): JsonSchema {
-  return {
-    type: Type.OBJECT,
-    properties: {
-      contactDetected: { type: Type.BOOLEAN },
-      signal: { type: Type.STRING }
-    },
-    required: ["contactDetected", "signal"]
-  };
-}
-
-function buildGeminiError(error: unknown, model: string) {
-  const status = typeof error === "object" && error !== null && "status" in error
-    ? Number((error as { status?: number }).status)
-    : 0;
-  const code = typeof error === "object" && error !== null && "code" in error
-    ? String((error as { code?: string | number }).code ?? "")
-    : "";
-  const message = error instanceof Error ? error.message : String(error);
-  const lower = `${code} ${message}`.toLowerCase();
-
-  if (status === 429 || lower.includes("resource_exhausted") || lower.includes("quota")) {
-    return new HttpsError(
-      "resource-exhausted",
-      `Google IA no tiene cuota disponible para el modelo ${model}. El archivo puede quedar guardado y el perfil se puede completar manualmente mientras se activa facturacion o se aumenta cuota.`
-    );
-  }
-
-  if (status === 404 || lower.includes("not found") || lower.includes("not supported")) {
-    return new HttpsError("not-found", `Modelo ${model} no disponible en esta version de la API. Contacta soporte.`);
-  }
-
-  if (status === 400 || lower.includes("invalid")) {
-    return new HttpsError("invalid-argument", "Google IA rechazo el archivo. Sube un PDF o TXT legible y vuelve a intentar.");
-  }
-
-  if (status === 401 || status === 403 || lower.includes("permission") || lower.includes("api key")) {
-    return new HttpsError("permission-denied", "Google IA no pudo validar la clave o permisos configurados.");
-  }
-
-  return new HttpsError("internal", "Google IA no pudo responder en este momento. Intenta nuevamente mas tarde.");
-}
 
 
 // ── ATS Public API ─────────────────────────────────────────────────────────────
@@ -3595,76 +3534,81 @@ function getGeminiAI(): GoogleGenAI {
   });
 }
 
-async function generateJsonWithGemini(
-  prompt: string,
-  responseSchema: JsonSchema,
-  file?: { mimeType: string; base64: string }
-) {
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+
+// ── Groq — API compatible con OpenAI ──────────────────────────────────────────
+async function generateJsonWithGroq(prompt: string, modelOverride?: string): Promise<Record<string, unknown>> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new HttpsError("failed-precondition", "GROQ_API_KEY no configurada.");
+
+  const model = modelOverride ?? process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
   const startedAt = Date.now();
 
-  const ai = getGeminiAI();
-  const parts = file
-    ? [
-        { text: prompt },
-        {
-          inlineData: {
-            mimeType: file.mimeType,
-            data: file.base64
-          }
-        }
-      ]
-    : [{ text: prompt }];
+  const body = JSON.stringify({
+    model,
+    messages: [
+      {
+        role: "system",
+        content: "Eres un asistente experto en recursos humanos chilenos. Responde SOLO con JSON válido, sin texto adicional, sin markdown."
+      },
+      { role: "user", content: prompt }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.25,
+    max_tokens: 1800
+  });
 
   let responseText = "";
-
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-      config: {
-        temperature: 0.25,
-        maxOutputTokens: 1800,
-        responseMimeType: "application/json",
-        responseSchema
-      }
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body
     });
-    responseText = response.text?.trim() ?? "";
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      const lower = errBody.toLowerCase();
+      if (res.status === 429 || lower.includes("rate_limit")) {
+        throw new HttpsError("resource-exhausted", "Groq: límite de tasa alcanzado. Intenta en unos minutos.");
+      }
+      throw new HttpsError("internal", `Groq respondió ${res.status}: ${errBody.slice(0, 200)}`);
+    }
+
+    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    responseText = json.choices?.[0]?.message?.content?.trim() ?? "";
+
     await db.collection("aiUsageLogs").doc().set({
-      endpointApi: "gemini-json",
+      endpointApi: "groq-json",
       model,
       status: "success",
       latencyMs: Date.now() - startedAt,
       promptChars: prompt.length,
       responseChars: responseText.length,
-      hasFile: Boolean(file),
       createdAt: FieldValue.serverTimestamp()
     });
   } catch (error) {
-    console.error("[Gemini] raw error:", JSON.stringify(error, Object.getOwnPropertyNames(error as object)));
-    const geminiError = buildGeminiError(error, model);
+    if (error instanceof HttpsError) throw error;
     await db.collection("aiUsageLogs").doc().set({
-      endpointApi: "gemini-json",
+      endpointApi: "groq-json",
       model,
       status: "error",
-      errorCode: geminiError.code,
-      errorMessage: geminiError.message,
+      errorMessage: error instanceof Error ? error.message : String(error),
       latencyMs: Date.now() - startedAt,
       promptChars: prompt.length,
-      hasFile: Boolean(file),
       createdAt: FieldValue.serverTimestamp()
     });
-    throw geminiError;
+    throw new HttpsError("internal", `Error al conectar con Groq: ${error instanceof Error ? error.message : "desconocido"}`);
   }
 
-  if (!responseText) {
-    throw new HttpsError("internal", "Gemini no devolvió JSON.");
-  }
+  if (!responseText) throw new HttpsError("internal", "Groq no devolvió contenido.");
 
   try {
     return JSON.parse(responseText) as Record<string, unknown>;
   } catch {
-    throw new HttpsError("internal", "La IA no devolvió un JSON válido.");
+    throw new HttpsError("internal", "Groq no devolvió JSON válido.");
   }
 }
 
@@ -5340,3 +5284,59 @@ export const onContactTicketCreated = onDocumentCreated(
     log("INFO", "contact_ticket_push_sent", { subject, assignedTo, userType, admins: adminsSnap.size });
   }
 );
+
+// ── Chatbot de ayuda de la plataforma ────────────────────────────────────────
+export const platformChatbot = onCall<{
+  message: string;
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
+}>({ region: "us-central1", timeoutSeconds: 30 }, async (request) => {
+  const { message, history = [] } = request.data;
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Mensaje requerido.");
+  }
+  if (message.length > 800) {
+    throw new HttpsError("invalid-argument", "Mensaje demasiado largo.");
+  }
+
+  const systemPrompt = `Eres el asistente de Perfil Primero, la plataforma laboral invertida de Chile.
+Tu función es ayudar a postulantes y empresas con dudas sobre la plataforma.
+Responde siempre en español, de forma breve y directa (máximo 3 párrafos cortos).
+Información clave:
+- Los postulantes crean un perfil anónimo (sin nombre ni contacto) y las empresas verificadas los contactan primero.
+- Las empresas siempre muestran el cargo, sueldo y modalidad antes del primer contacto.
+- El perfil de postulante es gratuito durante el lanzamiento.
+- Las empresas pagan 4.990 CLP por desbloquear el contacto de un candidato.
+- La plataforma opera solo en Chile.
+- Correo de soporte: contacto@perfil-primero.cl
+Si no sabes algo específico, sugiere escribir a contacto@perfil-primero.cl.
+No inventes precios, funciones ni políticas que no están descritas arriba.`;
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new HttpsError("failed-precondition", "Servicio de IA no configurado.");
+  const model = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: message.trim() }
+  ];
+
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages, max_tokens: 400, temperature: 0.5 })
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      throw new HttpsError("internal", `Groq ${res.status}: ${err.slice(0, 100)}`);
+    }
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const reply = data.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!reply) throw new HttpsError("internal", "Sin respuesta del asistente.");
+    return { reply };
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", "Error al conectar con el asistente.");
+  }
+});

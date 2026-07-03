@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { Home, Search, User, HelpCircle } from "lucide-react";
 
 const links = [
@@ -9,8 +10,12 @@ const links = [
 ];
 
 export function BottomNav() {
-  if (typeof window === "undefined") return null;
-  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const [path, setPath] = useState("");
+
+  useEffect(() => {
+    setPath(window.location.pathname);
+  }, []);
+
   return (
     <nav className="bottomNav" aria-label="Navegación principal mobile">
       {links.map(({ href, label, Icon }) => (

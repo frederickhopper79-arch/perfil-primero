@@ -53,9 +53,7 @@
 
       <h2>7. Modelo de pago</h2>
       <p>
-        Durante el lanzamiento, el postulante activa visibilidad sin costo. La empresa paga $4.990 CLP (precio lanzamiento; precio normal $9.990 CLP) cuando
-        desbloquea el contacto de un postulante. El pago aprobado activa visibilidad, desbloqueo, comprobantes y
-        registros contables según el tipo de servicio. Durante período de lanzamiento los precios pueden variar.
+        Durante el lanzamiento, el postulante activa visibilidad sin costo. La empresa paga $4.990 CLP (precio lanzamiento; precio normal $9.990 CLP) al momento de desbloquear los datos de contacto de un postulante. El cobro corresponde exclusivamente al desbloqueo del contacto — no a una contratación ni a ningún resultado posterior. Lo que ocurra entre empresa y postulante tras el desbloqueo es responsabilidad exclusiva de ambas partes. El pago aprobado activa el desbloqueo, comprobantes y registros contables. Durante el período de lanzamiento los precios pueden variar.
       </p>
 
       <h2>8. Mercado Pago, comprobantes y conciliación</h2>
@@ -119,7 +117,7 @@
       </ul>
       <p>
         Estos términos están sujetos a revisión por asesor legal antes del inicio formal de actividades comerciales.
-        La plataforma fue desarrollada por Hopper Tech E.I.R.L. para Perfil Primero SpA.
+        La plataforma fue desarrollada por Hopper Tech SpA para Perfil Primero SpA.
       </p>
     </main>
     </>

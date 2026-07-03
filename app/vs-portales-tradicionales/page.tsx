@@ -15,7 +15,7 @@ const comparativa = [
   { aspecto: "Costo para la empresa", perfilPrimero: "$4.990 CLP por contacto confirmado (lanzamiento)", tradicional: "Desde $0 (plan básico) hasta $500k/mes (planes premium)" },
   { aspecto: "Calidad de los contactos", perfilPrimero: "Solo candidatos que aceptaron tu propuesta con sueldo declarado", tradicional: "Decenas o cientos de CVs no filtrados" },
   { aspecto: "Tiempo promedio hasta contratación", perfilPrimero: "7-21 días", tradicional: "30-60 días (según estadísticas mercado chileno)" },
-  { aspecto: "Modelo de negocio", perfilPrimero: "Transaccional: pagas por calce real", tradicional: "Suscripción mensual o publicación de avisos sin garantía de resultado" },
+  { aspecto: "Modelo de negocio", perfilPrimero: "Transaccional: pagas solo al desbloquear el contacto del postulante", tradicional: "Suscripción mensual o publicación de avisos sin garantía de resultado" },
   { aspecto: "Integración con OMIL", perfilPrimero: "Sí, gratuita para municipalidades y beneficiarios", tradicional: "No" },
 ];
 

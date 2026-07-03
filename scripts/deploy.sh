@@ -13,7 +13,7 @@
 set -euo pipefail
 
 # ── Configuración del proyecto ────────────────────────────────────────────────
-EXPECTED_ACCOUNT="fabiancarrillo@gmail.com"
+EXPECTED_ACCOUNT="perfilprimero7@gmail.com"
 EXPECTED_PROJECT="perfil-primero"
 FUNCTIONS_DIR="functions"
 

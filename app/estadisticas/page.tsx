@@ -79,7 +79,7 @@ export default function EstadisticasPage() {
 
       {/* KPIs */}
       <section style={{ marginBottom: "3rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
           {kpis.map((k, i) => (
             <div key={i} style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1.25rem 1rem", textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-dark)" }}>{k.value}</div>

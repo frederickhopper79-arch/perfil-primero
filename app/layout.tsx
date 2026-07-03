@@ -10,6 +10,7 @@ import { GlobalUI } from "@/components/ui/global-ui";
 import { AppInit } from "@/components/app-init";
 import { CookieConsent } from "@/components/cookie-consent";
 import { BottomNav } from "@/components/ui/bottom-nav";
+import { ChatbotWidget } from "@/components/chatbot-widget";
 
 export const viewport: Viewport = {
   themeColor: [
@@ -165,6 +166,7 @@ export default function RootLayout({
           <GlobalUI />
           <BottomNav />
           <CookieConsent />
+          <ChatbotWidget />
         </ToastProvider>
         <footer className="siteFooter" role="contentinfo">
           <div className="footerGrid">

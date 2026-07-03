@@ -146,7 +146,7 @@ export default function Home() {
         <div className="homeForWorkerText">
           <p className="eyebrow">Para postulantes</p>
           <h2>Deja de mandar CVs al vacío.</h2>
-          <p>Con Perfil Primero publicás tu perfil una vez y las empresas verificadas llegan a ti con oferta real en mano. Tú filtras, tú decides.</p>
+          <p>Con Perfil Primero publicas tu perfil una vez y las empresas verificadas llegan a ti con oferta real en mano. Tú filtras, tú decides.</p>
           <ul className="homeFeatureList">
             <li><Lock size={16} aria-hidden="true" /> Tu identidad 100% protegida hasta que aceptas</li>
             <li><TrendingUp size={16} aria-hidden="true" /> Sueldo visible antes del primer mensaje</li>
@@ -186,15 +186,15 @@ export default function Home() {
           <p className="eyebrow">Para empresas</p>
           <h2>Encuentra personas disponibles. No currículums.</h2>
           <p>Buscas por cargo, habilidades, renta y modalidad. Ves perfiles reales y disponibles. Pagas solo cuando hay resultado: un contacto real desbloqueado.</p>
+          <a className="button primary" href="/empresa">
+            Buscar talento <ChevronRight size={15} aria-hidden="true" />
+          </a>
           <ul className="homeFeatureList homeFeatureListDark">
             <li><Users size={16} aria-hidden="true" /> Perfiles filtrados por calce real</li>
             <li><Building2 size={16} aria-hidden="true" /> Empresa verificada = mayor respuesta</li>
             <li><Zap size={16} aria-hidden="true" /> Sin mensualidades — pagas por resultado</li>
             <li><TrendingUp size={16} aria-hidden="true" /> Pipeline de candidatos integrado</li>
           </ul>
-          <a className="button primary" href="/empresa">
-            Buscar talento <ChevronRight size={15} aria-hidden="true" />
-          </a>
         </div>
         <div className="homeForCompanyStats">
           {[
@@ -208,14 +208,6 @@ export default function Home() {
               <p>{item.text}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── Sectores ── */}
-      <section className="homeSectors" aria-label="Sectores disponibles">
-        <p className="eyebrow" style={{ textAlign: "center" }}>Sectores activos</p>
-        <div className="homeSectorChips">
-          {sectores.map((s) => <span key={s} className="homeSectorChip">{s}</span>)}
         </div>
       </section>
 
@@ -248,7 +240,7 @@ export default function Home() {
       <section style={{ maxWidth: 860, margin: "0 auto 3rem", padding: "0 24px" }}>
         <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8, textAlign: "center" }}>Herramientas gratuitas</p>
         <h2 style={{ textAlign: "center", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: "1.5rem" }}>Recursos para tu búsqueda de empleo</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
           {[
             { icon: "🧮", titulo: "Calculadora salarial", desc: "¿Cuánto vale tu cargo en tu región?", href: "/calculadora-salarial" },
             { icon: "📊", titulo: "Estadísticas de mercado", desc: "Sueldos y demanda por sector", href: "/estadisticas" },

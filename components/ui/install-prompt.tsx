@@ -6,30 +6,37 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const STORAGE_KEY = "pp_install_dismissed";
+
 export function InstallPrompt() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (localStorage.getItem(STORAGE_KEY)) return;
+
     function handler(e: Event) {
       e.preventDefault();
       setPrompt(e as BeforeInstallPromptEvent);
+      setVisible(true);
     }
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  if (!prompt || dismissed) return null;
+  function dismiss() {
+    localStorage.setItem(STORAGE_KEY, "1");
+    setVisible(false);
+  }
 
   async function handleInstall() {
     if (!prompt) return;
     await prompt.prompt();
-    const { outcome } = await prompt.userChoice;
-    if (outcome === "accepted" || outcome === "dismissed") {
-      setDismissed(true);
-      setPrompt(null);
-    }
+    await prompt.userChoice;
+    dismiss();
   }
+
+  if (!visible) return null;
 
   return (
     <div
@@ -63,7 +70,7 @@ export function InstallPrompt() {
         <button
           type="button"
           className="button secondary"
-          onClick={() => setDismissed(true)}
+          onClick={dismiss}
           style={{ fontSize: 12, padding: "4px 10px" }}
         >
           No

@@ -8,7 +8,8 @@
     "deploy": "firebase deploy --only functions",
     "seed:demo": "node scripts/seed-demo-data.mjs",
     "seed:coupons": "node scripts/seed-coupons.mjs",
-    "seed:omil": "node scripts/seed-omil-accounts.mjs"
+    "seed:omil": "node scripts/seed-omil-accounts.mjs",
+    "create:admin": "node scripts/create-admin.mjs"
   },
   "engines": {
     "node": "22"

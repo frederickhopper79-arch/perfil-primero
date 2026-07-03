@@ -216,6 +216,7 @@ export async function analyzeCvWithAi(input: {
   fileName: string;
   mimeType: string;
   base64: string;
+  preExtractedText?: string;
 }) {
   const callable = httpsCallable(functions, "analyzeCvWithAi");
   const result = await callable(input);
@@ -229,6 +230,11 @@ export async function analyzeCvWithAi(input: {
     suggestedSalaryMax: number;
     cvAnalysisSummary: string;
     formattedCv: string;
+    extractedName?: string;
+    extractedPhone?: string;
+    extractedLinkedIn?: string;
+    extractedRegion?: string;
+    extractedComuna?: string;
     aiStatus?: "completed" | "quota_exceeded";
   };
 }

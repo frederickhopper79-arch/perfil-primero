@@ -17,7 +17,7 @@
 set -euo pipefail
 
 # ── Configuración ─────────────────────────────────────────────────────────────
-EXPECTED_ACCOUNT="fabiancarrillo@gmail.com"
+EXPECTED_ACCOUNT="perfilprimero7@gmail.com"
 EXPECTED_PROJECT="perfil-primero"
 FIX_MODE=false
 [[ "${1:-}" == "--fix" ]] && FIX_MODE=true

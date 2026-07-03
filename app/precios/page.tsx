@@ -91,7 +91,7 @@ export default function PreciosPage() {
           <p style={{ fontSize: "12px", color: "var(--muted)", margin: "-0.25rem 0 0.75rem" }}>Precio normal tras lanzamiento: $999 CLP</p>
           <ul className="pricingFeatures">
             <li><BadgeCheck size={16} aria-hidden="true" /> Perfil visible 30 días</li>
-            <li><BadgeCheck size={16} aria-hidden="true" /> Análisis de CV con Google IA</li>
+            <li><BadgeCheck size={16} aria-hidden="true" /> Análisis de CV con IA</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Identidad protegida hasta que aceptas</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Recibes oferta con cargo, sueldo y modalidad</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Tests de inglés, español y personalidad</li>
@@ -118,7 +118,7 @@ export default function PreciosPage() {
           <ul className="pricingFeatures">
             <li><BadgeCheck size={16} aria-hidden="true" /> Búsqueda ilimitada de perfiles</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Enviar invitaciones sin costo</li>
-            <li><BadgeCheck size={16} aria-hidden="true" /> Pagas solo si el postulante acepta</li>
+            <li><BadgeCheck size={16} aria-hidden="true" /> Pagas solo al desbloquear el contacto</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Acceso a datos de contacto reales</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Panel de seguimiento por candidato</li>
             <li><BadgeCheck size={16} aria-hidden="true" /> Empresa verificada · mayor confianza</li>

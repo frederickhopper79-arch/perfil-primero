@@ -145,11 +145,11 @@ const views: Array<{ key: AdminView; label: string }> = [
   { key: "urgency", label: "🔴 Urgencias" },
   { key: "reviews", label: "Reputación" },
   { key: "security", label: "Seguridad" },
-  { key: "audit", label: "Auditoria" },
+  { key: "audit", label: "Auditoría" },
   { key: "reports", label: "Reportes" },
   { key: "pendientes", label: "⚠️ Pendientes manuales" },
   { key: "expertos", label: "🧠 Análisis de expertos" },
-  { key: "roadmap", label: "🗺 Roadmap" },
+  { key: "roadmap", label: "🗺 Hoja de ruta" },
   { key: "changelog", label: "📋 Changelog" },
   { key: "tarifas", label: "💰 Config. tarifas" },
   { key: "mrr", label: "📈 MRR / ARR" },
@@ -315,7 +315,7 @@ export function AdminPanel() {
         notes: notesByCompany[companyId] ?? ""
       });
       await loadDashboard();
-      setStatus(nextStatus === "verified" ? "Empresa verificada." : "Estado actualizado.");
+      setStatus(nextStatus === "verified" ? "Empresa verificada." : "Estado de empresa actualizado.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo actualizar la empresa.");
     }
@@ -386,7 +386,7 @@ export function AdminPanel() {
   }
 
   async function handleGenerateMarketReport() {
-    setStatus("Generando reporte cientifico de mercado...");
+    setStatus("Generando reporte científico de mercado...");
     try {
       await generateMarketAnalyticsNow();
       await loadDashboard();
@@ -657,8 +657,8 @@ function SystemStatusView({ healthCheck }: { healthCheck: HealthCheckDoc | null 
         {[
           { label: "Claves de entorno", ok: !issues.some(i => i.includes("ACCESS_TOKEN")) },
           { label: "Cupones con expiración", ok: !issues.some(i => i.includes("cupones activos sin")) },
-          { label: "Perfiles no vencidos", ok: !warnings.some(w => w.includes("perfiles visibles con")) },
-          { label: "Pagos sin quedar estancados", ok: !warnings.some(w => w.includes("pagos en estado")) }
+          { label: "Perfiles vigentes", ok: !warnings.some(w => w.includes("perfiles visibles con")) },
+          { label: "Pagos sin estancamiento", ok: !warnings.some(w => w.includes("pagos en estado")) }
         ].map(({ label, ok }) => (
           <div key={label} className={`statusCheck ${ok ? "ok" : "fail"}`}>
             <span>{ok ? "✓" : "✗"}</span>
@@ -682,7 +682,7 @@ function SummaryView({ dashboard, onVerification }: { dashboard: AdminDashboard;
     { icon: <CalendarClock />, label: "Entrevistas", value: dashboard.summary.interviewsScheduled, detail: "Programadas en plataforma" },
     { icon: <MessageSquare />, label: "Mensajes", value: dashboard.summary.messagesTotal, detail: `${dashboard.summary.contactUnlocksTotal} contactos desbloqueados` },
     { icon: <Star />, label: "Reputación", value: dashboard.summary.reviewAverage || "0", detail: `${dashboard.summary.reviewsTotal} evaluaciones` },
-    { icon: <AlertTriangle />, label: "Alertas", value: dashboard.summary.securityAlerts, detail: "Bloqueos y pendientes criticos" }
+    { icon: <AlertTriangle />, label: "Alertas", value: dashboard.summary.securityAlerts, detail: "Bloqueos y pendientes críticos" }
   ];
 
   return (
@@ -698,7 +698,7 @@ function SummaryView({ dashboard, onVerification }: { dashboard: AdminDashboard;
         </div>
         <div className="commandKpiGrid">
           <article className="commandKpi commandPrimary">
-            <span>Ingresos paid</span>
+            <span>Ingresos confirmados</span>
             <strong>{money(dashboard.summary.revenuePaidClp)}</strong>
             <small>CLP confirmado</small>
           </article>
@@ -1068,9 +1068,9 @@ function AdministrationView({
           <p>Agenda y avisos asociados a entrevistas.</p>
         </article>
         <article>
-          <span className="smallLabel">Desbloqueos contacto</span>
+          <span className="smallLabel">Desbloqueos de contacto</span>
           <strong>{dashboard.summary.contactUnlocksTotal}</strong>
-          <p>Contactos liberados despues de pago/cierre.</p>
+          <p>Contactos liberados después de pago/cierre.</p>
         </article>
       </section>
       <AdminTable title="Usuarios registrados" rows={dashboard.users} columns={[
@@ -1078,7 +1078,7 @@ function AdministrationView({
         ["email", "Email"],
         ["role", "Rol"],
         ["status", "Estado"],
-        ["lastLoginAt", "Ultimo acceso"],
+        ["lastLoginAt", "Último acceso"],
         ["createdAt", "Creado"]
       ]} />
       <AdminTable title="Desbloqueos de contacto" rows={dashboard.contactUnlocks} columns={[
@@ -1465,7 +1465,7 @@ function PaymentsView({ payments, dateFrom, dateTo }: { payments: Array<Record<s
         <article>
           <span className="smallLabel">Pendiente de confirmar</span>
           <strong>{pending.length}</strong>
-          <p>pagos en estado pending</p>
+          <p>pagos en estado pendiente</p>
         </article>
         <article>
           <span className="smallLabel">Fallidos / rechazados</span>
@@ -1780,14 +1780,14 @@ function UrgencyView({ invitations }: { invitations: Array<Record<string, unknow
           <p>Monitorear hoy</p>
         </article>
         <article>
-          <span className="smallLabel">Total con deadline</span>
+          <span className="smallLabel">Total con fecha límite</span>
           <strong>{urgent.length}</strong>
           <p>Invitaciones activas con fecha límite</p>
         </article>
       </section>
 
       {urgent.length === 0 ? (
-        <p className="statusText">No hay invitaciones con deadline próximo.</p>
+        <p className="statusText">No hay invitaciones con fecha límite próxima.</p>
       ) : (
         <div className="urgencyTable">
           <table>
@@ -1981,7 +1981,7 @@ function ReportsView({
       <section className="dashboardGrid adminDashboardGrid">
         <ReportCard title="Reporte financiero" icon={<BadgeDollarSign />} metrics={dashboard.reports.financial} />
         <ReportCard title="Reporte operacional" icon={<BriefcaseBusiness />} metrics={dashboard.reports.operations} />
-        <ReportCard title="Reporte conversion" icon={<BarChart3 />} metrics={dashboard.reports.conversion} />
+        <ReportCard title="Reporte de conversión" icon={<BarChart3 />} metrics={dashboard.reports.conversion} />
         <ReportCard title="Reporte riesgo/control" icon={<AlertTriangle />} metrics={dashboard.reports.risk} />
       </section>
       <AdminTable title="Detalle de reportes" rows={reportRows} columns={[
@@ -1989,7 +1989,7 @@ function ReportsView({
         ["metric", "Indicador"],
         ["value", "Valor"]
       ]} />
-      <AdminTable title="Reportes cientificos de mercado" rows={dashboard.marketAnalyticsReports} columns={[
+      <AdminTable title="Reportes científicos de mercado" rows={dashboard.marketAnalyticsReports} columns={[
         ["createdAt", "Fecha"],
         ["activePostulants", "Postulantes visibles"],
         ["activeJobOffers", "Ofertas visibles"],
@@ -2099,7 +2099,7 @@ function AdminTable({
 
 function formatCell(value: unknown, isMoney = false) {
   if (isMoney) return money(Number(value ?? 0));
-  if (typeof value === "boolean") return value ? "Si" : "No";
+  if (typeof value === "boolean") return value ? "Sí" : "No";
   const text = str(value);
   if (text.startsWith("http")) return <a href={text} target="_blank" rel="noreferrer">Abrir</a>;
   if (text.includes("T") && text.includes(":") && text.length >= 16) return date(text);
@@ -2303,7 +2303,7 @@ function PendientesView() {
             ⚠️ Pendientes manuales
           </h2>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-            Acciones que no pueden automatizarse y requieren intervención directa de Fabián.
+            Acciones que no pueden automatizarse y requieren intervención directa del administrador.
           </p>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -2400,7 +2400,7 @@ function PendientesView() {
       {resuelto.length > 0 && (
         <details style={{ marginTop: 8 }}>
           <summary style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer", userSelect: "none" }}>
-            ✅ {resuelto.length} tarea{resuelto.length > 1 ? "s" : ""} marcada{resuelto.length > 1 ? "s" : ""} como resuelta (solo esta sesión)
+            ✅ {resuelto.length} tarea{resuelto.length > 1 ? "s" : ""} marcada{resuelto.length > 1 ? "s" : ""} como resueltas (solo esta sesión)
           </summary>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             {resuelto.map((t) => (
@@ -2420,7 +2420,7 @@ function PendientesView() {
       )}
 
       <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginTop: 8 }}>
-        Las marcas de "resuelta" son solo visuales para esta sesión. No se guardan en Firestore.
+        Las marcas de "resuelta" son solo visuales para esta sesión. No se guardan en la base de datos.
       </p>
     </section>
   );
@@ -2493,7 +2493,7 @@ function RoadmapView() {
   ];
   return (
     <section className="stack">
-      <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>🗺 Roadmap del producto</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--heading)", margin: "0 0 4px" }}>🗺 Hoja de ruta del producto</h2>
       <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>Hoja de ruta visible internamente. No publicar sin autorización del equipo.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {fases.map((f) => (
@@ -2675,14 +2675,14 @@ function TarifasView() {
 
   return (
     <section>
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--heading)", marginBottom: 4 }}>Configuración de Tarifas</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--heading)", marginBottom: 4 }}>Configuración de tarifas</h2>
       <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
         Los cambios se aplican en tiempo real a las próximas transacciones. Los pagos ya procesados no se ven afectados.
       </p>
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 480 }}>
         <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 16 }}>
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--color-primary)", margin: 0 }}>Fase de lanzamiento</p>
-          {inp("Fase lanzamiento activa", "fase_lanzamiento_activa", "boolean")}
+          {inp("Fase de lanzamiento activa", "fase_lanzamiento_activa", "boolean")}
         </div>
 
         <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.25rem", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2708,7 +2708,7 @@ function TarifasView() {
 
       <div style={{ marginTop: 24, padding: "1rem 1.25rem", background: "rgba(255,200,0,0.08)", border: "1px solid rgba(200,150,0,0.2)", borderRadius: 10, fontSize: 13, color: "var(--muted)", maxWidth: 480 }}>
         <strong style={{ color: "var(--heading)" }}>Nota:</strong> Si la fase lanzamiento está activa, se usan los precios de lanzamiento.
-        Cuando la desactives, el sistema automáticamente cobra los precios regulares en la siguiente transacción.
+        Cuando se desactive, el sistema automáticamente cobra los precios regulares en la siguiente transacción.
         Actualiza también las páginas de precios y marketing para reflejar el cambio.
       </div>
     </section>
@@ -2747,7 +2747,7 @@ function MrrView() {
 
   return (
     <section style={{ padding: "1.5rem" }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: "1.5rem" }}>📈 MRR / ARR Dashboard</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--heading)", marginBottom: "1.5rem" }}>📈 Panel MRR / ARR</h2>
       {loading && <p style={{ color: "var(--muted)" }}>Cargando datos…</p>}
       {error && <p style={{ color: "#dc2626", fontSize: 13 }}>{error}</p>}
       {!loading && data.length > 0 && (
@@ -2778,7 +2778,7 @@ function MrrView() {
         </>
       )}
       {!loading && data.length === 0 && !error && (
-        <p style={{ color: "var(--muted)", fontSize: 14 }}>Sin datos de ingresos aún. Los datos aparecen cuando se registren pagos pagados en Firestore.</p>
+        <p style={{ color: "var(--muted)", fontSize: 14 }}>Sin datos de ingresos aún. Los datos aparecen cuando se registren pagos confirmados en la plataforma.</p>
       )}
     </section>
   );
@@ -2900,7 +2900,7 @@ function FunnelView({ dashboard }: { dashboard: AdminDashboard }) {
 
   const steps = [
     { label: "Usuarios registrados", value: s.usersTotal, icon: "👤", color: "#3aaee0" },
-    { label: "Perfiles workers creados", value: s.workersTotal, icon: "📄", color: "#1a7ac7" },
+    { label: "Perfiles de postulantes creados", value: s.workersTotal, icon: "📄", color: "#1a7ac7" },
     { label: "Pagos iniciados", value: s.paymentsTotal, icon: "💳", color: "#1a5ca0" },
     { label: "Pagos completados", value: s.paymentsPaid, icon: "✅", color: "#1a3e78" },
     { label: "Perfiles activos/visibles", value: Object.values(s.workerVisibilityCounts as Record<string,number>).reduce((a,b)=>a+b,0) > 0 ? (s.workerVisibilityCounts as Record<string,number>)["visible"] ?? 0 : 0, icon: "🔍", color: "#1a2f5e" },
@@ -2953,7 +2953,7 @@ function FunnelView({ dashboard }: { dashboard: AdminDashboard }) {
         {[
           { label: "Conversión registro→pago", value: rate(s.paymentsPaid, s.usersTotal) },
           { label: "Conversión pago→contratación", value: rate((s.invitationStatusCounts as Record<string,number>)["hired"] ?? 0, s.paymentsPaid) },
-          { label: "Revenue por usuario", value: s.usersTotal > 0 ? `$${Math.round(s.revenuePaidClp / Math.max(s.usersTotal,1)).toLocaleString("es-CL")} CLP` : "—" },
+          { label: "Ingreso por usuario", value: s.usersTotal > 0 ? `$${Math.round(s.revenuePaidClp / Math.max(s.usersTotal,1)).toLocaleString("es-CL")} CLP` : "—" },
         ].map((k, i) => (
           <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 16px" }}>
             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 3 }}>{k.label}</div>

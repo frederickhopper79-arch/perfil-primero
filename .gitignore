@@ -11,3 +11,4 @@ ui-debug.log
 dev-server.*.log
 functions/lib
 functions/node_modules
+.claude/settings.local.json

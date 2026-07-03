@@ -68,7 +68,7 @@ export default function ComunidadPage() {
       <section style={{ maxWidth: 860, margin: "0 auto", padding: "3.5rem 1.5rem" }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--heading)", marginBottom: 8, textAlign: "center" }}>Lo que nos mueve</h2>
         <p style={{ color: "var(--muted)", textAlign: "center", marginBottom: 32, maxWidth: 520, margin: "0 auto 32px" }}>Perfil Primero no es solo una plataforma — es una postura sobre cómo debería funcionar el mercado laboral en Chile.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 16 }}>
           {valores.map((v, i) => (
             <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "1.25rem" }}>
               <div style={{ fontSize: 28, marginBottom: 10 }}>{v.icon}</div>
@@ -104,7 +104,7 @@ export default function ComunidadPage() {
       <section style={{ maxWidth: 860, margin: "0 auto", padding: "3.5rem 1.5rem" }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--heading)", marginBottom: 8 }}>Herramientas útiles</h2>
         <p style={{ color: "var(--muted)", marginBottom: 28 }}>Recursos interactivos para conocer tu valor en el mercado.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 14 }}>
           {[
             { icon: "🧮", titulo: "Calculadora salarial", desc: "Estima tu sueldo bruto, líquido y cotizaciones según tu contrato.", href: "/calculadora-salarial", cta: "Calcular" },
             { icon: "📚", titulo: "Glosario laboral", desc: "44 términos del mercado laboral chileno explicados en lenguaje claro.", href: "/glosario", cta: "Ver glosario" },

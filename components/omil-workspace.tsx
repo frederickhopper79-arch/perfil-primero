@@ -9,6 +9,7 @@ import { AuthCard } from "./auth-card";
 import { chileRegions, jobAreas } from "@/lib/domain/catalogs";
 import { getUserRole, logout } from "@/lib/firebase/auth";
 import { fileToBase64 } from "@/lib/utils/file";
+import { extractTextFromPdf } from "@/lib/utils/pdf-extract";
 import { analyzeCvWithAi, listOmilWorkers, uploadWorkerCv } from "@/lib/firebase/workers";
 import type { WorkerPublicProfile } from "@/lib/domain/types";
 import { createOmilPostulantProfile } from "@/lib/firebase/omil";
@@ -51,7 +52,7 @@ export function OmilWorkspace() {
     summary: "",
     skills: "",
     area: "Oficios y Otros",
-    region: "Region Metropolitana",
+    region: "Región Metropolitana",
     city: "Santiago",
     salaryMin: "0",
     salaryMax: "0",
@@ -115,10 +116,10 @@ export function OmilWorkspace() {
 
   async function handleCvAnalysis() {
     if (!uid) return;
-    if (!cvFile) { setStatus("Selecciona un CV antes de analizar."); return; }
-    if (cvFile.size > 5 * 1024 * 1024) { setStatus("El CV pesa más de 5 MB. Reduce el tamaño."); return; }
+    if (!cvFile) { setStatus("Seleccione un archivo CV antes de continuar."); return; }
+    if (cvFile.size > 5 * 1024 * 1024) { setStatus("El archivo supera los 5 MB. Reduzca el tamaño o seleccione otro archivo."); return; }
     if (!["application/pdf", "text/plain"].includes(cvFile.type) && !cvFile.name.match(/\.(doc|docx)$/i)) {
-      setStatus("Formato no permitido. Usa PDF, DOC, DOCX o TXT.");
+      setStatus("Formato no admitido. Use PDF, DOC, DOCX o TXT.");
       return;
     }
     setCvAnalyzing(true);
@@ -127,9 +128,12 @@ export function OmilWorkspace() {
     try {
       await uploadWorkerCv(uid, cvFile);
       setCvStep("Extrayendo texto...");
-      const base64 = await fileToBase64(cvFile);
-      setCvStep("Analizando con Google IA...");
-      const analysis = await analyzeCvWithAi({ fileName: cvFile.name, mimeType: cvFile.type || "application/pdf", base64 });
+      const [base64, preExtractedText] = await Promise.all([
+        fileToBase64(cvFile),
+        extractTextFromPdf(cvFile)
+      ]);
+      setCvStep("Analizando con IA...");
+      const analysis = await analyzeCvWithAi({ fileName: cvFile.name, mimeType: cvFile.type || "application/pdf", base64, preExtractedText: preExtractedText || undefined });
       setForm((current) => ({
         ...current,
         headline: analysis.headline || current.headline,
@@ -140,8 +144,8 @@ export function OmilWorkspace() {
         salaryMax: String(analysis.suggestedSalaryMax || current.salaryMax)
       }));
       setStatus(analysis.aiStatus === "quota_exceeded"
-        ? "CV subido. El análisis automático está en mantenimiento — completa los campos manualmente."
-        : "CV analizado. Revisa y completa los campos antes de publicar.");
+        ? "CV cargado. Complete los campos manualmente."
+        : "CV analizado. Revise y complete los campos antes de publicar.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo analizar el CV.");
     } finally {
@@ -152,7 +156,7 @@ export function OmilWorkspace() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("Creando perfil gratuito OMIL...");
+    setStatus("Publicando perfil…");
 
     try {
       const created = await createOmilPostulantProfile({
@@ -198,8 +202,8 @@ export function OmilWorkspace() {
       <section className="accessSplit omilAccess">
         <div className="accessPitch">
           <span className="smallLabel">Acceso restringido</span>
-          <h2>Esta sección es exclusiva para usuarios OMIL autorizados.</h2>
-          <p>Tu cuenta no tiene permisos para acceder a este portal. Si eres representante de una Oficina Municipal de Información Laboral, contacta al administrador de la plataforma para solicitar acceso.</p>
+          <h2>Portal exclusivo para funcionarios OMIL autorizados</h2>
+          <p>Esta cuenta no tiene permisos para acceder a este portal. Si es representante de una Oficina Municipal de Información Laboral, contacte al administrador de la plataforma para solicitar acceso.</p>
           <a className="button secondary" href="/">Volver al inicio</a>
         </div>
       </section>
@@ -210,15 +214,15 @@ export function OmilWorkspace() {
     return (
       <section className="accessSplit omilAccess">
         <div className="accessPitch">
-          <span className="smallLabel">Ingreso institucional</span>
-          <h2>OMIL puede cargar postulantes sin cobro inicial y con vigencia controlada.</h2>
+          <span className="smallLabel">Ingreso institucional OMIL</span>
+          <h2>Publique perfiles de postulantes sin costo y con vigencia controlada</h2>
           <p>
-            Cada perfil queda visible por 60 días. 7 días antes del vencimiento, el postulante recibe un
-            aviso para continuar de forma personal mediante suscripción normal (gratuita en fase de lanzamiento).
+            Cada perfil queda visible por 60 días. A los 53 días, el postulante recibe un aviso
+            para renovarlo de forma autónoma. Sin pasarela de pago para la OMIL.
           </p>
           <div className="portalStatGrid">
-            <div><strong>Gratis</strong><span>alta institucional</span></div>
-            <div><strong>60 días</strong><span>visibilidad inicial</span></div>
+            <div><strong>Sin costo</strong><span>registro institucional</span></div>
+            <div><strong>60 días</strong><span>vigencia del perfil</span></div>
             <div><strong>100 / mes</strong><span>perfiles por OMIL</span></div>
           </div>
         </div>
@@ -247,7 +251,7 @@ export function OmilWorkspace() {
         ) : (
           <div className="adminBadge">
             <Building2 size={18} aria-hidden="true" />
-            OMIL activa
+            Sesión OMIL
           </div>
         )}
         <h2>{omilMeta?.municipalityName ?? "Cuenta institucional"}</h2>
@@ -259,14 +263,14 @@ export function OmilWorkspace() {
       <div className="stack">
         <section className="dashboardGrid">
           <article>
-            <span className="smallLabel">Perfiles creados hoy</span>
+            <span className="smallLabel">Perfiles esta sesión</span>
             <strong>{createdCount}</strong>
-            <p>En esta sesión activa.</p>
+            <p>Publicados desde que inició sesión.</p>
           </article>
           <article>
-            <span className="smallLabel">Modelo</span>
+            <span className="smallLabel">Tipo de cuenta</span>
             <strong>Sin cobro</strong>
-            <p>La OMIL no pasa por Mercado Pago.</p>
+            <p>Sin pasarela de pago para la OMIL.</p>
           </article>
           <article>
             <span className="smallLabel">Vigencia por perfil</span>
@@ -292,7 +296,7 @@ export function OmilWorkspace() {
               <CalendarClock size={20} aria-hidden="true" />
               <div>
                 <h2>Historial de perfiles OMIL</h2>
-                <p>Todos los perfiles que creaste desde esta cuenta, incluyendo sesiones anteriores.</p>
+                <p>Todos los perfiles registrados desde esta cuenta, incluyendo sesiones anteriores.</p>
               </div>
             </div>
             <div style={{ marginBottom: 8 }}>
@@ -306,7 +310,7 @@ export function OmilWorkspace() {
             {historyLoading ? (
               <p style={{ fontSize: 13, color: "var(--muted)", textAlign: "center" }}>Cargando historial…</p>
             ) : firestoreHistory.length === 0 ? (
-              <p className="emptyState">No hay perfiles creados desde esta cuenta OMIL aún.</p>
+              <p className="emptyState">Aún no hay perfiles registrados desde esta cuenta.</p>
             ) : (
               <div className="results">
                 {firestoreHistory
@@ -337,13 +341,13 @@ export function OmilWorkspace() {
             <UserPlus size={24} aria-hidden="true" />
             <div>
               <h2>Crear perfil de postulante</h2>
-              <p>Registra datos laborales suficientes para que empresas verificadas encuentren el perfil.</p>
+              <p>Registre los datos laborales necesarios para que empresas verificadas encuentren el perfil.</p>
             </div>
           </div>
           <div className="cvUploadBlock">
             <label className="cvUploadLabel">
               <FileText size={18} aria-hidden="true" />
-              Cargar CV (opcional) — la IA llenará el formulario automáticamente
+              Cargar CV (opcional) — el sistema completará los campos automáticamente
               <input
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
@@ -358,7 +362,7 @@ export function OmilWorkspace() {
               onClick={handleCvAnalysis}
               disabled={cvAnalyzing || !cvFile}
             >
-              {cvAnalyzing ? cvStep || "Procesando..." : "Analizar con IA"}
+              {cvAnalyzing ? cvStep || "Procesando..." : "Completar desde CV"}
             </button>
             {cvAnalyzing && (
               <div className="cvAnalyzingBar" role="status" aria-live="polite">
@@ -373,7 +377,7 @@ export function OmilWorkspace() {
               <input value={form.legalName} onChange={(event) => update("legalName", event.target.value)} required />
             </label>
             <label>
-              Email personal
+              Correo electrónico
               <input value={form.email} onChange={(event) => update("email", event.target.value)} type="email" required />
             </label>
             <label>
@@ -419,8 +423,8 @@ export function OmilWorkspace() {
               <input value={form.salaryMax} onChange={(event) => update("salaryMax", event.target.value)} inputMode="numeric" />
             </label>
             <label className="wide">
-              Habilidades separadas por coma
-              <input value={form.skills} onChange={(event) => update("skills", event.target.value)} placeholder="Ventas, caja, Excel, licencia clase B" />
+              Habilidades
+              <input value={form.skills} onChange={(event) => update("skills", event.target.value)} placeholder="Ventas, caja, Excel, licencia clase B (separe con comas)" />
               {skillsSuggestions[form.area] && (
                 <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                   <span style={{ fontSize: 11, color: "var(--muted)", alignSelf: "center" }}>Sugeridas:</span>
@@ -450,13 +454,13 @@ export function OmilWorkspace() {
             <label>
               Urgencia de búsqueda
               <select value={form.urgency} onChange={(e) => update("urgency", e.target.value as typeof form.urgency)}>
-                <option value="alta">🔴 Alta — necesita trabajo urgente</option>
-                <option value="media">🟡 Media — buscando activamente</option>
-                <option value="baja">🟢 Baja — evaluando opciones</option>
+                <option value="alta">Alta — búsqueda inmediata</option>
+                <option value="media">Media — búsqueda activa</option>
+                <option value="baja">Baja — evaluando opciones</option>
               </select>
             </label>
             <label>
-              Origen del trabajador
+              Procedencia del postulante
               <select value={form.origin} onChange={(e) => update("origin", e.target.value as typeof form.origin)}>
                 <option value="espontanea">Atención espontánea</option>
                 <option value="sence">Derivación SENCE</option>
@@ -465,13 +469,14 @@ export function OmilWorkspace() {
               </select>
             </label>
             <label className="wide">
-              Observaciones internas OMIL (no visibles para empresas)
+              Notas internas
               <textarea
                 value={form.internalNotes}
                 onChange={(e) => update("internalNotes", e.target.value)}
-                placeholder="Ej: Trabajador con situación de vulnerabilidad, priorizar. Disponible solo mañanas."
+                placeholder="Ej: Derivado desde SENCE. Disponible solo mañanas. Prefiere modalidad presencial."
                 rows={2}
               />
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>Solo las ve el equipo OMIL — no es visible para empresas ni postulantes.</span>
             </label>
           </div>
           <div className="actions">
@@ -506,7 +511,7 @@ export function OmilWorkspace() {
             <div className="omilSuccess">
               <CalendarClock size={20} aria-hidden="true" />
               <p>
-                Código {lastCreated.code}. Visible hasta {new Date(lastCreated.expiresAt).toLocaleDateString("es-CL")}.
+                Perfil publicado · Código: <strong>{lastCreated.code}</strong> · Vigente hasta {new Date(lastCreated.expiresAt).toLocaleDateString("es-CL")}
               </p>
               <button
                 className="button ghost"
@@ -531,7 +536,7 @@ export function OmilWorkspace() {
               <CheckCircle2 size={20} aria-hidden="true" />
               <div>
                 <h2>Perfiles creados esta sesión ({sessionProfiles.length})</h2>
-                <p>Historial de perfiles publicados en esta sesión activa.</p>
+                <p>Perfiles publicados desde que inició esta sesión.</p>
               </div>
               <button
                 className="button ghost"
@@ -548,7 +553,7 @@ export function OmilWorkspace() {
                   a.click();
                 }}
               >
-                ⬇ Exportar CSV sesión
+                ⬇ Exportar CSV
               </button>
             </div>
             <div style={{ marginBottom: 8 }}>
@@ -565,7 +570,7 @@ export function OmilWorkspace() {
                   <div>
                     <div className="resultCardTop">
                       <span className="profileCode">{profile.code}</span>
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>hasta {new Date(profile.expiresAt).toLocaleDateString("es-CL")}</span>
+                      <span style={{ fontSize: 11, color: "var(--muted)" }}>Vigente hasta {new Date(profile.expiresAt).toLocaleDateString("es-CL")}</span>
                     </div>
                     <h2 style={{ fontSize: 14 }}>{profile.name}</h2>
                     <p>{profile.headline}</p>
@@ -579,7 +584,7 @@ export function OmilWorkspace() {
                         try { await navigator.clipboard.writeText(profile.code); setCopiedCode(profile.code); setTimeout(() => setCopiedCode(null), 2000); } catch {}
                       }}
                     >
-                      {copiedCode === profile.code ? "✓" : "Copiar código"}
+                      {copiedCode === profile.code ? "✓ Copiado" : "Copiar código"}
                     </button>
                     <button
                       className="button ghost"
@@ -587,7 +592,7 @@ export function OmilWorkspace() {
                       style={{ fontSize: 11 }}
                       onClick={() => { setPrintProfile(profile); setShowPrintable(true); }}
                     >
-                      Instrucciones
+                      Hoja para el postulante
                     </button>
                   </div>
                 </article>
@@ -598,7 +603,7 @@ export function OmilWorkspace() {
           {showPrintable && printProfile && (
             <section className="formSurface" style={{ border: "2px solid var(--accent)", borderRadius: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h2 style={{ margin: 0, fontSize: 16 }}>Instrucciones para el trabajador</h2>
+                <h2 style={{ margin: 0, fontSize: 16 }}>Instrucciones para el postulante</h2>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="button secondary" type="button" style={{ fontSize: 12 }} onClick={() => window.print()}>🖨 Imprimir</button>
                   <button className="button ghost" type="button" style={{ fontSize: 12 }} onClick={() => setShowPrintable(false)}>✕ Cerrar</button>
@@ -611,9 +616,9 @@ export function OmilWorkspace() {
                 <p>El perfil estará visible hasta el: <strong>{new Date(printProfile.expiresAt).toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" })}</strong></p>
                 <p><strong>¿Qué hacer ahora?</strong></p>
                 <ol>
-                  <li>Cuando una empresa le contacte, recibirá una invitación directamente.</li>
+                  <li>Cuando una empresa esté interesada, recibirá una invitación a través de la plataforma.</li>
                   <li>No comparta sus datos personales antes de aceptar la entrevista en la plataforma.</li>
-                  <li>Si su perfil vence y quiere renovarlo, visite <strong>perfil-primero.web.app/postulante</strong></li>
+                  <li>Si su perfil vence y desea renovarlo, visítenos en <strong>perfil-primero.web.app/postulante</strong>.</li>
                 </ol>
                 <p style={{ marginTop: 16, fontSize: 12, color: "#666" }}>OMIL {omilMeta?.municipalityName} · Contacto: {omilMeta?.contactPersonName}</p>
               </div>

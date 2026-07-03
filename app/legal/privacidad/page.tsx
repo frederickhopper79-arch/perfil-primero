@@ -32,7 +32,7 @@
 
       <h2>4. Uso de inteligencia artificial</h2>
       <p>
-        Google IA puede analizar CVs, sugerir mejoras de perfil y apoyar comparaciones entre vacantes y perfiles.
+        Inteligencia artificial puede analizar CVs, sugerir mejoras de perfil y apoyar comparaciones entre vacantes y perfiles.
         La IA es una herramienta de apoyo, no una decisión automática obligatoria. No debe usarse para discriminar por
         edad, género, nacionalidad, salud, religión, situación familiar u otros atributos protegidos.
       </p>
@@ -91,7 +91,7 @@
       </ul>
       <p>
         Esta política está sujeta a revisión por asesor legal antes del inicio formal de actividades comerciales.
-        La plataforma fue desarrollada por Hopper Tech E.I.R.L. para Perfil Primero SpA.
+        La plataforma fue desarrollada por Hopper Tech SpA para Perfil Primero SpA.
       </p>
     </main>
     </>
