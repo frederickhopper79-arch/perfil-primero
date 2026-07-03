@@ -28,6 +28,7 @@ import {
   adminSearchUser,
   adminUpdateUser,
   approveManualTransfer,
+  createCoupon,
   createManagedUser,
   exportAccountingCsv,
   generateMarketAnalyticsNow,
@@ -189,6 +190,7 @@ export function AdminPanel() {
   const [resolvedAlerts, setResolvedAlerts] = useState<Set<string>>(new Set());
   const [couponForm, setCouponForm] = useState({ code: "", name: "", discountPercent: "10", maxUses: "100", expiresAt: "" });
   const [showCouponForm, setShowCouponForm] = useState(false);
+  const [couponStatus, setCouponStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -422,6 +424,26 @@ export function AdminPanel() {
     }
   }
 
+  async function handleCreateCoupon(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCouponStatus(null);
+    try {
+      const result = await createCoupon({
+        code: couponForm.code,
+        name: couponForm.name,
+        discountPercent: Number(couponForm.discountPercent),
+        maxUses: Number(couponForm.maxUses),
+        expiresAt: couponForm.expiresAt,
+      });
+      await loadDashboard();
+      setCouponForm({ code: "", name: "", discountPercent: "10", maxUses: "100", expiresAt: "" });
+      setShowCouponForm(false);
+      setCouponStatus({ ok: true, msg: `Cupón ${result.couponCode} creado correctamente.` });
+    } catch (error) {
+      setCouponStatus({ ok: false, msg: error instanceof Error ? error.message : "No se pudo crear el cupón." });
+    }
+  }
+
   if (!uid) {
     return (
       <section className="adminShell">
@@ -561,7 +583,7 @@ export function AdminPanel() {
             onSubmitBilling={handleBillingDocument}
           />
         ) : null}
-        {activeView === "coupons" ? <CouponsView coupons={data.coupons} usages={data.couponUsages} couponForm={couponForm} showForm={showCouponForm} onCouponForm={setCouponForm} onToggleForm={() => setShowCouponForm((v) => !v)} /> : null}
+        {activeView === "coupons" ? <CouponsView coupons={data.coupons} usages={data.couponUsages} couponForm={couponForm} showForm={showCouponForm} onCouponForm={setCouponForm} onToggleForm={() => setShowCouponForm((v) => !v)} onSubmitCoupon={handleCreateCoupon} couponStatus={couponStatus} /> : null}
         {activeView === "interviews" ? <InterviewsView interviews={data.interviews} invitations={data.invitations} /> : null}
         {activeView === "urgency" ? <UrgencyView invitations={data.invitations} /> : null}
         {activeView === "reviews" ? <ReviewsView reviews={data.reviews} summary={data.summary} /> : null}
@@ -1671,7 +1693,9 @@ function CouponsView({
   couponForm,
   showForm,
   onCouponForm,
-  onToggleForm
+  onToggleForm,
+  onSubmitCoupon,
+  couponStatus
 }: {
   coupons: Array<Record<string, unknown>>;
   usages: Array<Record<string, unknown>>;
@@ -1679,6 +1703,8 @@ function CouponsView({
   showForm: boolean;
   onCouponForm: (v: { code: string; name: string; discountPercent: string; maxUses: string; expiresAt: string }) => void;
   onToggleForm: () => void;
+  onSubmitCoupon: (e: FormEvent<HTMLFormElement>) => void;
+  couponStatus: { ok: boolean; msg: string } | null;
 }) {
   return (
     <section className="stack">
@@ -1687,41 +1713,46 @@ function CouponsView({
           {showForm ? "Cancelar" : "+ Crear cupón"}
         </button>
       </div>
+      {couponStatus && (
+        <p className={couponStatus.ok ? "successMsg" : "errorMsg"} style={{ marginBottom: 8 }}>
+          {couponStatus.msg}
+        </p>
+      )}
       {showForm && (
-        <div className="formSurface" style={{ marginBottom: 16 }}>
+        <form className="formSurface" style={{ marginBottom: 16 }} onSubmit={onSubmitCoupon}>
           <div className="formHeader">
             <Tag size={22} aria-hidden="true" />
             <div>
               <h2>Nuevo cupón de descuento</h2>
-              <p>Crear directamente en Firestore vía consola o implementar en Cloud Function.</p>
+              <p>Se crea en Firestore vía Cloud Function. El código se convierte en mayúsculas automáticamente.</p>
             </div>
           </div>
           <div className="formGrid">
             <label>
               Código cupón
-              <input value={couponForm.code} onChange={(e) => onCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} placeholder="BIENVENIDA50" />
+              <input required value={couponForm.code} onChange={(e) => onCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} placeholder="BIENVENIDA50" />
             </label>
             <label>
               Nombre descriptivo
-              <input value={couponForm.name} onChange={(e) => onCouponForm({ ...couponForm, name: e.target.value })} placeholder="Bienvenida 50% descuento" />
+              <input required value={couponForm.name} onChange={(e) => onCouponForm({ ...couponForm, name: e.target.value })} placeholder="Bienvenida 50% descuento" />
             </label>
             <label>
               Descuento %
-              <input type="number" min="1" max="100" value={couponForm.discountPercent} onChange={(e) => onCouponForm({ ...couponForm, discountPercent: e.target.value })} />
+              <input required type="number" min="1" max="100" value={couponForm.discountPercent} onChange={(e) => onCouponForm({ ...couponForm, discountPercent: e.target.value })} />
             </label>
             <label>
               Máximo de usos
-              <input type="number" min="1" value={couponForm.maxUses} onChange={(e) => onCouponForm({ ...couponForm, maxUses: e.target.value })} />
+              <input required type="number" min="1" value={couponForm.maxUses} onChange={(e) => onCouponForm({ ...couponForm, maxUses: e.target.value })} />
             </label>
             <label>
               Vence
-              <input type="date" value={couponForm.expiresAt} onChange={(e) => onCouponForm({ ...couponForm, expiresAt: e.target.value })} />
+              <input required type="date" value={couponForm.expiresAt} onChange={(e) => onCouponForm({ ...couponForm, expiresAt: e.target.value })} />
             </label>
           </div>
-          <p className="helperText" style={{ marginTop: 8 }}>
-            Comando Firestore: <code>db.collection("coupons").doc("{couponForm.code || "CODIGO"}").set({"{"} couponCode: "{couponForm.code}", discountPercent: {couponForm.discountPercent}, maxUses: {couponForm.maxUses}, active: true, usedCount: 0 {"}"})</code>
-          </p>
-        </div>
+          <div style={{ marginTop: 16 }}>
+            <button className="button primary" type="submit">Crear cupón</button>
+          </div>
+        </form>
       )}
       <AdminTable title="Cupones activos/usados" rows={coupons} columns={[
         ["couponCode", "Código"],

@@ -178,6 +178,18 @@ export async function adminUpdateUser(input: {
   return result.data as { uid: string };
 }
 
+export async function createCoupon(input: {
+  code: string;
+  name: string;
+  discountPercent: number;
+  maxUses: number;
+  expiresAt: string;
+}) {
+  const callable = httpsCallable(functions, "createCoupon");
+  const result = await callable(input);
+  return result.data as { couponCode: string };
+}
+
 export async function getAdminDashboard(input?: {
   pageSize?: number;
   from?: string;

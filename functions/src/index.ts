@@ -2501,6 +2501,47 @@ async function markCouponUsed(couponCode: string | undefined, userId: string | u
   });
 }
 
+export const createCoupon = onCall<{
+  code: string;
+  name: string;
+  discountPercent: number;
+  maxUses: number;
+  expiresAt: string;
+}>(async (request) => {
+  const adminId = await assertAdmin(request.auth?.uid);
+  const { code, name, discountPercent, maxUses, expiresAt } = request.data;
+
+  const couponCode = String(code ?? "").trim().toUpperCase();
+  if (!couponCode || discountPercent < 1 || discountPercent > 100 || !expiresAt) {
+    throw new HttpsError("invalid-argument", "Datos del cupón inválidos.");
+  }
+
+  const existing = await db.collection("coupons").doc(couponCode).get();
+  if (existing.exists) {
+    throw new HttpsError("already-exists", `El cupón "${couponCode}" ya existe.`);
+  }
+
+  await db.collection("coupons").doc(couponCode).set({
+    couponCode,
+    name: String(name ?? "").trim(),
+    discountPercent: Number(discountPercent),
+    maxUses: Number(maxUses) || 0,
+    active: true,
+    usedCount: 0,
+    expiresAt: new Date(expiresAt),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  await writeAudit(adminId, "admin", "createCoupon", "coupon", couponCode, {
+    discountPercent: String(discountPercent),
+    maxUses: String(maxUses),
+    expiresAt,
+  });
+
+  return { couponCode };
+});
+
 function csvCell(value: unknown) {
   const text = String(value ?? "");
   const escaped = text.replace(/"/g, '""');
