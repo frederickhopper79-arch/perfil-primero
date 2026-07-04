@@ -278,6 +278,13 @@ export function AdminPanel() {
       const { auth } = await import("@/lib/firebase/client");
       const credential = await signInWithPopup(auth, new GoogleAuthProvider());
       setUid(credential.user.uid);
+      // Bootstrap del propietario: solo surte efecto para el email allowlisted
+      // en Cloud Functions (perfilprimero7@gmail.com); el resto lo ignora.
+      try {
+        const { httpsCallable } = await import("firebase/functions");
+        const { functions } = await import("@/lib/firebase/client");
+        await httpsCallable(functions, "claimAdminRole")({});
+      } catch { /* no es la cuenta propietaria — seguir normal */ }
       await loadDashboard();
     } catch (error) {
       const code = (error as { code?: string }).code ?? "";
