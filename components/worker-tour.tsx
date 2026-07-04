@@ -14,8 +14,17 @@ export function WorkerTour() {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    const done = localStorage.getItem(TOUR_KEY);
-    if (!done) setActive(true);
+    if (localStorage.getItem(TOUR_KEY)) return;
+    // Secuenciar: no arrancar el tour hasta que el banner de cookies se haya
+    // resuelto, para no apilar dos overlays en la primera visita.
+    const cookiesResueltas = () => Boolean(localStorage.getItem("pp-cookie-consent"));
+    if (cookiesResueltas()) { setActive(true); return; }
+    const t = setInterval(() => {
+      if (cookiesResueltas()) { clearInterval(t); setActive(true); }
+    }, 800);
+    // Tope de seguridad: arrancar igual tras 30s aunque no toque cookies
+    const fallback = setTimeout(() => { clearInterval(t); setActive(true); }, 30_000);
+    return () => { clearInterval(t); clearTimeout(fallback); };
   }, []);
 
   return (

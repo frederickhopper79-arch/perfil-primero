@@ -704,7 +704,8 @@ nav a:hover {
   gap: 7px;
   justify-content: center;
   letter-spacing: -0.01em;
-  min-height: 42px;
+  /* min-height 44px: área táctil mínima recomendada (WCAG 2.5.5 / móvil) */
+  min-height: 44px;
   padding: 0 20px;
   transition: background 140ms ease, box-shadow 140ms ease, transform 100ms ease, border-color 140ms ease;
   white-space: nowrap;
@@ -5553,7 +5554,7 @@ textarea:focus {
 }
 
 .homeHeroPrime .compactAction {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 15px;
 }
 
