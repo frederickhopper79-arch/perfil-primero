@@ -2650,6 +2650,8 @@ function ChangelogView() {
         "fix: getOmilImpactPanel cuenta invitaciones por lotes (>30 perfiles)",
         "feat: mantenimiento — purga de cvFileUrl legacy en perfiles públicos",
         "ci: workflow despliega functions, reglas y storage + gate de tests",
+        "fix: hydration mismatch #418 real (OfflineBanner leía navigator.onLine en el initializer) — consola limpia en todas las páginas",
+        "fix: sitemap duplicado — consolidado en public/sitemap.xml (65 URLs)",
       ]
     },
     {
