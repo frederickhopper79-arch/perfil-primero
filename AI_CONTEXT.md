@@ -91,8 +91,10 @@ de seguridad; las operaciones sensibles pasan por Cloud Functions con Admin SDK.
 - `/docs/adr/` — decisiones de arquitectura (plantilla `ADR-template.md`).
 - `/docs/rfc/` — cambios importantes en curso o evaluados.
 - `/docs/privacidad/RAT_REGISTRO_TRATAMIENTO.md` — registro de actividades de tratamiento (Ley 19.628 / 21.719).
-- `/docs/plantillas/` — plantillas oficiales HTES (ROADMAP, POSTMORTEM, INCIDENT_REPORT, etc.).
-- `ROADMAP.md` — `[completar]` (aún no creado a partir de la plantilla).
+- `/docs/plantillas/` — plantillas oficiales HTES (POSTMORTEM, INCIDENT_REPORT, API_DOC, etc.).
+- `ROADMAP.md` — visión, objetivos del periodo y prioridades (raíz del proyecto).
+- `/docs/RISK_REGISTER.md` — registro de riesgos vivo (HTES Cap. 16).
+- `/docs/TECHNICAL_DEBT.md` — registro de deuda técnica vivo.
 - Base de Conocimiento Hopper Tech: `[completar]`
 
 ## 7. Personas y Roles Responsables
