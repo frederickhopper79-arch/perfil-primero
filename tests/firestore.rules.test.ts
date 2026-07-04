@@ -93,6 +93,28 @@ beforeEach(async () => {
       tarifa_suscripcion_postulante_clp: 999,
       tarifa_contacto_empresa_clp: 999
     });
+    // Colecciones sensibles adicionales (dinero / PII / conversaciones)
+    await setDoc(doc(db, "contactUnlocks/unlock-1"), {
+      unlockId: "unlock-1", companyId: "company-1", workerId: "worker-1", status: "active"
+    });
+    await setDoc(doc(db, "conversationMessages/msg-1"), {
+      companyId: "company-1", workerId: "worker-1", body: "hola"
+    });
+    await setDoc(doc(db, "scheduledInterviews/int-1"), {
+      companyId: "company-1", workerId: "worker-1", startsAt: "2026-08-01"
+    });
+    await setDoc(doc(db, "employerReviews/rev-1"), {
+      companyId: "company-1", workerId: "worker-1", score: 5
+    });
+    await setDoc(doc(db, "workerSegments/worker-1"), {
+      workerId: "worker-1", segment: "activo"
+    });
+    await setDoc(doc(db, "couponUsages/TEST10_worker-1"), {
+      couponCode: "TEST10", userId: "worker-1"
+    });
+    await setDoc(doc(db, "invitations/inv-1"), {
+      companyId: "company-1", workerId: "worker-1", status: "sent"
+    });
   });
 });
 
@@ -225,6 +247,52 @@ describe("Firestore Rules - Perfil Primero", () => {
       visibilityStatus: "visible",
       createdByOmilId: "omil-1"
     }));
+  });
+
+  it("contactUnlocks: solo las partes o admin leen; nadie escribe desde cliente", async () => {
+    await assertSucceeds(getDoc(doc(authed("company-1"), "contactUnlocks/unlock-1")));
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "contactUnlocks/unlock-1")));
+    await assertSucceeds(getDoc(doc(authed("admin-1"), "contactUnlocks/unlock-1")));
+    await assertFails(getDoc(doc(authed("company-2"), "contactUnlocks/unlock-1")));
+    await assertFails(setDoc(doc(authed("company-1"), "contactUnlocks/unlock-x"), { companyId: "company-1" }));
+  });
+
+  it("conversationMessages: solo las partes o admin leen; escritura bloqueada", async () => {
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "conversationMessages/msg-1")));
+    await assertSucceeds(getDoc(doc(authed("company-1"), "conversationMessages/msg-1")));
+    await assertFails(getDoc(doc(authed("company-2"), "conversationMessages/msg-1")));
+    await assertFails(setDoc(doc(authed("company-1"), "conversationMessages/msg-x"), { companyId: "company-1" }));
+  });
+
+  it("scheduledInterviews: acceso restringido a las partes y admin", async () => {
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "scheduledInterviews/int-1")));
+    await assertFails(getDoc(doc(authed("company-2"), "scheduledInterviews/int-1")));
+    await assertFails(setDoc(doc(authed("company-1"), "scheduledInterviews/int-x"), { companyId: "company-1" }));
+  });
+
+  it("employerReviews: leen las partes; escritura solo backend", async () => {
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "employerReviews/rev-1")));
+    await assertSucceeds(getDoc(doc(authed("company-1"), "employerReviews/rev-1")));
+    await assertFails(setDoc(doc(authed("company-1"), "employerReviews/rev-x"), { companyId: "company-1" }));
+  });
+
+  it("workerSegments: solo el dueño o admin leen; escritura bloqueada", async () => {
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "workerSegments/worker-1")));
+    await assertFails(getDoc(doc(authed("company-1"), "workerSegments/worker-1")));
+    await assertFails(setDoc(doc(authed("worker-1"), "workerSegments/worker-1"), { segment: "hack" }));
+  });
+
+  it("couponUsages: solo el dueño o admin leen; escritura bloqueada", async () => {
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "couponUsages/TEST10_worker-1")));
+    await assertFails(getDoc(doc(authed("company-1"), "couponUsages/TEST10_worker-1")));
+    await assertFails(setDoc(doc(authed("worker-1"), "couponUsages/x"), { userId: "worker-1" }));
+  });
+
+  it("invitations: solo empresa/worker involucrados o admin leen; escritura bloqueada", async () => {
+    await assertSucceeds(getDoc(doc(authed("company-1"), "invitations/inv-1")));
+    await assertSucceeds(getDoc(doc(authed("worker-1"), "invitations/inv-1")));
+    await assertFails(getDoc(doc(authed("company-2"), "invitations/inv-1")));
+    await assertFails(setDoc(doc(authed("company-1"), "invitations/inv-x"), { companyId: "company-1" }));
   });
 
   it("confirma que la suite ejecuta reglas reales del proyecto", () => {
