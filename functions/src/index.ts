@@ -1,4 +1,3 @@
-import * as crypto from "crypto";
 import * as webpush from "web-push";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -13,6 +12,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { data: Buffer }) => { getText: () => Promise<{ text: string }> } };
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
+import { validateMpSignature } from "./lib/mp-signature";
 
 initializeApp();
 
@@ -100,6 +100,7 @@ async function checkRateLimitPersistent(uid: string, key: string, maxRequests: n
 }
 
 // ── Mercado Pago: validar firma x-signature ───────────────────────────────
+// Lógica pura y con tests en functions/src/lib/mp-signature.ts
 function validateMercadoPagoSignature(
   request: { headers: Record<string, string | string[] | undefined>; query: Record<string, string | string[] | undefined> }
 ): boolean {
@@ -108,17 +109,7 @@ function validateMercadoPagoSignature(
     console.error("MERCADOPAGO_WEBHOOK_SECRET no configurado — rechazando webhook por seguridad");
     return false;
   }
-  const xSignature = String(request.headers["x-signature"] ?? "");
-  const xRequestId = String(request.headers["x-request-id"] ?? "");
-  const dataId = String(request.query["data.id"] ?? "");
-  if (!xSignature || !xRequestId) return false;
-  const parts = xSignature.split(",");
-  const tsPart = parts.find(p => p.startsWith("ts="))?.split("=")[1] ?? "";
-  const v1Part = parts.find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
-  if (!tsPart || !v1Part) return false;
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${tsPart};`;
-  const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Part));
+  return validateMpSignature(request.headers, request.query, secret);
 }
 
 type CreateInvitationInput = {
