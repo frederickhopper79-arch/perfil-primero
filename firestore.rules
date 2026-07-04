@@ -34,7 +34,10 @@ service cloud.firestore {
     }
 
     function ownerCreatesAllowedUser() {
-      return request.resource.data.role in ["worker", "company", "omil"]
+      // Solo roles de autoservicio. Las cuentas OMIL y admin las crea
+      // exclusivamente el backend (createManagedUser / claimAdminRole):
+      // permitir "omil" aquí dejaba escalar privilegios a cualquier usuario.
+      return request.resource.data.role in ["worker", "company"]
         && request.resource.data.status == "active";
     }
 

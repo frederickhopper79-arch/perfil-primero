@@ -199,6 +199,18 @@ describe("Firestore Rules - Perfil Primero", () => {
     }));
   });
 
+  it("impide crear un usuario con rol institucional (omil/admin) desde el cliente", async () => {
+    await assertFails(setDoc(doc(authed("nuevo-omil"), "users/nuevo-omil"), {
+      email: "x@x.cl", role: "omil", status: "active"
+    }));
+    await assertFails(setDoc(doc(authed("nuevo-admin"), "users/nuevo-admin"), {
+      email: "y@y.cl", role: "admin", status: "active"
+    }));
+    await assertSucceeds(setDoc(doc(authed("nuevo-worker"), "users/nuevo-worker"), {
+      email: "z@z.cl", role: "worker", status: "active"
+    }));
+  });
+
   it("permite a usuarios leer solo pagos propios", async () => {
     await assertSucceeds(getDoc(doc(authed("worker-1"), "payments/pay-1")));
     await assertFails(getDoc(doc(authed("company-1"), "payments/pay-1")));

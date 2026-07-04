@@ -99,20 +99,27 @@ for (const account of accounts) {
       await page.getByRole("button", { name: btnName }).last().click();
     }
 
-    // Esperar resultado (máx 20s)
+    // Éxito GENUINO: estado autenticado real. Señales según rol:
+    //  - "Cerrar sesión" (sidebar de cualquier workspace)
+    //  - onboarding empresa ("Completa los datos básicos de tu empresa")
+    //  - onboarding/paso postulante ("Bienvenido/a a Perfil Primero" + stepper)
+    // NO se aceptan textos de la landing (evita falsos positivos).
+    const AUTH_ERROR = /No se pudo|Firebase: Error|auth\/invalid|Contraseña incorrecta|demasiados intentos|registrada como/i;
+    const LOGGED_IN = /Cerrar sesión|Completa los datos básicos de tu empresa|Bienvenido\/a a Perfil Primero|Mi perfil de postulante|Panel de la empresa/i;
     await page.waitForFunction(
-      (expected) => {
+      ({ okSrc, errSrc }) => {
         const body = document.body.innerText;
-        return new RegExp(expected, "i").test(body) ||
-          /No se pudo|Firebase: Error|auth\/invalid|demasiados intentos/i.test(body);
+        return new RegExp(okSrc, "i").test(body) || new RegExp(errSrc, "i").test(body);
       },
-      account.expected.source,
-      { timeout: 20_000 }
+      { okSrc: LOGGED_IN.source, errSrc: AUTH_ERROR.source },
+      { timeout: 25_000 }
     ).catch(() => null);
 
+    // Dar tiempo a que se escriba el documento de rol tras el registro
+    await page.waitForTimeout(2500);
+
     const text = await page.locator("body").innerText();
-    const ok = account.expected.test(text) &&
-      !/No se pudo|Firebase: Error|auth\/invalid|demasiados intentos/i.test(text);
+    const ok = LOGGED_IN.test(text) && !AUTH_ERROR.test(text);
 
     const screenshot = `public/e2e-${account.role}.png`;
     await page.screenshot({ path: `${process.cwd()}/${screenshot}`, fullPage: true });

@@ -67,7 +67,12 @@ export function AuthCard({
         mode === "register"
           ? await registerWithEmail(trimmedEmail, password, role, name.trim() || undefined)
           : await loginWithEmail(trimmedEmail, password);
-      await ensureUserRecord(user.uid, user.email ?? trimmedEmail, role);
+      // Roles institucionales (omil/admin) nunca crean su documento desde el
+      // cliente: debe existir previamente (creado por el backend). Si no,
+      // ensureUserRecord "adoptaría" el rol de la página — escalada de rol.
+      if (!isInstitutional) {
+        await ensureUserRecord(user.uid, user.email ?? trimmedEmail, role);
+      }
       await assertExpectedRole(user.uid);
       onReady(user.uid, user.email ?? trimmedEmail);
       safeSet(setStatus)("Sesión lista.");
