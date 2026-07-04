@@ -88,7 +88,9 @@ de seguridad; las operaciones sensibles pasan por Cloud Functions con Admin SDK.
 - `CLAUDE.md` — guía operativa del repositorio para IA (aislamiento, arquitectura, modelo de datos).
 - `docs/HTES_v1.0.docx` — estándar de ingeniería aplicable (HTES v1.0).
 - `docs/HTES_Cheatsheet.docx` — resumen del estándar.
-- `/docs/adr/` — decisiones de arquitectura (plantilla `ADR-template.md`).
+- `/docs/adr/` — decisiones de arquitectura (ADR-001 a 005 documentadas).
+- `/docs/DATABASE_DOC.md` — modelo de datos Firestore (colecciones, PII, write-locked).
+- `/docs/API_DOC.md` — referencia de las Cloud Functions callable.
 - `/docs/rfc/` — cambios importantes en curso o evaluados.
 - `/docs/privacidad/RAT_REGISTRO_TRATAMIENTO.md` — registro de actividades de tratamiento (Ley 19.628 / 21.719).
 - `/docs/plantillas/` — plantillas oficiales HTES (POSTMORTEM, INCIDENT_REPORT, API_DOC, etc.).
@@ -130,3 +132,13 @@ plantilla). Aprendizajes recientes relevantes que cambian cómo se trabaja aquí
   de la integración HTES).
 - Verificar accesibilidad (contraste AA) y consola limpia tras cambios de UI: el
   proyecto mantiene 0 violaciones axe y 0 errores de consola como línea base.
+- Tests de lógica pura del backend: `npm run test:unit` (firma webhook MP,
+  semáforo financiero, cupones). Reglas: `npm run test:rules`.
+
+## Excepciones al HTES documentadas (Cap. 42)
+
+- **Commits directos a `master` sin Pull Request** (HTES Cap. 1-2 pide PR para
+  integraciones importantes). Motivo: desarrollo de una sola persona previo al
+  lanzamiento; se prioriza velocidad con commits pequeños y verificados. Al
+  incorporar más personas, migrar a flujo de PR. El CI/CD queda listo pero
+  desactivado hasta configurar Secrets (DEBT-003).

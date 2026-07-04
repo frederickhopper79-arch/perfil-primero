@@ -14,6 +14,7 @@ const { PDFParse } = require("pdf-parse") as { PDFParse: new (opts: { data: Buff
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 import { validateMpSignature } from "./lib/mp-signature";
 import { computeFinancialSummary } from "./lib/financial-health";
+import { evaluateCoupon } from "./lib/coupon";
 
 initializeApp();
 
@@ -2431,53 +2432,45 @@ async function validateCoupon(
     return null;
   }
 
-  const couponRef = db.collection("coupons").doc(couponCode);
-  const coupon = await couponRef.get();
-  const data = coupon.data();
+  const coupon = await db.collection("coupons").doc(couponCode).get();
+  const data = coupon.exists ? coupon.data() : undefined;
 
-  if (!coupon.exists || !data?.active) {
-    throw new HttpsError("failed-precondition", "Cupón inválido o inactivo.");
+  // Uso previo por este usuario (solo si el cupón existe y está activo)
+  let alreadyUsed = false;
+  if (data?.active) {
+    const previousUse = await db
+      .collection("couponUsages")
+      .where("couponCode", "==", couponCode)
+      .where("userId", "==", userId)
+      .limit(1)
+      .get();
+    alreadyUsed = !previousUse.empty;
   }
 
-  const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
+  // Validación y cálculo puros (con tests en functions/src/lib/coupon.ts)
+  const result = evaluateCoupon(
+    {
+      active: data?.active,
+      expiresAt: (data?.expiresAt?.toDate?.() as Date | undefined) ?? null,
+      maxUses: data?.maxUses,
+      usedCount: data?.usedCount,
+      maxTotalUses: data?.maxTotalUses,
+      discountPercent: data?.discountPercent,
+    },
+    baseAmount,
+    new Date(),
+    alreadyUsed
+  );
 
-  if (!expiresAt) {
-    throw new HttpsError("failed-precondition", "El cupón no tiene fecha de expiración válida.");
+  if (!result.ok) {
+    throw new HttpsError("failed-precondition", result.reason);
   }
-
-  if (expiresAt.getTime() < Date.now()) {
-    throw new HttpsError("failed-precondition", "El cupón está vencido.");
-  }
-
-  if (Number(data.maxUses ?? 0) > 0 && Number(data.usedCount ?? 0) >= Number(data.maxUses)) {
-    throw new HttpsError("failed-precondition", "El cupón ya alcanzó su límite de uso.");
-  }
-
-  const previousUse = await db
-    .collection("couponUsages")
-    .where("couponCode", "==", couponCode)
-    .where("userId", "==", userId)
-    .limit(1)
-    .get();
-
-  if (!previousUse.empty) {
-    throw new HttpsError("failed-precondition", "Este usuario ya usó este cupón.");
-  }
-
-  if (Number(data.maxTotalUses ?? 0) > 0 && Number(data.usedCount ?? 0) >= Number(data.maxTotalUses)) {
-    throw new HttpsError("failed-precondition", "El cupón ya alcanzó su límite total de usos.");
-  }
-
-  const discountPercent = Math.max(0, Math.min(Number(data.discountPercent ?? 0), 100));
-  const rawDiscountAmount = Math.round(baseAmount * (discountPercent / 100));
-  const finalAmount = Math.max(baseAmount - rawDiscountAmount, 0);
-  const discountAmount = baseAmount - finalAmount;
 
   return {
     couponCode,
-    discountPercent,
-    discountAmount,
-    finalAmount
+    discountPercent: result.discountPercent,
+    discountAmount: result.discountAmount,
+    finalAmount: result.finalAmount,
   };
 }
 
@@ -5004,7 +4997,8 @@ export const createContactTicket = onCall<{
     createdAt: FieldValue.serverTimestamp(),
     ip: request.rawRequest.ip ?? null,
   });
-  log("INFO", "contact_ticket_created", { email, subject, assignedTo });
+  // Cap. 10: no loguear PII en texto plano — enmascarar el email.
+  log("INFO", "contact_ticket_created", { email: email.slice(0, 3) + "***", subject, assignedTo });
   return { ok: true };
 });
 
