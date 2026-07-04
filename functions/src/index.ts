@@ -5375,6 +5375,32 @@ export const getFinancialHealth = onCall(async (request) => {
   return computeFinancialHealth();
 });
 
+// ── purgeLegacyCvFileUrls — limpieza one-shot del campo cvFileUrl público ─────
+// El cvFileUrl (PDF original con datos personales) migró al perfil privado.
+// Los perfiles guardados antes de esa migración aún lo tienen en el público
+// hasta que el postulante re-guarde. Esta función lo borra de una vez.
+export const purgeLegacyCvFileUrls = onCall(async (request) => {
+  const adminId = await assertAdmin(request.auth?.uid);
+  const snap = await db.collection("workerPublicProfiles").get();
+  let revisados = 0;
+  let limpiados = 0;
+  let batch = db.batch();
+  let pend = 0;
+  for (const doc of snap.docs) {
+    revisados++;
+    if (doc.data().cvFileUrl === undefined) continue;
+    batch.update(doc.ref, { cvFileUrl: FieldValue.delete() });
+    limpiados++;
+    pend++;
+    if (pend === 400) { await batch.commit(); batch = db.batch(); pend = 0; }
+  }
+  if (pend > 0) await batch.commit();
+  await writeAudit(adminId, "admin", "purgeLegacyCvFileUrls", "system", "workerPublicProfiles", {
+    revisados: String(revisados), limpiados: String(limpiados)
+  });
+  return { revisados, limpiados };
+});
+
 // ── claimAdminRole — bootstrap/recuperación del rol admin del propietario ────
 // Allowlist estricta: SOLO la cuenta autenticada con el email del propietario
 // del proyecto puede reclamar el rol admin. No es un endpoint público: exige
@@ -5564,23 +5590,35 @@ export const exportPaymentsCsv = onCall(async (request) => {
 export const getOmilImpactPanel = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  const [profilesSnap, invitationsSnap] = await Promise.all([
-    db.collection("workerPublicProfiles").where("createdByOmilId", "==", uid).get(),
-    db.collection("invitations").where("workerId", "in",
-      (await db.collection("workerPublicProfiles").where("createdByOmilId", "==", uid).limit(30).get()).docs.map(d => d.id)
-    ).get().catch(() => ({ size: 0, docs: [] as FirebaseFirestore.QueryDocumentSnapshot[] }))
-  ]);
+
+  const profilesSnap = await db.collection("workerPublicProfiles")
+    .where("createdByOmilId", "==", uid).get();
   const profiles = profilesSnap.docs.map(d => d.data());
-  const hiredCount = profiles.filter(p => p.subscriptionStatus === "active").length;
-  const invDocs = "docs" in invitationsSnap ? invitationsSnap.docs : [];
-  const contrataciones = invDocs.filter((d: FirebaseFirestore.QueryDocumentSnapshot) => d.data().status === "hired").length;
+  const workerIds = profilesSnap.docs.map(d => d.id);
+
+  // Firestore "in" admite máx. 30 valores → procesar por lotes para no
+  // subcontar invitaciones cuando el OMIL tiene más de 30 perfiles.
+  let invitacionesRecibidas = 0;
+  let contratacionesConfirmadas = 0;
+  for (let i = 0; i < workerIds.length; i += 30) {
+    const chunk = workerIds.slice(i, i + 30);
+    if (chunk.length === 0) continue;
+    const snap = await db.collection("invitations")
+      .where("workerId", "in", chunk).get()
+      .catch(() => ({ size: 0, docs: [] as FirebaseFirestore.QueryDocumentSnapshot[] }));
+    invitacionesRecibidas += snap.size;
+    contratacionesConfirmadas += snap.docs.filter(
+      (d: FirebaseFirestore.QueryDocumentSnapshot) => d.data().status === "hired"
+    ).length;
+  }
+
   return {
     totalPerfiles: profilesSnap.size,
     perfilesActivos: profiles.filter(p => p.visibilityStatus === "visible").length,
     perfilesVencidos: profiles.filter(p => p.visibilityStatus === "expired").length,
-    activosSuscripcion: hiredCount,
-    invitacionesRecibidas: invitationsSnap.size,
-    contratacionesConfirmadas: contrataciones
+    activosSuscripcion: profiles.filter(p => p.subscriptionStatus === "active").length,
+    invitacionesRecibidas,
+    contratacionesConfirmadas
   };
 });
 

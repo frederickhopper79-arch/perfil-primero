@@ -706,7 +706,51 @@ function SystemStatusView({ healthCheck }: { healthCheck: HealthCheckDoc | null 
           </div>
         ))}
       </div>
+
+      <MaintenanceActions />
     </section>
+  );
+}
+
+// ── Acciones de mantenimiento one-shot ───────────────────────────────────────
+function MaintenanceActions() {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function purgeCvUrls() {
+    if (!confirm("¿Borrar el campo cvFileUrl legacy de todos los perfiles públicos? Es seguro: el CV sigue en el perfil privado del postulante.")) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/lib/firebase/client");
+      const res = await httpsCallable(functions, "purgeLegacyCvFileUrls")({});
+      const d = res.data as { revisados: number; limpiados: number };
+      setResult({ ok: true, msg: `Listo: ${d.limpiados} perfiles limpiados de ${d.revisados} revisados.` });
+    } catch (e) {
+      setResult({ ok: false, msg: e instanceof Error ? e.message : "No se pudo ejecutar la limpieza." });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem", marginTop: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "var(--heading)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>
+        🧹 Mantenimiento
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <button className="button ghost" type="button" disabled={running} onClick={purgeCvUrls} style={{ fontSize: 13 }}>
+          {running ? "Ejecutando…" : "Purgar cvFileUrl legacy de perfiles públicos"}
+        </button>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>
+          Elimina el enlace al CV original de perfiles antiguos (seguridad · anonimato).
+        </span>
+      </div>
+      {result && (
+        <p style={{ fontSize: 13, marginTop: 8, color: result.ok ? "#16a34a" : "#dc2626" }}>{result.msg}</p>
+      )}
+    </div>
   );
 }
 
@@ -2600,6 +2644,12 @@ function ChangelogView() {
         "legal: testimonios y casos marcados como ilustrativos (Ley 21.081)",
         "legal: /empleos sin vacantes ficticias; JobPosting JSON-LD eliminado",
         "fix: matemática plan ilimitado corregida (breakeven 7 contactos en lanzamiento)",
+        "feat: semáforo financiero + caja de sustento mensual en consola",
+        "security: bloqueo de escalada de rol omil/admin desde cliente",
+        "feat: bootstrap admin (perfilprimero7) vía claimAdminRole",
+        "fix: getOmilImpactPanel cuenta invitaciones por lotes (>30 perfiles)",
+        "feat: mantenimiento — purga de cvFileUrl legacy en perfiles públicos",
+        "ci: workflow despliega functions, reglas y storage + gate de tests",
       ]
     },
     {
