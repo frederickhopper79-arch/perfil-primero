@@ -240,6 +240,14 @@ export function AdminPanel() {
     try {
       const user = await loginWithEmail(trimmedEmail, password);
       setUid(user.uid);
+      // Bootstrap del propietario: claimAdminRole solo tiene efecto para el
+      // email allowlisted en Cloud Functions; para cualquier otro usuario
+      // falla con permission-denied y se ignora.
+      try {
+        const { httpsCallable } = await import("firebase/functions");
+        const { functions } = await import("@/lib/firebase/client");
+        await httpsCallable(functions, "claimAdminRole")({});
+      } catch { /* no es la cuenta propietaria — seguir normal */ }
       await loadDashboard();
     } catch (error) {
       const code = (error as { code?: string }).code ?? "";

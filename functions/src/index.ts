@@ -5375,6 +5375,31 @@ export const getFinancialHealth = onCall(async (request) => {
   return computeFinancialHealth();
 });
 
+// ── claimAdminRole — bootstrap/recuperación del rol admin del propietario ────
+// Allowlist estricta: SOLO la cuenta autenticada con el email del propietario
+// del proyecto puede reclamar el rol admin. No es un endpoint público: exige
+// sesión Firebase Auth válida de ese email exacto. Sirve como bootstrap del
+// primer admin y como recuperación si el documento de rol se pierde.
+const OWNER_ADMIN_EMAIL = "perfilprimero7@gmail.com";
+
+export const claimAdminRole = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  const email = String(request.auth?.token.email ?? "").toLowerCase();
+  if (!uid || email !== OWNER_ADMIN_EMAIL) {
+    throw new HttpsError("permission-denied", "Solo la cuenta propietaria puede usar esta función.");
+  }
+  await db.collection("users").doc(uid).set({
+    email,
+    role: "admin",
+    status: "active",
+    displayName: "Administrador Perfil Primero",
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  await writeAudit(uid, "admin", "claimAdminRole", "user", uid, { email });
+  return { ok: true, uid };
+});
+
 async function computeFinancialHealth() {
   const config = await getFinancialConfig();
   const now = new Date();
