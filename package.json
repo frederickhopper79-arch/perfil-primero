@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\"",
-    "test:unit": "vitest run tests/mp-signature.test.ts",
+    "test:unit": "vitest run tests/mp-signature.test.ts tests/financial-health.test.ts",
     "test:e2e:auth": "node scripts/live-auth-roles-smoke.mjs",
     "test:mercadopago": "node scripts/mercadopago-flow-check.mjs",
     "firebase:emulators": "firebase emulators:start",
