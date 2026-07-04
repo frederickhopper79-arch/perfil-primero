@@ -61,7 +61,7 @@ export default function BlogPage() {
       {/* Filtros de categoría */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
         {CATEGORIES.map(cat => (
-          <button key={cat} onClick={() => changeCategory(cat)} style={{ padding: "6px 16px", borderRadius: 999, border: activeCategory === cat ? "none" : "1px solid var(--line)", background: activeCategory === cat ? "var(--color-primary)" : "var(--surface)", color: activeCategory === cat ? "#fff" : "var(--text)", fontWeight: activeCategory === cat ? 700 : 500, fontSize: 13, cursor: "pointer", transition: "all 0.15s" }}>
+          <button key={cat} onClick={() => changeCategory(cat)} style={{ padding: "6px 16px", borderRadius: 999, border: activeCategory === cat ? "none" : "1px solid var(--line)", background: activeCategory === cat ? "var(--primary-700)" : "var(--surface)", color: activeCategory === cat ? "#fff" : "var(--text)", fontWeight: activeCategory === cat ? 700 : 500, fontSize: 13, cursor: "pointer", transition: "all 0.15s" }}>
             {cat}
             {cat !== "Todos" && (
               <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 400 }}>({posts.filter(p => p.category === cat).length})</span>
@@ -87,7 +87,7 @@ export default function BlogPage() {
           {paginated.map(post => (
             <article key={post.slug} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: 28, contain: "layout style" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-                <span style={{ background: "var(--blue-soft)", color: "var(--color-primary)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{post.category}</span>
+                <span style={{ background: "var(--blue-soft)", color: "var(--primary-700)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{post.category}</span>
                 <time dateTime={post.date} style={{ fontSize: 12, color: "var(--muted)" }}>
                   {new Date(post.date).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}
                 </time>
@@ -97,7 +97,7 @@ export default function BlogPage() {
                 <a href={`/blog/${post.slug}`} style={{ color: "inherit", textDecoration: "none" }}>{post.title}</a>
               </h2>
               <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.6, margin: 0 }}>{post.summary}</p>
-              <a href={`/blog/${post.slug}`} style={{ display: "inline-block", marginTop: 16, color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Leer artículo →</a>
+              <a href={`/blog/${post.slug}`} style={{ display: "inline-block", marginTop: 16, color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Leer artículo →</a>
             </article>
           ))}
         </div>
@@ -114,7 +114,7 @@ export default function BlogPage() {
 
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
             <button key={n} onClick={() => setPage(n)} aria-current={n === page ? "page" : undefined}
-              style={{ padding: "7px 13px", borderRadius: 8, border: "none", background: n === page ? "var(--color-primary)" : "var(--surface)", color: n === page ? "#fff" : "var(--text)", fontWeight: n === page ? 700 : 500, fontSize: 14, cursor: "pointer" }}>
+              style={{ padding: "7px 13px", borderRadius: 8, border: "none", background: n === page ? "var(--primary-700)" : "var(--surface)", color: n === page ? "#fff" : "var(--text)", fontWeight: n === page ? 700 : 500, fontSize: 14, cursor: "pointer" }}>
               {n}
             </button>
           ))}

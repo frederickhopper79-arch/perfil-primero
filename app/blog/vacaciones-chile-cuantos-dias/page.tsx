@@ -53,7 +53,7 @@ export default function VacacionesPage() {
       {/* Cards principales */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 32 }}>
         {[
-          { valor: "15 días", titulo: "Feriado legal anual", sub: "Hábiles (lunes a viernes, sin festivos)", color: "var(--color-primary)" },
+          { valor: "15 días", titulo: "Feriado legal anual", sub: "Hábiles (lunes a viernes, sin festivos)", color: "var(--primary-700)" },
           { valor: "+1 día", titulo: "Feriado progresivo", sub: "Por cada 3 años extra tras 10 años", color: "#7c3aed" },
           { valor: "10 días", titulo: "Mínimo intransable", sub: "No se pueden compensar en dinero", color: "#15803d" },
           { valor: "6 meses", titulo: "Plazo para tomarlas", sub: "Desde que se devengan", color: "#92400e" },
@@ -96,7 +96,7 @@ export default function VacacionesPage() {
           {faqVacaciones.map((item, i) => (
             <details key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 18px" }}>
               <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-                {item.q}<span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 8 }}>+</span>
+                {item.q}<span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 8 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>{item.a}</p>
             </details>
@@ -107,12 +107,12 @@ export default function VacacionesPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>¿Buscas un trabajo donde realmente respeten tus vacaciones?</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>En Perfil Primero las empresas declaran las condiciones laborales desde la primera invitación. Sin sorpresas sobre beneficios ni vacaciones adicionales.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <div>
-          <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Ver guía completa de derechos laborales</a>
+          <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Ver guía completa de derechos laborales</a>
         </div>
         <ShareNative title="Vacaciones Chile 2026: cuantos dias corresponden" text="Guia completa sobre vacaciones en Chile: dias, calculo proporcional, feriado progresivo y derechos." />
       </footer>

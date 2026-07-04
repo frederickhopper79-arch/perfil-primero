@@ -32,7 +32,7 @@ export default function SimuladorLiquidacionPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
       <header style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Herramienta gratuita</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Herramienta gratuita</p>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 12 }}>
           Simulador de Liquidación de Sueldo Chile 2026
         </h1>
@@ -60,9 +60,9 @@ export default function SimuladorLiquidacionPage() {
         <strong style={{ fontSize: 13, display: "block", marginBottom: 4 }}>¿Tu sueldo bruto está a mercado?</strong>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>Compara con los rangos de tu sector en nuestra calculadora salarial.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <a href="/calculadora-salarial" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 12 }}>Calculadora salarial →</a>
-          <a href="/blog/afp-chile-2026-cuanto-se-descuenta" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 12 }}>Comparar AFP →</a>
-          <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 12 }}>Buscar trabajo con sueldo claro →</a>
+          <a href="/calculadora-salarial" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 12 }}>Calculadora salarial →</a>
+          <a href="/blog/afp-chile-2026-cuanto-se-descuenta" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 12 }}>Comparar AFP →</a>
+          <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 12 }}>Buscar trabajo con sueldo claro →</a>
         </div>
       </div>
 

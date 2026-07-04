@@ -66,7 +66,7 @@ export default function EstadisticasPage() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Transparencia salarial</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Transparencia salarial</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 12 }}>Estadísticas del Mercado Laboral Chile 2026</h1>
         <p style={{ color: "var(--muted)", maxWidth: 560, margin: "0 auto", lineHeight: 1.6 }}>
           Datos de referencia del mercado laboral chileno y proyecciones de Perfil Primero. Los KPIs de plataforma reflejan metas de crecimiento para 2026.
@@ -101,7 +101,7 @@ export default function EstadisticasPage() {
             <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 0, padding: "12px 16px", borderBottom: i < salariosPorSector.length - 1 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
               <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>{s.sector}</span>
               <span style={{ fontSize: 12, color: "var(--muted)", textAlign: "right" }}>{fmt(s.min)}</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-primary)", textAlign: "right", paddingLeft: 16 }}>{fmt(s.mediana)}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--primary-700)", textAlign: "right", paddingLeft: 16 }}>{fmt(s.mediana)}</span>
               <span style={{ fontSize: 12, color: "var(--muted)", textAlign: "right", paddingLeft: 16 }}>{fmt(s.max)}</span>
             </div>
           ))}
@@ -122,7 +122,7 @@ export default function EstadisticasPage() {
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>{r.tendencia} {r.porcentaje}%</span>
                 </div>
                 <div style={{ height: 4, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${r.porcentaje * 2}%`, background: "var(--color-primary)", borderRadius: 4 }} />
+                  <div style={{ height: "100%", width: `${r.porcentaje * 2}%`, background: "var(--primary-700)", borderRadius: 4 }} />
                 </div>
               </div>
             ))}
@@ -152,7 +152,7 @@ export default function EstadisticasPage() {
       <section style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1.5rem" }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--heading)", marginBottom: 8 }}>Metodología y fuente de datos</h2>
         <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: 0 }}>
-          Los datos presentados provienen exclusivamente de perfiles y procesos de selección dentro de Perfil Primero. Todos los datos personales están anonimizados. Las estadísticas se actualizan mensualmente con datos de los últimos 90 días. Los sueldos corresponden a rangos declarados por postulantes, en pesos chilenos brutos mensuales. Para investigadores o medios que deseen citar estos datos, contactar a <a href="mailto:datos@perfil-primero.cl" style={{ color: "var(--color-primary)" }}>datos@perfil-primero.cl</a>.
+          Los datos presentados provienen exclusivamente de perfiles y procesos de selección dentro de Perfil Primero. Todos los datos personales están anonimizados. Las estadísticas se actualizan mensualmente con datos de los últimos 90 días. Los sueldos corresponden a rangos declarados por postulantes, en pesos chilenos brutos mensuales. Para investigadores o medios que deseen citar estos datos, contactar a <a href="mailto:datos@perfil-primero.cl" style={{ color: "var(--primary-700)" }}>datos@perfil-primero.cl</a>.
         </p>
       </section>
 

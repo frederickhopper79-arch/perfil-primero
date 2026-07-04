@@ -41,7 +41,7 @@ export default function DiversidadPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-dark)" }}>Mercado laboral</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
@@ -58,7 +58,7 @@ export default function DiversidadPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {datos.map((d, i) => (
             <div key={i} style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1rem 1.25rem", display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-primary)", minWidth: 60 }}>{d.valor}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--primary-700)", minWidth: 60 }}>{d.valor}</div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--heading)", marginBottom: 2 }}>
                   {d.indicador}

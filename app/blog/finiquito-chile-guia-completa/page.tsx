@@ -59,7 +59,7 @@ const conceptos = [
 
 const causales = [
   { art: "160", nombre: "Causal disciplinaria", detalle: "Faltas graves, acoso, abandono de trabajo. No hay indemnización por años de servicio.", color: "var(--coral)" },
-  { art: "161", nombre: "Necesidades de la empresa", detalle: "La causa más común de despido masivo. Genera indemnización completa + aviso previo.", color: "var(--color-primary)" },
+  { art: "161", nombre: "Necesidades de la empresa", detalle: "La causa más común de despido masivo. Genera indemnización completa + aviso previo.", color: "var(--primary-700)" },
   { art: "159 N°4", nombre: "Vencimiento de plazo fijo", detalle: "El contrato llegó a su término. Sin indemnización salvo que el contrato sea renovado más de 2 veces.", color: "var(--muted-strong)" },
   { art: "159 N°6", nombre: "Caso fortuito / fuerza mayor", detalle: "Catástrofe o cierre forzado. Sin indemnización. Muy restrictivo en su aplicación.", color: "var(--muted)" },
   { art: "Mutuo acuerdo", nombre: "Acuerdo entre las partes", detalle: "Negociable. Puedes acordar un monto mayor al legal si ambas partes firman el finiquito.", color: "#7c3aed" },
@@ -137,7 +137,7 @@ export default function FiniquitoPage() {
             { plazo: "Inmediato", desc: "El finiquito debe pagarse al momento de la firma, no días después" },
           ].map((p) => (
             <div key={p.plazo} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
-              <strong style={{ fontSize: 18, color: "var(--color-primary)", display: "block", marginBottom: 4 }}>{p.plazo}</strong>
+              <strong style={{ fontSize: 18, color: "var(--primary-700)", display: "block", marginBottom: 4 }}>{p.plazo}</strong>
               <span style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>{p.desc}</span>
             </div>
           ))}
@@ -174,7 +174,7 @@ export default function FiniquitoPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <div>
           <strong style={{ display: "block", fontSize: 15, marginBottom: 4 }}>¿Buscando trabajo tras el finiquito?</strong>
-          <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Crea tu perfil en Perfil Primero →</a>
+          <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Crea tu perfil en Perfil Primero →</a>
         </div>
         <ShareNative title="Finiquito Chile 2026: guia completa de calculo y derechos" text="Todo sobre el finiquito laboral en Chile: calculos, causales, plazos y checklist antes de firmar." />
       </footer>

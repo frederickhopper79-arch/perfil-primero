@@ -51,7 +51,7 @@ export default function PartTimePage() {
       </nav>
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-primary)", fontWeight: 700 }}>Empleabilidad</span>
+          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--primary-700)", fontWeight: 700 }}>Empleabilidad</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>25 junio 2026 · 5 min de lectura</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.7rem,4vw,2.3rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.2 }}>
@@ -98,7 +98,7 @@ export default function PartTimePage() {
                 <tr key={i} style={{ borderBottom: "1px solid var(--line)", background: j.horas === 22.5 ? "#f0f8fe" : "var(--surface)" }}>
                   <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: j.horas === 22.5 ? 700 : 400 }}>{j.label} {j.horas === 22.5 && "★"}</td>
                   <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--muted)" }}>{Math.round(j.fraccion * 100)}%</td>
-                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--color-primary)" }}>{fmt(IMM * j.fraccion)}</td>
+                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--primary-700)" }}>{fmt(IMM * j.fraccion)}</td>
                 </tr>
               ))}
             </tbody>
@@ -125,11 +125,11 @@ export default function PartTimePage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "14px 18px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 13, display: "block", marginBottom: 4 }}>¿Buscas trabajo part-time con sueldo claro?</strong>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>En Perfil Primero puedes indicar tu preferencia de jornada (parcial, completa, híbrida) y las empresas llegan a ti con condiciones declaradas.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 12 }}>Publicar mi perfil gratis →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 12 }}>Publicar mi perfil gratis →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Derechos laborales Chile 2026</a>
+        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Derechos laborales Chile 2026</a>
         <ShareNative title="Trabajo part-time Chile 2026: derechos y sueldo minimo" text="Cuantas horas, cuanto minimo y que derechos tienes trabajando a tiempo parcial en Chile." />
       </footer>
     </main>

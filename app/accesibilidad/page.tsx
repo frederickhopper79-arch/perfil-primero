@@ -68,7 +68,7 @@ export default function AccesibilidadPage() {
         <div style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1.25rem" }}>
           <div style={{ fontSize: 13, marginBottom: 6 }}>
             <strong style={{ color: "var(--heading)" }}>Email:</strong>{" "}
-            <a href="mailto:accesibilidad@perfil-primero.cl" style={{ color: "var(--color-primary)" }}>accesibilidad@perfil-primero.cl</a>
+            <a href="mailto:accesibilidad@perfil-primero.cl" style={{ color: "var(--primary-700)" }}>accesibilidad@perfil-primero.cl</a>
           </div>
           <div style={{ fontSize: 13, color: "var(--muted)" }}>
             Incluye: URL de la página afectada, descripción de la barrera, tecnología asistiva que utilizas (lector de pantalla, ampliador, etc.) y tu sistema operativo.

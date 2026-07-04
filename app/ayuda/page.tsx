@@ -148,7 +148,7 @@ export default function AyudaPage() {
           href="mailto:soporte@perfil-primero.cl"
           style={{
             display: "inline-block",
-            background: "var(--color-primary)",
+            background: "var(--primary-700)",
             color: "#fff",
             padding: "0.75rem 1.75rem",
             borderRadius: "0.5rem",

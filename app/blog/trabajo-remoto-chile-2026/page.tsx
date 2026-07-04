@@ -63,7 +63,7 @@ export default function TrabajoRemotoPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, color: "var(--muted)", padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20 }}>Teletrabajo</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>Junio 2026</span>
         </div>
@@ -79,7 +79,7 @@ export default function TrabajoRemotoPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginBottom: "2.5rem" }}>
         {datosRemoto.map((d, i) => (
           <div key={i} style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1rem", textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-primary)" }}>{d.value}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--primary-700)" }}>{d.value}</div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4, lineHeight: 1.4 }}>{d.label}</div>
           </div>
         ))}
@@ -93,10 +93,10 @@ export default function TrabajoRemotoPage() {
             <div key={i} style={{ background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "10px 14px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{s.sector}</span>
-                <span style={{ fontSize: 12, color: "var(--color-primary)", fontWeight: 600 }}>{s.tendencia} {s.porcentaje}%</span>
+                <span style={{ fontSize: 12, color: "var(--primary-700)", fontWeight: 600 }}>{s.tendencia} {s.porcentaje}%</span>
               </div>
               <div style={{ height: 4, background: "var(--bg-soft)", borderRadius: 4 }}>
-                <div style={{ height: "100%", width: `${s.porcentaje}%`, background: "var(--color-primary)", borderRadius: 4 }} />
+                <div style={{ height: "100%", width: `${s.porcentaje}%`, background: "var(--primary-700)", borderRadius: 4 }} />
               </div>
             </div>
           ))}
@@ -109,7 +109,7 @@ export default function TrabajoRemotoPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {leyTeletrabajo.map((item, i) => (
             <div key={i} style={{ display: "flex", gap: 12, background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "12px 14px", alignItems: "flex-start" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-primary)", background: "var(--blue-soft)", padding: "2px 8px", borderRadius: 6, flexShrink: 0, marginTop: 1 }}>{item.articulo}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-700)", background: "var(--blue-soft)", padding: "2px 8px", borderRadius: 6, flexShrink: 0, marginTop: 1 }}>{item.articulo}</span>
               <span style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.6 }}>{item.texto}</span>
             </div>
           ))}
@@ -122,7 +122,7 @@ export default function TrabajoRemotoPage() {
         <ul style={{ listStyle: "none", padding: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {habilidadesRemoto.map((h, i) => (
             <li key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--text)" }}>
-              <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>✓</span> {h}
+              <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>✓</span> {h}
             </li>
           ))}
         </ul>

@@ -38,7 +38,7 @@ export default function ReferidosPage() {
       {/* Beneficios visuales */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: "3rem" }}>
         <div style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.5rem", textAlign: "center" }}>
-          <div style={{ fontSize: 36, fontWeight: 800, color: "var(--color-primary)", marginBottom: 4 }}>30</div>
+          <div style={{ fontSize: 36, fontWeight: 800, color: "var(--primary-700)", marginBottom: 4 }}>30</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--heading)" }}>días gratis para ti</div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>por cada referido activado</div>
         </div>
@@ -55,7 +55,7 @@ export default function ReferidosPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {pasos.map((p, i) => (
             <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start", background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1.25rem" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 800, color: "var(--color-primary)" }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 800, color: "var(--primary-700)" }}>
                 {p.num}
               </div>
               <div>
@@ -75,7 +75,7 @@ export default function ReferidosPage() {
             <details key={i} style={{ background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "1rem" }}>
               <summary style={{ fontWeight: 600, fontSize: 14, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 {f.q}
-                <span style={{ color: "var(--color-primary)", fontSize: 20, fontWeight: 300, flexShrink: 0, marginLeft: 12 }}>+</span>
+                <span style={{ color: "var(--primary-700)", fontSize: 20, fontWeight: 300, flexShrink: 0, marginLeft: 12 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginTop: 10, marginBottom: 0 }}>{f.a}</p>
             </details>

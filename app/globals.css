@@ -12,7 +12,8 @@
   --surface-muted: #f7f9fb;
   --text: #1c2837;
   --heading: #111827;
-  --muted: #6b7a8d;
+  /* --muted: contraste AA (5.78:1 en blanco, 5.25:1 en fondo gris) */
+  --muted: #5a6775;
   --muted-strong: #374558;
   --line: #e2e8f0;
   --line-strong: #c8d4e0;
@@ -1622,7 +1623,7 @@ nav a:hover {
 .textButton {
   background: transparent;
   border: 0;
-  color: var(--blue);
+  color: var(--primary-700);
   cursor: pointer;
   font-weight: 800;
   padding: 4px 0;
@@ -3278,7 +3279,9 @@ h3 {
 /* Professional UI pass: coherent enterprise visual system */
 :root {
   --primary-900: #04556d;
-  --primary-700: var(--color-primary);
+  /* --primary-700: cyan oscuro accesible (AA) para texto/acentos sobre claro.
+     Antes era igual al base #3aaee0, que fallaba contraste como texto. */
+  --primary-700: #0e6d94;
   --primary-100: #e6f6fb;
   --primary-050: #f3fbfe;
   --neutral-900: var(--color-dark);
@@ -8558,7 +8561,7 @@ textarea {
 }
 
 .homeStepsMore {
-  color: var(--blue);
+  color: var(--primary-700);
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 700;
@@ -10716,7 +10719,7 @@ textarea {
 }
 
 .portalStatGrid strong {
-  color: var(--blue);
+  color: var(--primary-700);
   font-size: 14px;
   font-weight: 800;
 }
@@ -12179,7 +12182,7 @@ nav[aria-label="Breadcrumb"] ol li a:hover { text-decoration: underline; }
 .cfAnonCode {
   font-size: 11px;
   font-weight: 700;
-  color: #64748b;
+  color: #475569;
   background: #e2e8f0;
   border-radius: 8px;
   padding: 4px 8px;
@@ -12213,7 +12216,7 @@ nav[aria-label="Breadcrumb"] ol li a:hover { text-decoration: underline; }
 }
 .cfAnonChips span {
   background: #e8f6fc;
-  color: var(--color-primary);
+  color: var(--primary-700);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;

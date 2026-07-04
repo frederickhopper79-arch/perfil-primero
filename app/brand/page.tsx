@@ -32,7 +32,7 @@ export default function BrandPage() {
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Uso interno</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Uso interno</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 12 }}>Guía de Marca Perfil Primero</h1>
         <p style={{ color: "var(--muted)", lineHeight: 1.7 }}>Referencia de identidad visual para el equipo. Los activos descargables están en la carpeta compartida del equipo.</p>
       </header>
@@ -45,7 +45,7 @@ export default function BrandPage() {
               <div style={{ height: 72, background: c.hex }} />
               <div style={{ padding: "10px 14px", background: "var(--surface)" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: "var(--heading)" }}>{c.nombre}</div>
-                <div style={{ fontSize: 12, color: "var(--color-primary)", fontFamily: "monospace", margin: "2px 0" }}>{c.hex}</div>
+                <div style={{ fontSize: 12, color: "var(--primary-700)", fontFamily: "monospace", margin: "2px 0" }}>{c.hex}</div>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>{c.uso}</div>
               </div>
             </div>
@@ -59,7 +59,7 @@ export default function BrandPage() {
           {tipografias.map((t, i) => (
             <div key={i} style={{ padding: "14px 20px", borderBottom: i < tipografias.length - 1 ? "1px solid var(--line)" : "none", display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap" }}>
               <span style={{ fontWeight: 700, fontSize: 13, color: "var(--heading)", minWidth: 140 }}>{t.nombre}</span>
-              <code style={{ fontSize: 11, color: "var(--color-primary)", background: "var(--blue-soft)", padding: "2px 8px", borderRadius: 4 }}>{t.spec}</code>
+              <code style={{ fontSize: 11, color: "var(--primary-700)", background: "var(--blue-soft)", padding: "2px 8px", borderRadius: 4 }}>{t.spec}</code>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>{t.uso}</span>
             </div>
           ))}
@@ -106,7 +106,7 @@ export default function BrandPage() {
         <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1.5rem", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           <button className="button primary" style={{ pointerEvents: "none" }}>Botón primario</button>
           <button className="button" style={{ pointerEvents: "none" }}>Botón secundario</button>
-          <span style={{ background: "var(--blue-soft)", color: "var(--color-primary)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>Badge</span>
+          <span style={{ background: "var(--blue-soft)", color: "var(--primary-700)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>Badge</span>
           <span style={{ background: "#dcfce7", color: "#15803d", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>Éxito</span>
           <span style={{ background: "#fef3c7", color: "#92400e", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>Advertencia</span>
           <span style={{ background: "#fee2e2", color: "#991b1b", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>Error</span>

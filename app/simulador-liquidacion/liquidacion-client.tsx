@@ -109,7 +109,7 @@ export function LiquidacionClient() {
             <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Fondo AFP</label>
             <div style={{ display: "flex", gap: 4 }}>
               {FONDOS.map(f => (
-                <button key={f} onClick={() => setFondoAfp(f)} style={{ flex: 1, padding: "10px 2px", borderRadius: 8, border: `1px solid ${fondoAfp === f ? "var(--color-primary)" : "var(--line)"}`, fontSize: 12, fontWeight: 700, cursor: "pointer", background: fondoAfp === f ? "var(--color-primary)" : "var(--bg)", color: fondoAfp === f ? "#fff" : "var(--muted)" }}>
+                <button key={f} onClick={() => setFondoAfp(f)} style={{ flex: 1, padding: "10px 2px", borderRadius: 8, border: `1px solid ${fondoAfp === f ? "var(--primary-700)" : "var(--line)"}`, fontSize: 12, fontWeight: 700, cursor: "pointer", background: fondoAfp === f ? "var(--primary-700)" : "var(--bg)", color: fondoAfp === f ? "#fff" : "var(--muted)" }}>
                   {f}
                 </button>
               ))}
@@ -120,7 +120,7 @@ export function LiquidacionClient() {
             <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Salud</label>
             <div style={{ display: "flex", gap: 6 }}>
               {(["fonasa","isapre"] as const).map(s => (
-                <button key={s} onClick={() => setSalud(s)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, border: `1px solid ${salud === s ? "var(--color-primary)" : "var(--line)"}`, fontSize: 12, fontWeight: 600, cursor: "pointer", background: salud === s ? "var(--color-primary)" : "var(--bg)", color: salud === s ? "#fff" : "var(--muted)" }}>
+                <button key={s} onClick={() => setSalud(s)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, border: `1px solid ${salud === s ? "var(--primary-700)" : "var(--line)"}`, fontSize: 12, fontWeight: 600, cursor: "pointer", background: salud === s ? "var(--primary-700)" : "var(--bg)", color: salud === s ? "#fff" : "var(--muted)" }}>
                   {s === "fonasa" ? "FONASA (7%)" : "Isapre"}
                 </button>
               ))}
@@ -146,7 +146,7 @@ export function LiquidacionClient() {
             <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Tipo de contrato</label>
             <div style={{ display: "flex", gap: 6 }}>
               {(["indefinido","plazo_fijo"] as const).map(t => (
-                <button key={t} onClick={() => setCesantia(t)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, border: `1px solid ${cesantia === t ? "var(--color-primary)" : "var(--line)"}`, fontSize: 11, fontWeight: 600, cursor: "pointer", background: cesantia === t ? "var(--color-primary)" : "var(--bg)", color: cesantia === t ? "#fff" : "var(--muted)" }}>
+                <button key={t} onClick={() => setCesantia(t)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, border: `1px solid ${cesantia === t ? "var(--primary-700)" : "var(--line)"}`, fontSize: 11, fontWeight: 600, cursor: "pointer", background: cesantia === t ? "var(--primary-700)" : "var(--bg)", color: cesantia === t ? "#fff" : "var(--muted)" }}>
                   {t === "indefinido" ? "Indefinido" : "Plazo fijo"}
                 </button>
               ))}

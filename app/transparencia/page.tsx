@@ -50,7 +50,7 @@ export default function TransparenciaPage() {
   return (
     <main style={{ maxWidth: 820, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Nuestra promesa</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Nuestra promesa</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>La transparencia no es opcional, es el modelo</h1>
         <p style={{ color: "var(--muted)", maxWidth: 560, margin: "0 auto", lineHeight: 1.6 }}>
           En Perfil Primero creemos que el mercado laboral chileno necesita honestidad radical. Por eso construimos una plataforma donde la transparencia es la regla, no la excepción.
@@ -61,7 +61,7 @@ export default function TransparenciaPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: "3.5rem" }}>
         {datos.map((d, i) => (
           <div key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.5rem", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--color-primary)", marginBottom: 4 }}>{d.n}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--primary-700)", marginBottom: 4 }}>{d.n}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>{d.desc}</div>
           </div>
         ))}
@@ -94,7 +94,7 @@ export default function TransparenciaPage() {
       </section>
 
       <div style={{ marginTop: "2.5rem", textAlign: "center" }}>
-        <a href="/estadisticas" style={{ fontSize: 14, color: "var(--color-primary)", fontWeight: 600 }}>Ver estadísticas públicas del mercado →</a>
+        <a href="/estadisticas" style={{ fontSize: 14, color: "var(--primary-700)", fontWeight: 600 }}>Ver estadísticas públicas del mercado →</a>
       </div>
     </main>
   );

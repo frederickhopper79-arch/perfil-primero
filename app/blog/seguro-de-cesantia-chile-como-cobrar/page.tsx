@@ -118,7 +118,7 @@ export default function SeguroCesantiaPage() {
               {tablaMontos.map((r, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid var(--line)", background: i === 0 ? "#f0f8fe" : "var(--surface)" }}>
                   <td style={{ padding: "11px 14px", fontWeight: i === 0 ? 700 : 400, fontSize: 14 }}>{r.mes} mes {i === 0 && "★"}</td>
-                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--color-primary)" }}>{r.pct_cta_individual}</td>
+                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--primary-700)" }}>{r.pct_cta_individual}</td>
                   <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted)" }}>{r.min_fcs}</td>
                 </tr>
               ))}
@@ -144,7 +144,7 @@ export default function SeguroCesantiaPage() {
             <strong style={{ fontSize: 15, display: "block", marginBottom: 10, color: "#0a66c2" }}>Contrato a plazo fijo / por obra</strong>
             {requisitosPlazoFijo.map((r, i) => (
               <div key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>
-                <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>→</span>{r}
+                <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>→</span>{r}
               </div>
             ))}
           </div>
@@ -157,7 +157,7 @@ export default function SeguroCesantiaPage() {
         <div style={{ display: "grid", gap: 12 }}>
           {pasos.map((p) => (
             <div key={p.n} style={{ display: "flex", gap: 14, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
-              <span style={{ background: "var(--color-primary)", color: "#fff", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, flex: "0 0 auto" }}>{p.n}</span>
+              <span style={{ background: "var(--primary-700)", color: "#fff", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, flex: "0 0 auto" }}>{p.n}</span>
               <div>
                 <strong style={{ fontSize: 14, display: "block", marginBottom: 4 }}>{p.titulo}</strong>
                 <span style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{p.detalle}</span>
@@ -170,11 +170,11 @@ export default function SeguroCesantiaPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>Después de cobrar la cesantía: encuentra tu próximo trabajo</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>En Perfil Primero publicas tu perfil anónimo y las empresas verificadas te contactan con sueldo y modalidad declarados desde el primer mensaje.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/finiquito-chile-guia-completa" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Guía de finiquito Chile</a>
+        <a href="/blog/finiquito-chile-guia-completa" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Guía de finiquito Chile</a>
         <ShareNative title="Seguro de cesantia Chile 2026: cuanto cobras y como solicitarlo" text="Guia completa del Seguro de Cesantia AFC: montos por mes, requisitos y pasos para solicitarlo." />
       </footer>
     </main>

@@ -104,7 +104,7 @@ export default function ContactoPage() {
           >
             <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{ch.emoji}</div>
             <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>{ch.label}</div>
-            <div style={{ color: "var(--color-primary)", fontSize: "0.9375rem", marginBottom: "0.5rem" }}>
+            <div style={{ color: "var(--primary-700)", fontSize: "0.9375rem", marginBottom: "0.5rem" }}>
               {ch.value}
             </div>
             <div style={{ color: "var(--muted)", fontSize: "0.875rem" }}>{ch.description}</div>

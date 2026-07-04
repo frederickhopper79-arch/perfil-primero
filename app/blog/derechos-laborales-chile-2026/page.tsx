@@ -74,7 +74,7 @@ export default function DerechosLaboralesPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, padding: "2px 8px", background: "#dcfce7", borderRadius: 20, color: "#15803d" }}>Para trabajadores</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
@@ -92,7 +92,7 @@ export default function DerechosLaboralesPage() {
         {derechos.map((d, i) => (
           <section key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem 1.5rem" }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--color-dark)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--color-primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--primary-700)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
               {d.titulo}
             </h2>
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>

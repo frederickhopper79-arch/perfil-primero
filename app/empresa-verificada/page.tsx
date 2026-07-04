@@ -61,7 +61,7 @@ export default function EmpresaVerificadaPage() {
   return (
     <main style={{ maxWidth: 820, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Confianza primero</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Confianza primero</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Cómo verificamos cada empresa antes de darte acceso a perfiles</h1>
         <p style={{ color: "var(--muted)", maxWidth: 500, margin: "0 auto", lineHeight: 1.6 }}>
           Ninguna empresa puede contactar trabajadores sin pasar por nuestro proceso de verificación. Así protegemos a cada persona que confía en Perfil Primero.
@@ -74,7 +74,7 @@ export default function EmpresaVerificadaPage() {
           <div style={{ position: "absolute", left: 22, top: 0, bottom: 0, width: 2, background: "var(--line)" }} />
           {pasos.map((p, i) => (
             <div key={i} style={{ display: "flex", gap: 20, marginBottom: "1.5rem", position: "relative" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0, zIndex: 1 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--primary-700)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0, zIndex: 1 }}>
                 {p.numero}
               </div>
               <div style={{ flex: 1, background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem" }}>

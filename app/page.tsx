@@ -238,7 +238,7 @@ export default function Home() {
 
       {/* ── Herramientas gratuitas ── */}
       <section style={{ maxWidth: 860, margin: "0 auto 3rem", padding: "0 24px" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8, textAlign: "center" }}>Herramientas gratuitas</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8, textAlign: "center" }}>Herramientas gratuitas</p>
         <h2 style={{ textAlign: "center", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: "1.5rem" }}>Recursos para tu búsqueda de empleo</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
           {[

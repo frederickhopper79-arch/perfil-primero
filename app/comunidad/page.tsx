@@ -57,7 +57,7 @@ export default function ComunidadPage() {
             { val: "Q3 2026", label: "foro de comunidad" },
           ].map((s, i) => (
             <div key={i} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--color-primary)" }}>{s.val}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--primary-700)" }}>{s.val}</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.label}</div>
             </div>
           ))}
@@ -90,12 +90,12 @@ export default function ComunidadPage() {
                 <span style={{ fontSize: 26 }}>{r.icon}</span>
                 <span style={{ fontWeight: 700, fontSize: 14, color: "var(--heading)" }}>{r.titulo}</span>
                 <span style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{r.desc}</span>
-                <span style={{ fontSize: 13, color: "var(--color-primary)", fontWeight: 700, marginTop: "auto" }}>{r.cta} →</span>
+                <span style={{ fontSize: 13, color: "var(--primary-700)", fontWeight: 700, marginTop: "auto" }}>{r.cta} →</span>
               </a>
             ))}
           </div>
           <div style={{ marginTop: 20, textAlign: "center" }}>
-            <a href="/blog" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Ver todos los artículos del blog →</a>
+            <a href="/blog" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Ver todos los artículos del blog →</a>
           </div>
         </div>
       </section>
@@ -115,7 +115,7 @@ export default function ComunidadPage() {
               <span style={{ fontSize: 26 }}>{t.icon}</span>
               <span style={{ fontWeight: 700, fontSize: 14, color: "var(--heading)" }}>{t.titulo}</span>
               <span style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{t.desc}</span>
-              <span style={{ fontSize: 13, color: "var(--color-primary)", fontWeight: 700, marginTop: "auto" }}>{t.cta} →</span>
+              <span style={{ fontSize: 13, color: "var(--primary-700)", fontWeight: 700, marginTop: "auto" }}>{t.cta} →</span>
             </a>
           ))}
         </div>

@@ -144,7 +144,7 @@ export function AuthCard({
               cursor: "pointer",
               transition: "all .15s",
               background: mode === "register" ? "var(--surface)" : "transparent",
-              color: mode === "register" ? "var(--color-primary)" : "var(--muted)",
+              color: mode === "register" ? "var(--primary-700)" : "var(--muted)",
               boxShadow: mode === "register" ? "0 1px 4px rgba(0,0,0,.12)" : "none",
             }}
           >
@@ -164,7 +164,7 @@ export function AuthCard({
               cursor: "pointer",
               transition: "all .15s",
               background: mode === "login" ? "var(--surface)" : "transparent",
-              color: mode === "login" ? "var(--color-primary)" : "var(--muted)",
+              color: mode === "login" ? "var(--primary-700)" : "var(--muted)",
               boxShadow: mode === "login" ? "0 1px 4px rgba(0,0,0,.12)" : "none",
             }}
           >

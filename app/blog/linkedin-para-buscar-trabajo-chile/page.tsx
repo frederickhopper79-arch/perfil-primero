@@ -44,7 +44,7 @@ export default function LinkedinBuscarTrabajoPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, padding: "2px 8px", background: "#dcfce7", borderRadius: 20, color: "#15803d" }}>Para postulantes</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
@@ -68,7 +68,7 @@ export default function LinkedinBuscarTrabajoPage() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
               {s.tips.map((t, j) => (
                 <li key={j} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>
-                  <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>→</span> {t}
+                  <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>→</span> {t}
                 </li>
               ))}
             </ul>

@@ -61,13 +61,13 @@ export default function ParaPymesPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {pasos.map((p) => (
             <div key={p.num} style={{ display: "flex", gap: 14, alignItems: "center", background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "12px 16px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--primary-700)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
                 {p.num}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, color: "var(--text)" }}>{p.desc}</div>
               </div>
-              <span style={{ fontSize: 11, color: "var(--color-primary)", background: "var(--blue-soft)", padding: "2px 10px", borderRadius: 20, fontWeight: 600 }}>{p.sub}</span>
+              <span style={{ fontSize: 11, color: "var(--primary-700)", background: "var(--blue-soft)", padding: "2px 10px", borderRadius: 20, fontWeight: 600 }}>{p.sub}</span>
             </div>
           ))}
         </div>
@@ -76,7 +76,7 @@ export default function ParaPymesPage() {
       {/* Precio */}
       <div style={{ background: "var(--blue-soft)", borderRadius: 16, padding: "1.75rem", textAlign: "center", marginBottom: "2rem" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)", marginBottom: 4 }}>Precio final para una PyME</div>
-        <div style={{ fontSize: 32, fontWeight: 800, color: "var(--color-primary)", margin: "8px 0" }}>$4.990 CLP</div>
+        <div style={{ fontSize: 32, fontWeight: 800, color: "var(--primary-700)", margin: "8px 0" }}>$4.990 CLP</div>
         <div style={{ fontSize: 13, color: "var(--muted)" }}>por contacto desbloqueado · Pagas solo al pedir los datos del postulante · Sin suscripción mensual</div>
         <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4, textDecoration: "line-through" }}>Precio normal: $9.990 CLP</div>
       </div>

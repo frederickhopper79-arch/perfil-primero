@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 export default function BlogPostModeloInvertido() {
   return (
     <>      <main style={{ maxWidth: 740, margin: "60px auto", padding: "0 24px" }}>
-      <a href="/blog" style={{ color: "var(--color-primary)", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
+      <a href="/blog" style={{ color: "var(--primary-700)", fontSize: 14, fontWeight: 600 }}>← Volver al blog</a>
       <div style={{ marginTop: 24, marginBottom: 8, display: "flex", gap: 10, alignItems: "center" }}>
-        <span style={{ background: "var(--blue-soft)", color: "var(--color-primary)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Plataforma</span>
+        <span style={{ background: "var(--blue-soft)", color: "var(--primary-700)", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>Plataforma</span>
         <time dateTime="2026-05-15" style={{ fontSize: 12, color: "#647488" }}>15 de mayo de 2026</time>
       </div>
       <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.2, marginBottom: 24 }}>

@@ -97,7 +97,7 @@ export default function HorasExtraPage() {
                 <tr key={i} style={{ borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
                   <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 600, textAlign: "right" }}>{e.label}</td>
                   <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--muted)", textAlign: "right" }}>{fmt(e.horaOrd)}</td>
-                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--color-primary)", textAlign: "right" }}>{fmt(e.horaExtra)}</td>
+                  <td style={{ padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--primary-700)", textAlign: "right" }}>{fmt(e.horaExtra)}</td>
                   <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--green)", fontWeight: 600, textAlign: "right" }}>+{fmt(e.horaExtra * 5 * 4.3)}/mes</td>
                 </tr>
               ))}
@@ -113,7 +113,7 @@ export default function HorasExtraPage() {
           {faq.map((item, i) => (
             <details key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 18px" }}>
               <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-                {item.q}<span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 8 }}>+</span>
+                {item.q}<span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 8 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>{item.a}</p>
             </details>
@@ -124,11 +124,11 @@ export default function HorasExtraPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "14px 18px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 13, display: "block", marginBottom: 4 }}>¿Buscas un trabajo con jornada razonable?</strong>
         <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px" }}>En Perfil Primero las empresas declaran la modalidad y jornada desde la primera invitación. Sin sorpresas sobre horas extra.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 12 }}>Publicar mi perfil gratis →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 12 }}>Publicar mi perfil gratis →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/simulador-liquidacion" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Simular mi liquidación de sueldo</a>
+        <a href="/simulador-liquidacion" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Simular mi liquidación de sueldo</a>
         <ShareNative title="Horas extraordinarias Chile 2026: limite, pago y derechos" text="Cuanto te deben pagar por hora extra en Chile, cuantas son legales y cuando puedes negarte." />
       </footer>
     </main>

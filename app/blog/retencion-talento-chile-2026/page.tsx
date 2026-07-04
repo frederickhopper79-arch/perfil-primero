@@ -40,7 +40,7 @@ export default function RetencionTalentoCHilePage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-dark)" }}>Para empresas</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
@@ -79,10 +79,10 @@ export default function RetencionTalentoCHilePage() {
             <div key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)", margin: 0 }}>{i + 1}. {e.titulo}</h3>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)" }}>{e.impacto}%</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--primary-700)" }}>{e.impacto}%</span>
               </div>
               <div style={{ background: "var(--line)", borderRadius: 4, height: 4, marginBottom: 10 }}>
-                <div style={{ background: "var(--color-primary)", height: 4, borderRadius: 4, width: `${e.impacto}%` }} />
+                <div style={{ background: "var(--primary-700)", height: 4, borderRadius: 4, width: `${e.impacto}%` }} />
               </div>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, marginBottom: 8 }}>{e.desc}</p>
               <div style={{ background: "var(--blue-soft)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--heading)" }}>

@@ -63,11 +63,11 @@ export function CalculadoraClient() {
     flex: 1,
     padding: "10px 4px",
     borderRadius: 10,
-    border: `1px solid ${active ? "var(--color-primary)" : "var(--line)"}`,
+    border: `1px solid ${active ? "var(--primary-700)" : "var(--line)"}`,
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    background: active ? "var(--color-primary)" : "var(--bg)",
+    background: active ? "var(--primary-700)" : "var(--bg)",
     color: active ? "#fff" : "var(--muted)",
     transition: "all .15s",
   });
@@ -87,7 +87,7 @@ export function CalculadoraClient() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Sector / Industria</label>
-          <select value={sector} onChange={e => setSector(Number(e.target.value))} style={selectStyle}>
+          <select aria-label="Sector o industria" value={sector} onChange={e => setSector(Number(e.target.value))} style={selectStyle}>
             {SECTORES.map((s, i) => <option key={i} value={i}>{s.nombre}</option>)}
           </select>
         </div>
@@ -103,7 +103,7 @@ export function CalculadoraClient() {
         </div>
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Región</label>
-          <select value={region} onChange={e => setRegion(Number(e.target.value))} style={selectStyle}>
+          <select aria-label="Región" value={region} onChange={e => setRegion(Number(e.target.value))} style={selectStyle}>
             {REGIONES.map((r, i) => <option key={i} value={i}>{r.nombre}</option>)}
           </select>
         </div>

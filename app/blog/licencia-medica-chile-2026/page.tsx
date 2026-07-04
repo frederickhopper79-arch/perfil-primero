@@ -103,7 +103,7 @@ export default function LicenciaMedicaPage() {
         <div style={{ display: "grid", gap: 12 }}>
           {pasos.map((p) => (
             <div key={p.n} style={{ display: "flex", gap: 14, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 16px" }}>
-              <span style={{ background: "var(--color-primary)", color: "#fff", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, flex: "0 0 auto" }}>{p.n}</span>
+              <span style={{ background: "var(--primary-700)", color: "#fff", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, flex: "0 0 auto" }}>{p.n}</span>
               <div>
                 <strong style={{ fontSize: 14, display: "block", marginBottom: 4 }}>{p.titulo}</strong>
                 <span style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{p.detalle}</span>
@@ -120,7 +120,7 @@ export default function LicenciaMedicaPage() {
           {faq.map((item, i) => (
             <details key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 18px" }}>
               <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-                {item.q}<span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 8 }}>+</span>
+                {item.q}<span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 8 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>{item.a}</p>
             </details>
@@ -129,7 +129,7 @@ export default function LicenciaMedicaPage() {
       </section>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Derechos laborales Chile 2026</a>
+        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Derechos laborales Chile 2026</a>
         <ShareNative title="Licencia medica Chile 2026: tipos, pago y tramitacion" text="Guia completa de licencia medica en Chile: tipos, cuanto pagan, plazos y que pasa si la rechazan." />
       </footer>
     </main>

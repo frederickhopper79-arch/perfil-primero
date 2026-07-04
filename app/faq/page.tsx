@@ -62,10 +62,10 @@ export default function FaqPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Preguntas frecuentes</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Preguntas frecuentes</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Todo lo que necesitas saber</h1>
         <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
-          Si no encuentras tu respuesta aquí, escríbenos a <a href="mailto:ayuda@perfil-primero.cl" style={{ color: "var(--color-primary)" }}>ayuda@perfil-primero.cl</a>
+          Si no encuentras tu respuesta aquí, escríbenos a <a href="mailto:ayuda@perfil-primero.cl" style={{ color: "var(--primary-700)" }}>ayuda@perfil-primero.cl</a>
         </p>
       </header>
 
@@ -79,7 +79,7 @@ export default function FaqPage() {
               <details key={i} style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", overflow: "hidden" }}>
                 <summary style={{ padding: "14px 18px", fontSize: 14, fontWeight: 600, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   {p.q}
-                  <span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 10, fontSize: 18 }}>+</span>
+                  <span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 10, fontSize: 18 }}>+</span>
                 </summary>
                 <div style={{ padding: "0 18px 14px", fontSize: 13, color: "var(--muted)", lineHeight: 1.7, borderTop: "1px solid var(--line)" }}>
                   <div style={{ paddingTop: 12 }}>{p.a}</div>

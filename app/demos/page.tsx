@@ -19,7 +19,7 @@ export default function DemosPage() {
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <span style={{ display: "inline-block", background: "var(--blue-soft)", color: "var(--color-primary)", padding: "4px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Demo interactiva</span>
+        <span style={{ display: "inline-block", background: "var(--blue-soft)", color: "var(--primary-700)", padding: "4px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Demo interactiva</span>
         <h1 style={{ fontSize: "clamp(1.6rem,4vw,2.25rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 12 }}>Así ven los perfiles las empresas en Perfil Primero</h1>
         <p style={{ color: "var(--muted)", maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>
           Estos son perfiles ficticios con datos ilustrativos. En la plataforma real, el nombre y contacto del candidato permanece oculto hasta que ambas partes deciden avanzar.
@@ -27,7 +27,7 @@ export default function DemosPage() {
       </header>
 
       <div style={{ background: "#fff9e6", border: "1px solid #f0d060", borderRadius: 10, padding: "10px 16px", marginBottom: 28, fontSize: 13, color: "#7a5c00" }}>
-        <strong>Modo demo</strong> — Los perfiles a continuación son ficticios. <a href="/empresa" style={{ color: "var(--color-primary)", fontWeight: 600 }}>Regístrate gratis como empresa →</a> para acceder a candidatos reales.
+        <strong>Modo demo</strong> — Los perfiles a continuación son ficticios. <a href="/empresa" style={{ color: "var(--primary-700)", fontWeight: 600 }}>Regístrate gratis como empresa →</a> para acceder a candidatos reales.
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16, marginBottom: "3rem" }}>
@@ -38,14 +38,14 @@ export default function DemosPage() {
                 <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace" }}>{p.codigo}</span>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "var(--heading)", marginTop: 2 }}>{p.cargo}</div>
               </div>
-              <div style={{ background: "var(--color-primary)", color: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 13, fontWeight: 800 }}>{p.score}%</div>
+              <div style={{ background: "var(--primary-700)", color: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 13, fontWeight: 800 }}>{p.score}%</div>
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)", display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span>📍 {p.region}</span>
               <span>🏢 {p.modalidad}</span>
               <span>💼 {p.experiencia}</span>
             </div>
-            <div style={{ fontWeight: 700, color: "var(--color-primary)", fontSize: 14 }}>{p.sueldo} CLP</div>
+            <div style={{ fontWeight: 700, color: "var(--primary-700)", fontSize: 14 }}>{p.sueldo} CLP</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {p.habilidades.map((h, j) => (
                 <span key={j} style={{ background: "var(--blue-soft)", color: "var(--color-dark)", padding: "2px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{h}</span>

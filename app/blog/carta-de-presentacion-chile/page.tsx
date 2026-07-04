@@ -56,7 +56,7 @@ export default function CartaPresentacionPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-primary)", fontWeight: 700 }}>Empleabilidad</span>
+          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--primary-700)", fontWeight: 700 }}>Empleabilidad</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>25 junio 2026 · 6 min de lectura</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.7rem,4vw,2.3rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.2 }}>
@@ -69,7 +69,7 @@ export default function CartaPresentacionPage() {
 
       <div style={{ background: "var(--bg-soft)", border: "1px solid var(--line)", borderRadius: 12, padding: "16px 20px", marginBottom: 28 }}>
         <strong style={{ fontSize: 14 }}>¿Sabías que en Perfil Primero no necesitas carta de presentación?</strong>
-        <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0" }}>Tu perfil estructurado ya comunica tu valor. Las empresas te contactan con sueldo declarado antes de pedirte documentos. <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 600 }}>Crear perfil gratis →</a></p>
+        <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0" }}>Tu perfil estructurado ya comunica tu valor. Las empresas te contactan con sueldo declarado antes de pedirte documentos. <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 600 }}>Crear perfil gratis →</a></p>
       </div>
 
       <section style={{ marginBottom: "2.5rem" }}>
@@ -78,7 +78,7 @@ export default function CartaPresentacionPage() {
           {estructura.map((s) => (
             <div key={s.n} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "18px 20px" }}>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <span style={{ background: "var(--color-primary)", color: "#fff", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, flex: "0 0 auto" }}>{s.n}</span>
+                <span style={{ background: "var(--primary-700)", color: "#fff", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, flex: "0 0 auto" }}>{s.n}</span>
                 <div>
                   <strong style={{ fontSize: 15, color: "var(--heading)", display: "block", marginBottom: 4 }}>{s.titulo}</strong>
                   <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px", lineHeight: 1.6 }}>{s.desc}</p>
@@ -131,7 +131,7 @@ export default function CartaPresentacionPage() {
             "Si la empresa es contactada directamente por ti vía referido — ahí el email de referencia es suficiente.",
           ].map((item, i) => (
             <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text)" }}>
-              <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>→</span>
+              <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>→</span>
               {item}
             </li>
           ))}
@@ -141,7 +141,7 @@ export default function CartaPresentacionPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <div>
           <strong style={{ display: "block", fontSize: 15, marginBottom: 4 }}>¿Prefieres que las empresas lleguen a ti?</strong>
-          <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
+          <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
         </div>
         <ShareNative title="Carta de presentacion laboral Chile 2026 - Perfil Primero" text="Guia completa con plantilla y ejemplos para escribir una carta de presentacion que abre puertas en Chile." />
       </footer>

@@ -52,15 +52,15 @@ export function CookieConsent() {
     >
       <div>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Usamos cookies funcionales</div>
-        <p style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 12, color: "#d4deea", lineHeight: 1.6, margin: 0 }}>
           Utilizamos cookies esenciales para que la plataforma funcione y cookies de análisis anónimas (Google Analytics) para mejorar la experiencia. No usamos cookies de publicidad ni compartimos datos con terceros.{" "}
-          <a href="/legal/privacidad" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>Más información</a>
+          <a href="/legal/privacidad" style={{ color: "#7fd0f5", textDecoration: "underline" }}>Más información</a>
         </p>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
           onClick={accept}
-          style={{ background: "var(--color-primary)", color: "#fff", border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }}
+          style={{ background: "#0e6d94", color: "#fff", border: "none", padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1 }}
         >
           Aceptar
         </button>

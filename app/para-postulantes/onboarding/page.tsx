@@ -85,7 +85,7 @@ export default function PostulantesOnboardingPage() {
     <main style={{ maxWidth: 800, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       {/* Header */}
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <div style={{ display: "inline-block", background: "#e8f6fc", borderRadius: 24, padding: "6px 18px", fontSize: 12, fontWeight: 700, color: "var(--color-primary)", marginBottom: 16, textTransform: "uppercase", letterSpacing: ".06em" }}>
+        <div style={{ display: "inline-block", background: "#e8f6fc", borderRadius: 24, padding: "6px 18px", fontSize: 12, fontWeight: 700, color: "var(--primary-700)", marginBottom: 16, textTransform: "uppercase", letterSpacing: ".06em" }}>
           Guía de inicio — Postulantes
         </div>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.4rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.2 }}>

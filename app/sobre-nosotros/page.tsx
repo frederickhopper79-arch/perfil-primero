@@ -45,7 +45,7 @@ export default function SobreNosotrosPage() {
 
       {/* Hero */}
       <header style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Nuestra historia</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Nuestra historia</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Nacimos para cambiar cómo funciona el empleo en Chile</h1>
         <p style={{ color: "var(--muted)", maxWidth: 580, margin: "0 auto", lineHeight: 1.7 }}>
           Perfil Primero nació de una convicción simple: el mercado laboral chileno está roto porque la información es asimétrica. Las empresas saben todo y el trabajador no sabe nada hasta el final del proceso. Decidimos darle la vuelta.
@@ -82,9 +82,9 @@ export default function SobreNosotrosPage() {
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 2, background: "var(--line)", marginLeft: 12 }} />
           {hitos.map((h, i) => (
             <div key={i} style={{ display: "flex", gap: 20, marginBottom: "1.25rem" }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: i < 4 ? "var(--color-primary)" : "var(--line)", border: "2px solid var(--surface)", zIndex: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }} />
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: i < 4 ? "var(--primary-700)" : "var(--line)", border: "2px solid var(--surface)", zIndex: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }} />
               <div style={{ padding: "2px 0" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-primary)", marginRight: 8 }}>{h.año}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-700)", marginRight: 8 }}>{h.año}</span>
                 <span style={{ fontSize: 13, color: i < 4 ? "var(--text)" : "var(--muted)" }}>{h.evento}</span>
               </div>
             </div>

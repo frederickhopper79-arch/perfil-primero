@@ -47,7 +47,7 @@ export default function ComoContratarPage() {
         <div style={{
           display: "inline-block",
           background: "var(--blue-soft)",
-          color: "var(--color-primary)",
+          color: "var(--primary-700)",
           padding: "0.25rem 0.75rem",
           borderRadius: "1rem",
           fontSize: "0.8125rem",
@@ -122,7 +122,7 @@ export default function ComoContratarPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)" }}>
         <p style={{ color: "var(--muted)", fontSize: "0.9375rem" }}>
           ¿Lista para contratar de forma más inteligente?{" "}
-          <a href="/bienvenida" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+          <a href="/bienvenida" style={{ color: "var(--primary-700)", fontWeight: 600 }}>
             Crea tu cuenta empresa gratis →
           </a>
         </p>

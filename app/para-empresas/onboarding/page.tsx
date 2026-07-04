@@ -61,7 +61,7 @@ export default function OnboardingEmpresasPage() {
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Guía de inicio · Empresas</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Guía de inicio · Empresas</p>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Cómo empezar a contratar en Perfil Primero</h1>
         <p style={{ color: "var(--muted)", maxWidth: 460, margin: "0 auto", lineHeight: 1.6, fontSize: 14 }}>
           En menos de 48 horas puedes tener tu primer candidato potencial en el pipeline. Este es el proceso exacto.
@@ -72,7 +72,7 @@ export default function OnboardingEmpresasPage() {
         {pasos.map((p) => (
           <div key={p.num} style={{ background: "var(--surface)", borderRadius: 16, border: "1px solid var(--line)", padding: "1.5rem" }}>
             <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--primary-700)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
                 {p.num}
               </div>
               <div style={{ flex: 1 }}>
@@ -93,7 +93,7 @@ export default function OnboardingEmpresasPage() {
               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
                 {p.tips.map((t, i) => (
                   <li key={i} style={{ fontSize: 12, color: "var(--muted)", display: "flex", gap: 6 }}>
-                    <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>→</span> {t}
+                    <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>→</span> {t}
                   </li>
                 ))}
               </ul>

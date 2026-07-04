@@ -75,7 +75,7 @@ export default function ComoPreperarEntrevistaPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, padding: "2px 8px", background: "#dcfce7", borderRadius: 20, color: "#15803d" }}>Para postulantes</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
@@ -90,11 +90,11 @@ export default function ComoPreperarEntrevistaPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: "2.5rem" }}>
         {etapas.map((e, i) => (
           <section key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem 1.5rem" }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-primary)", marginBottom: "1rem" }}>{i + 1}. {e.etapa}</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--primary-700)", marginBottom: "1rem" }}>{i + 1}. {e.etapa}</h2>
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
               {e.pasos.map((p, j) => (
                 <li key={j} style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text)", lineHeight: 1.6 }}>
-                  <span style={{ color: "var(--color-primary)", flexShrink: 0, fontWeight: 700 }}>{j + 1}.</span> {p}
+                  <span style={{ color: "var(--primary-700)", flexShrink: 0, fontWeight: 700 }}>{j + 1}.</span> {p}
                 </li>
               ))}
             </ul>

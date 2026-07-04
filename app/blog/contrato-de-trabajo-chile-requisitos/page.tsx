@@ -144,11 +144,11 @@ export default function ContratoTrabajoPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>En Perfil Primero las condiciones se declaran antes del contrato</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>Las empresas verificadas deben indicar cargo, sueldo, modalidad y tipo de contrato desde la primera invitación. Sin sorpresas al firmar.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Publicar mi perfil gratis →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Guía completa de derechos laborales</a>
+        <a href="/blog/derechos-laborales-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Guía completa de derechos laborales</a>
         <ShareNative title="Contrato de trabajo Chile 2026: requisitos y tipos" text="Todo sobre el contrato de trabajo en Chile: clausulas obligatorias, tipos y lo que el empleador no puede incluir." />
       </footer>
     </main>

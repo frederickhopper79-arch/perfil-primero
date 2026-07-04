@@ -57,7 +57,7 @@ export default function TipsProfesionalesPage() {
   return (
     <main style={{ maxWidth: 820, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Guía de empleo</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Guía de empleo</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Tips para encontrar trabajo más rápido en Chile</h1>
         <p style={{ color: "var(--muted)", maxWidth: 500, margin: "0 auto", lineHeight: 1.6 }}>
           Consejos prácticos basados en datos reales de más de 1,200 perfiles activos y 340 contrataciones exitosas en Perfil Primero.
@@ -74,7 +74,7 @@ export default function TipsProfesionalesPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {cat.tips.map((tip, ti) => (
                 <div key={ti} style={{ background: "var(--surface)", borderRadius: 12, border: "1px solid var(--line)", padding: "1.125rem 1.25rem", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{ color: "var(--color-primary)", fontWeight: 800, fontSize: 15, flexShrink: 0, minWidth: 24 }}>{ti + 1}.</span>
+                  <span style={{ color: "var(--primary-700)", fontWeight: 800, fontSize: 15, flexShrink: 0, minWidth: 24 }}>{ti + 1}.</span>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)", marginBottom: 4 }}>{tip.titulo}</div>
                     <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{tip.desc}</div>

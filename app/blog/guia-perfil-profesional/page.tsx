@@ -142,7 +142,7 @@ export default function GuiaPerfilPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)" }}>
         <p style={{ color: "var(--muted)", fontSize: "0.9375rem" }}>
           ¿Listo para publicar tu perfil?{" "}
-          <a href="/bienvenida" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+          <a href="/bienvenida" style={{ color: "var(--primary-700)", fontWeight: 600 }}>
             Regístrate gratis →
           </a>
         </p>

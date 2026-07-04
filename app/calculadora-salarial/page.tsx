@@ -35,7 +35,7 @@ export default function CalculadoraSalarialPage() {
       />
 
       <header style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>
           Herramienta gratuita
         </p>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>
@@ -80,7 +80,7 @@ export default function CalculadoraSalarialPage() {
       <p style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", marginTop: 20, lineHeight: 1.5 }}>
         Los rangos son referencias orientativas. Varían según empresa, negociación, habilidades específicas y condiciones del mercado local.
         Para datos actualizados en tiempo real, visita la{" "}
-        <a href="/estadisticas" style={{ color: "var(--color-primary)" }}>página de estadísticas</a>.
+        <a href="/estadisticas" style={{ color: "var(--primary-700)" }}>página de estadísticas</a>.
       </p>
     </main>
   );

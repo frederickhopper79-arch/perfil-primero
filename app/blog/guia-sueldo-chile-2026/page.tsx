@@ -56,7 +56,7 @@ export default function GuiaSueldoPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
           <span style={{ fontSize: 11, color: "var(--muted)", padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20 }}>Sueldos</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>Actualizado: Junio 2026</span>
         </div>
@@ -86,7 +86,7 @@ export default function GuiaSueldoPage() {
                 <tr key={i} style={{ borderBottom: i < tablaResumen.length - 1 ? "1px solid var(--line)" : "none" }}>
                   <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--text)" }}>{row.sector}</td>
                   <td style={{ padding: "10px 14px", textAlign: "right", color: "var(--muted)" }}>{row.junior}</td>
-                  <td style={{ padding: "10px 14px", textAlign: "right", color: "var(--color-primary)", fontWeight: 600 }}>{row.mid}</td>
+                  <td style={{ padding: "10px 14px", textAlign: "right", color: "var(--primary-700)", fontWeight: 600 }}>{row.mid}</td>
                   <td style={{ padding: "10px 14px", textAlign: "right", color: "var(--muted)" }}>{row.senior}</td>
                 </tr>
               ))}
@@ -134,7 +134,7 @@ export default function GuiaSueldoPage() {
           {articulosRelacionados.map((a, i) => (
             <a key={i} href={a.href} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "10px 14px", fontSize: 13, color: "var(--text)" }}>
               <span>{a.titulo}</span>
-              <span style={{ color: "var(--color-primary)" }}>→</span>
+              <span style={{ color: "var(--primary-700)" }}>→</span>
             </a>
           ))}
         </div>

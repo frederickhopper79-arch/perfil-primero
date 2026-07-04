@@ -108,8 +108,8 @@ export default function SueldoMinimoPage() {
             <tbody>
               {historial.map((h, i) => (
                 <tr key={h.año} style={{ borderBottom: "1px solid var(--line)", background: i === 3 ? "#f0f8fe" : "var(--surface)" }}>
-                  <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: i === 3 ? 700 : 400, color: "var(--heading)" }}>{h.año} {i === 3 && <span style={{ fontSize: 10, background: "var(--color-primary)", color: "#fff", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>VIGENTE</span>}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 700, color: i === 3 ? "var(--color-primary)" : "var(--text)", textAlign: "right" }}>{h.monto}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: i === 3 ? 700 : 400, color: "var(--heading)" }}>{h.año} {i === 3 && <span style={{ fontSize: 10, background: "var(--primary-700)", color: "#fff", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>VIGENTE</span>}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 700, color: i === 3 ? "var(--primary-700)" : "var(--text)", textAlign: "right" }}>{h.monto}</td>
                   <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--green)", textAlign: "right" }}>{h.variacion}</td>
                 </tr>
               ))}
@@ -151,7 +151,7 @@ export default function SueldoMinimoPage() {
           {faqItems.map((item, i) => (
             <details key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 18px" }}>
               <summary style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-                {item.q} <span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 8 }}>+</span>
+                {item.q} <span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 8 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>{item.a}</p>
             </details>
@@ -162,13 +162,13 @@ export default function SueldoMinimoPage() {
       <div style={{ background: "var(--bg-soft)", border: "1px solid var(--line)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>¿Ganas más del mínimo pero quieres saber si tu sueldo está a mercado?</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>Usa nuestra calculadora salarial gratuita para ver el rango de tu sector y nivel.</p>
-        <a href="/calculadora-salarial" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Calculadora salarial Chile 2026 →</a>
+        <a href="/calculadora-salarial" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Calculadora salarial Chile 2026 →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <div>
           <strong style={{ display: "block", fontSize: 15, marginBottom: 4 }}>¿Buscas trabajo con sueldo transparente?</strong>
-          <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
+          <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
         </div>
         <ShareNative title="Sueldo minimo Chile 2026 - valor oficial y calculo" text="Cuanto es el sueldo minimo en Chile 2026, como calcularlo en tu liquidacion y que hacer si te pagan menos." />
       </footer>

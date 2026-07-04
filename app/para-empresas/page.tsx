@@ -167,7 +167,7 @@ export default function ParaEmpresasPage() {
                   width: 48, height: 48,
                   borderRadius: "50%",
                   background: "var(--blue-soft)",
-                  color: "var(--color-primary)",
+                  color: "var(--primary-700)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontWeight: 800,
                   fontSize: "0.875rem",
@@ -196,7 +196,7 @@ export default function ParaEmpresasPage() {
           href="/bienvenida"
           style={{
             display: "inline-block",
-            background: "var(--color-primary)",
+            background: "var(--primary-700)",
             color: "#fff",
             padding: "1rem 2.5rem",
             borderRadius: "0.625rem",

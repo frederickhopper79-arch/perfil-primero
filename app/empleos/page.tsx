@@ -45,7 +45,7 @@ export default function EmpleosPage() {
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       {/* Hero */}
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Empleos con transparencia</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Empleos con transparencia</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>
           Empleos en Chile con sueldo visible desde el primer contacto
         </h1>
@@ -63,7 +63,7 @@ export default function EmpleosPage() {
         {modalidades.map((m, i) => (
           <div key={i} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1.25rem", textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}>{m.icon}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--color-primary)" }}>{m.porcentaje}%</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--primary-700)" }}>{m.porcentaje}%</div>
             <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>{m.nombre}</div>
           </div>
         ))}
@@ -96,7 +96,7 @@ export default function EmpleosPage() {
             <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: i < regiones.length - 1 ? "1px solid var(--line)" : "none" }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{r.nombre}</span>
               <div style={{ width: 120, height: 4, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${r.intensidad}%`, background: "var(--color-primary)", borderRadius: 4 }} />
+                <div style={{ height: "100%", width: `${r.intensidad}%`, background: "var(--primary-700)", borderRadius: 4 }} />
               </div>
             </div>
           ))}

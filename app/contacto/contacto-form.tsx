@@ -98,7 +98,7 @@ export function ContactoForm() {
                 padding: "7px 16px",
                 borderRadius: 999,
                 border: form.userType === t.value ? "none" : "1px solid var(--line)",
-                background: form.userType === t.value ? "var(--color-primary)" : "var(--bg)",
+                background: form.userType === t.value ? "var(--primary-700)" : "var(--bg)",
                 color: form.userType === t.value ? "#fff" : "var(--text)",
                 fontWeight: 600,
                 fontSize: 13,
@@ -149,6 +149,7 @@ export function ContactoForm() {
           Asunto *
         </label>
         <select
+          aria-label="Asunto"
           value={form.subject}
           onChange={e => set("subject", e.target.value)}
           style={inputStyle}

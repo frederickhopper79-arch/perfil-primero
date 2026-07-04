@@ -35,7 +35,7 @@ export default function PrensaPage() {
   return (
     <main style={{ maxWidth: 820, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>Sala de prensa</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>Sala de prensa</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Kit de Prensa — Perfil Primero</h1>
         <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
           Todo lo que necesitas para escribir sobre Perfil Primero. Datos verificados, mensajes clave y contacto directo con nuestro equipo.
@@ -84,7 +84,7 @@ export default function PrensaPage() {
         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           {hitos.map((h, i) => (
             <li key={i} style={{ display: "flex", gap: 10, background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)", padding: "12px 14px", fontSize: 13, color: "var(--text)" }}>
-              <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>★</span> {h}
+              <span style={{ color: "var(--primary-700)", flexShrink: 0 }}>★</span> {h}
             </li>
           ))}
         </ul>
@@ -100,7 +100,7 @@ export default function PrensaPage() {
           ].map((a, i) => (
             <a key={i} href={a.href} download style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-soft)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)" }}>
               <span>{a.nombre}</span>
-              <span style={{ color: "var(--color-primary)" }}>↓</span>
+              <span style={{ color: "var(--primary-700)" }}>↓</span>
             </a>
           ))}
         </div>

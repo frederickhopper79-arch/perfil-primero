@@ -114,7 +114,7 @@ export default function ParaOmilPage() {
             href="mailto:omil@perfil-primero.cl"
             style={{
               display: "inline-block",
-              background: "var(--color-primary)",
+              background: "var(--primary-700)",
               color: "#fff",
               padding: "0.875rem 2rem",
               borderRadius: "0.625rem",

@@ -82,7 +82,7 @@ export default function PreciosPage() {
             <User size={28} aria-hidden="true" />
             <h2>Postulante</h2>
           </div>
-          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary-700)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
             🚀 Precio de lanzamiento
           </p>
           <div className="pricingAmount">
@@ -106,7 +106,7 @@ export default function PreciosPage() {
             <Building2 size={28} aria-hidden="true" />
             <h2>Empresa · Por contacto</h2>
           </div>
-          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary-700)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
             🚀 Precio de lanzamiento
           </p>
           <div className="pricingAmount">
@@ -132,7 +132,7 @@ export default function PreciosPage() {
             <Zap size={28} aria-hidden="true" />
             <h2>Empresa · Ilimitado</h2>
           </div>
-          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary-700)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.5rem" }}>
             ✦ Mejor valor · Contratación activa
           </p>
           <div className="pricingAmount">
@@ -203,7 +203,7 @@ export default function PreciosPage() {
                 <tr key={row.name} style={{ background: row.highlight ? "var(--blue-soft)" : "transparent" }}>
                   <td style={{ padding: "10px 14px", color: row.highlight ? "var(--heading)" : "var(--text)", fontWeight: row.highlight ? 700 : 400, borderBottom: "1px solid var(--line)" }}>{row.name}</td>
                   <td style={{ padding: "10px 14px", color: "var(--muted)", borderBottom: "1px solid var(--line)" }}>{row.model}</td>
-                  <td style={{ padding: "10px 14px", color: row.highlight ? "var(--color-primary)" : "var(--muted-strong)", fontWeight: row.highlight ? 700 : 400, borderBottom: "1px solid var(--line)" }}>{row.cost}</td>
+                  <td style={{ padding: "10px 14px", color: row.highlight ? "var(--primary-700)" : "var(--muted-strong)", fontWeight: row.highlight ? 700 : 400, borderBottom: "1px solid var(--line)" }}>{row.cost}</td>
                 </tr>
               ))}
             </tbody>

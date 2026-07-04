@@ -118,7 +118,7 @@ export default function GratificacionPage() {
           ].map((item, i) => (
             <details key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 10, padding: "14px 18px" }}>
               <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--heading)", cursor: "pointer", listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-                {item.q}<span style={{ color: "var(--color-primary)", flexShrink: 0, marginLeft: 8 }}>+</span>
+                {item.q}<span style={{ color: "var(--primary-700)", flexShrink: 0, marginLeft: 8 }}>+</span>
               </summary>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>{item.a}</p>
             </details>
@@ -129,11 +129,11 @@ export default function GratificacionPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>¿Tu oferta de trabajo declara la gratificación?</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>En Perfil Primero las empresas verificadas deben indicar si la gratificación ya está incluida en el sueldo o si se paga aparte. Sin ambigüedades desde la primera invitación.</p>
-        <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Ver cómo funciona →</a>
+        <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Ver cómo funciona →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/sueldo-minimo-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Sueldo mínimo Chile 2026</a>
+        <a href="/blog/sueldo-minimo-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Sueldo mínimo Chile 2026</a>
         <ShareNative title="Gratificacion legal Chile 2026: como calcularla" text="Las dos modalidades de gratificacion legal en Chile, calculo con ejemplos y que debe aparecer en tu liquidacion." />
       </footer>
     </main>

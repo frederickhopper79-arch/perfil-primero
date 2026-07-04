@@ -116,7 +116,7 @@ export default function EmpresasPage() {
           <p style={{ color: "var(--muted-strong)", marginBottom: 32, fontSize: 16 }}>Sin letra chica ni contratos de permanencia.</p>
           <div style={{ display: "grid", gap: 20, gridTemplateColumns: "1fr 1fr" }}>
             <div style={{ border: "1px solid var(--line)", borderRadius: 14, padding: 28 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-primary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚀 Lanzamiento</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-700)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚀 Lanzamiento</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Por contacto</div>
               <div className="priceBlock" style={{ justifyContent: "center" }}><span className="priceAmount">$4.990</span><span className="pricePeriod">CLP</span></div>
               <p style={{ color: "var(--muted)", fontSize: 11, marginTop: 4, textDecoration: "line-through" }}>Precio normal: $9.990 CLP</p>

@@ -92,7 +92,7 @@ export default function AfpPage() {
             <tbody>
               {afps.map((a, i) => (
                 <tr key={a.nombre} style={{ borderBottom: "1px solid var(--line)", background: a.comision === "0.58%" ? "#f0f8fe" : "var(--surface)" }}>
-                  <td style={{ padding: "11px 14px", fontWeight: 700, fontSize: 14, color: "var(--heading)" }}>{a.nombre} {a.comision === "0.58%" && <span style={{ fontSize: 9, background: "var(--color-primary)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginLeft: 4 }}>MÁS BARATA</span>}</td>
+                  <td style={{ padding: "11px 14px", fontWeight: 700, fontSize: 14, color: "var(--heading)" }}>{a.nombre} {a.comision === "0.58%" && <span style={{ fontSize: 9, background: "var(--primary-700)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginLeft: 4 }}>MÁS BARATA</span>}</td>
                   <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{a.comision}</td>
                   <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted)" }}>{a.total}</td>
                   <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{a.rentabilidad5a}</td>
@@ -128,11 +128,11 @@ export default function AfpPage() {
       <div style={{ background: "var(--blue-soft)", borderRadius: 12, padding: "16px 20px", marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}>
         <strong style={{ fontSize: 14, display: "block", marginBottom: 6 }}>¿Tu AFP está descontando bien de tu sueldo?</strong>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>Usa nuestra calculadora salarial para ver el bruto/líquido estimado según tu sector y experiencia en Chile.</p>
-        <a href="/calculadora-salarial" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 13 }}>Calculadora salarial gratuita →</a>
+        <a href="/calculadora-salarial" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 13 }}>Calculadora salarial gratuita →</a>
       </div>
 
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <a href="/blog/sueldo-minimo-chile-2026" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: 14 }}>← Sueldo mínimo Chile 2026</a>
+        <a href="/blog/sueldo-minimo-chile-2026" style={{ color: "var(--primary-700)", fontWeight: 600, fontSize: 14 }}>← Sueldo mínimo Chile 2026</a>
         <ShareNative title="AFP Chile 2026: cuanto se descuenta y como elegir" text="Comparativa completa de AFP: comisiones, fondos, y cuanto va realmente a tu cuenta individual." />
       </footer>
     </main>

@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { CookieBanner } from "@/components/ui/cookie-banner";
 import { ShortcutsModal } from "@/components/ui/shortcuts-modal";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { ExitIntent } from "@/components/ui/exit-intent";
@@ -36,7 +35,6 @@ export function GlobalUI() {
 
   return (
     <>
-      <CookieBanner />
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <CommandPalette items={NAV_ITEMS} />
       <ExitIntent />

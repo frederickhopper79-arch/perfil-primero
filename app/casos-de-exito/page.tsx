@@ -73,7 +73,7 @@ export default function CasosDeExitoPage() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
       <header style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 8 }}>El modelo en acción</p>
+        <p style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary-700)", marginBottom: 8 }}>El modelo en acción</p>
         <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.5rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14 }}>Empresas y profesionales que encontraron el match perfecto</h1>
         <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
           Casos ilustrativos del modelo Perfil Primero: cómo la transparencia salarial y el modelo invertido mejoran los procesos de selección.
@@ -94,7 +94,7 @@ export default function CasosDeExitoPage() {
             </div>
 
             <div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--color-primary)" }}>{caso.cifra}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--primary-700)" }}>{caso.cifra}</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>{caso.metrica}</div>
             </div>
 

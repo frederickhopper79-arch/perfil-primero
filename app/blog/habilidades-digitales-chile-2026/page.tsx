@@ -65,7 +65,7 @@ export default function HabilidadesDigitalesPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-primary)", fontWeight: 700 }}>Empleabilidad</span>
+          <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--primary-700)", fontWeight: 700 }}>Empleabilidad</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>25 junio 2026</span>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>· 8 min de lectura</span>
         </div>
@@ -125,7 +125,7 @@ export default function HabilidadesDigitalesPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <div>
           <strong style={{ display: "block", fontSize: 15, marginBottom: 4 }}>¿Tienes estas habilidades?</strong>
-          <a href="/postulante" style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
+          <a href="/postulante" style={{ color: "var(--primary-700)", fontWeight: 700, fontSize: 14 }}>Publica tu perfil en Perfil Primero →</a>
         </div>
         <ShareNative title="Habilidades digitales más buscadas en Chile 2026" text="15 habilidades que las empresas chilenas están pagando más en 2026. Con rangos salariales." />
       </footer>

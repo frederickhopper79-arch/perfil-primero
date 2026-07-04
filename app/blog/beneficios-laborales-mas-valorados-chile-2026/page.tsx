@@ -54,8 +54,8 @@ export default function BeneficiosLaboralesPage() {
 
       <header style={{ marginBottom: "2.5rem" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <a href="/blog" style={{ fontSize: 12, color: "var(--color-primary)" }}>← Blog</a>
-          <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--color-primary)" }}>Mercado laboral</span>
+          <a href="/blog" style={{ fontSize: 12, color: "var(--primary-700)" }}>← Blog</a>
+          <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--blue-soft)", borderRadius: 20, color: "var(--primary-700)" }}>Mercado laboral</span>
         </div>
         <h1 style={{ fontSize: "clamp(1.6rem,3.5vw,2.2rem)", fontWeight: 800, color: "var(--heading)", marginBottom: 14, lineHeight: 1.25 }}>
           Los 10 Beneficios Laborales Más Valorados en Chile en 2026
@@ -71,7 +71,7 @@ export default function BeneficiosLaboralesPage() {
           {beneficios.map((b) => (
             <div key={b.rank} style={{ background: "var(--surface)", borderRadius: 14, border: "1px solid var(--line)", padding: "1rem 1.25rem" }}>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: b.rank <= 3 ? "var(--color-primary)" : "var(--bg-soft)", color: b.rank <= 3 ? "#fff" : "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: b.rank <= 3 ? "var(--primary-700)" : "var(--bg-soft)", color: b.rank <= 3 ? "#fff" : "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
                   {b.rank}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -80,10 +80,10 @@ export default function BeneficiosLaboralesPage() {
                       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--heading)" }}>{b.nombre}</span>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 10, background: categoriaColor[b.categoria], color: categoriaText[b.categoria] }}>{b.categoria}</span>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>{b.valoracion}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary-700)" }}>{b.valoracion}%</span>
                   </div>
                   <div style={{ background: "var(--line)", borderRadius: 4, height: 4, marginBottom: 8 }}>
-                    <div style={{ background: "var(--color-primary)", height: 4, borderRadius: 4, width: `${b.valoracion}%` }} />
+                    <div style={{ background: "var(--primary-700)", height: 4, borderRadius: 4, width: `${b.valoracion}%` }} />
                   </div>
                   <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>{b.desc}</p>
                 </div>

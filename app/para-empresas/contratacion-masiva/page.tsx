@@ -46,7 +46,7 @@ export default function ContratacionMasivaPage() {
       {/* Plan */}
       <section style={{ background: "var(--blue-soft)", borderRadius: 16, padding: "2rem", textAlign: "center", marginBottom: "3rem" }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--heading)", marginBottom: 10 }}>Plan empresarial ilimitado</h2>
-        <p style={{ fontSize: 32, fontWeight: 800, color: "var(--color-primary)", margin: "8px 0" }}>$29.990</p>
+        <p style={{ fontSize: 32, fontWeight: 800, color: "var(--primary-700)", margin: "8px 0" }}>$29.990</p>
         <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>CLP / mes · IVA incluido · Sin compromisos de permanencia</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 400, margin: "0 auto", textAlign: "left", marginBottom: 20 }}>
           {["Búsquedas ilimitadas de perfiles", "Invitaciones ilimitadas al mes", "Panel de gestión de múltiples procesos", "Desbloqueo de contactos sin costo adicional", "Soporte prioritario vía chat"].map((item, i) => (

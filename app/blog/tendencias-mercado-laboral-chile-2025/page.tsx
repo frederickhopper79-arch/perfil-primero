@@ -90,7 +90,7 @@ export default function TendenciasPage() {
             borderRadius: "0.75rem",
             padding: "1rem",
           }}>
-            <div style={{ fontSize: "1.875rem", fontWeight: 800, color: "var(--color-primary)" }}>
+            <div style={{ fontSize: "1.875rem", fontWeight: 800, color: "var(--primary-700)" }}>
               {stat.value}
             </div>
             <div style={{ fontSize: "0.8125rem", color: "var(--muted)", marginTop: "0.25rem" }}>
@@ -166,7 +166,7 @@ export default function TendenciasPage() {
       <footer style={{ marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
         <p style={{ color: "var(--muted)", fontSize: "0.9375rem", margin: 0 }}>
           Explora más en{" "}
-          <a href="/analisis-expertos" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+          <a href="/analisis-expertos" style={{ color: "var(--primary-700)", fontWeight: 600 }}>
             Análisis de mercado por sector →
           </a>
         </p>

@@ -74,7 +74,7 @@ export function GlosarioClient() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 28 }}>
         {["Todas", ...letras].map(l => (
           <button key={l} onClick={() => setLetraFiltro(l)}
-            style={{ padding: "4px 12px", borderRadius: 6, border: letraFiltro === l ? "none" : "1px solid var(--line)", background: letraFiltro === l ? "var(--color-primary)" : "var(--surface)", color: letraFiltro === l ? "#fff" : "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+            style={{ padding: "4px 12px", borderRadius: 6, border: letraFiltro === l ? "none" : "1px solid var(--line)", background: letraFiltro === l ? "var(--primary-700)" : "var(--surface)", color: letraFiltro === l ? "#fff" : "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             {l}
           </button>
         ))}
@@ -87,7 +87,7 @@ export function GlosarioClient() {
           {filtrados.map((t, i) => (
             <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: "1rem 1.25rem" }}>
               <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, background: "var(--blue-soft)", color: "var(--color-primary)", padding: "2px 8px", borderRadius: 4 }}>{t.letra}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, background: "var(--blue-soft)", color: "var(--primary-700)", padding: "2px 8px", borderRadius: 4 }}>{t.letra}</span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: "var(--heading)" }}>{t.término}</span>
               </div>
               <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.65, margin: 0 }}>{t.def}</p>

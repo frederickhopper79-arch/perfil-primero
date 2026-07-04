@@ -2652,6 +2652,9 @@ function ChangelogView() {
         "ci: workflow despliega functions, reglas y storage + gate de tests",
         "fix: hydration mismatch #418 real (OfflineBanner leía navigator.onLine en el initializer) — consola limpia en todas las páginas",
         "fix: sitemap duplicado — consolidado en public/sitemap.xml (65 URLs)",
+        "a11y: contraste WCAG AA en todo el sitio (187→0 en axe) — --muted y cyan de acento accesibles; selects con aria-label",
+        "a11y: eliminado banner de cookies duplicado (dos prompts simultáneos)",
+        "test: cobertura de reglas ampliada a colecciones sensibles (25 tests)",
       ]
     },
     {
