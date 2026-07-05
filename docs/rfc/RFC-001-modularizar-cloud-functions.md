@@ -6,15 +6,14 @@
 > **Progreso:**
 > - Paso 1-2 hechos — lógica pura en `lib/` (5 módulos, 67 tests) + toda la
 >   infraestructura compartida en `shared.ts`. Desplegado y smoke-test OK.
-> - Paso 3+ — dominios extraídos y **validados en producción** (deploy "updating"):
->   `domains/referrals.ts` (5) y `domains/notifications.ts` (5). El patrón de
->   `export *` está probado end-to-end.
-> - Pendiente: ~90 handlers restantes. **Nota de complejidad:** muchos comparten
->   constantes (ej. `SALARY_REFERENCE`) y helpers internos (`hasActiveContactUnlock`,
->   `notifyWorkerInvitationReceived`, `createMarketAnalyticsReport`, etc.) que
->   deben moverse a `shared.ts`/módulos antes o junto con sus dominios. Es
->   mecánico pero intrincado; conviene hacerlo por dominio, sin cambios de backend
->   en vuelo, verificando `diff` de conteo y deploy "updating" en cada uno.
+> - Paso 3+ — **6 dominios extraídos, desplegados y validados en producción**
+>   (deploy "updating" en cada uno): `referrals` (5), `notifications` (5),
+>   `salary` (3), `nps` (3), `timelines` (2), `analytics` (3) = **21 handlers**.
+>   `index.ts` bajó de ~5.430 a ~4.900 líneas. Patrón `export *` probado.
+> - Pendiente: ~79 handlers. Incluyen los **money-critical** (checkouts, webhooks,
+>   unlock, invitaciones) y los más **interdependientes** (dashboard admin,
+>   market analytics) — la mitad más delicada. Continuar por dominio, sin cambios
+>   de backend en vuelo, verificando `diff` de conteo y deploy "updating".
 
 ## Objetivo
 
