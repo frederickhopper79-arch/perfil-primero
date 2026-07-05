@@ -3,10 +3,17 @@
 **Estado:** En implementación (paso 1 completado y validado en producción)
 **Fecha:** 2026-07-04 · **Autor:** `[completar]`
 
-> **Progreso:** Paso 1 hecho — lógica pura en `lib/` + infraestructura compartida
-> en `shared.ts`. Verificado: 100 funciones idénticas al baseline, desplegado y
-> con smoke-test OK. Pendiente: helpers db-acoplados restantes → `shared.ts` y
-> división de los 100 handlers en módulos de dominio.
+> **Progreso:**
+> - Paso 1-2 hechos — lógica pura en `lib/` (5 módulos, 67 tests) + toda la
+>   infraestructura compartida en `shared.ts`. Desplegado y smoke-test OK.
+> - Paso 3 hecho — primer módulo de dominio (`domains/referrals.ts`, 5 handlers)
+>   re-exportado con `export *`. **Validado en producción:** el deploy mostró
+>   "updating" (no "deleting") → Firebase descubre las funciones re-exportadas.
+>   **El patrón de split por dominio está probado end-to-end.**
+> - Pendiente: mover los ~95 handlers restantes a sus módulos de dominio
+>   (payments, invitations, ai, notifications, admin, omil, etc.) — mecánico y
+>   repetitivo, con el patrón ya validado. Verificar `diff` de conteo y deploy
+>   "updating" en cada dominio.
 
 ## Objetivo
 
