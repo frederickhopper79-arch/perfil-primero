@@ -93,6 +93,7 @@ de seguridad; las operaciones sensibles pasan por Cloud Functions con Admin SDK.
 - `/docs/API_DOC.md` — referencia de las Cloud Functions callable.
 - `/docs/rfc/` — cambios importantes en curso o evaluados.
 - `/docs/privacidad/RAT_REGISTRO_TRATAMIENTO.md` — registro de actividades de tratamiento (Ley 19.628 / 21.719).
+- `/docs/ONBOARDING.md` — guía de entrada para desarrollar en el proyecto (Cap. 29).
 - `/docs/plantillas/` — plantillas oficiales HTES (POSTMORTEM, INCIDENT_REPORT, API_DOC, etc.).
 - `ROADMAP.md` — visión, objetivos del periodo y prioridades (raíz del proyecto).
 - `/docs/RISK_REGISTER.md` — registro de riesgos vivo (HTES Cap. 16).
