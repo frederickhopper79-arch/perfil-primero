@@ -1,9 +1,9 @@
 name: CI/CD — Perfil Primero
 
-# DESACTIVADO EN AUTOMÁTICO (solo ejecución manual) hasta que se configuren:
-#  1. GitHub Secrets: FIREBASE_SERVICE_ACCOUNT y las NEXT_PUBLIC_* (ver DEBT-003).
-#  2. Configuración de ESLint (hoy `next lint` no tiene config y falla en CI).
-# Mientras tanto los despliegues se hacen manualmente con `firebase deploy`.
+# DESACTIVADO EN AUTOMÁTICO (solo ejecución manual) hasta configurar los
+# GitHub Secrets: FIREBASE_SERVICE_ACCOUNT y las NEXT_PUBLIC_* (ver DEBT-003).
+# ESLint ya está configurado (.eslintrc.json) y el lint pasa.
+# Los despliegues se hacen manualmente con `firebase deploy` por ahora.
 # Para reactivar en cada push: descomentar el bloque `push`/`pull_request`.
 on:
   workflow_dispatch:
@@ -40,10 +40,8 @@ jobs:
         run: cd functions && npm ci
 
       # ── Quality gates ─────────────────────────────────────────────
-      # Lint no bloquea: `next lint` aún no tiene config de ESLint (DEBT).
       - name: Lint
         run: pnpm lint
-        continue-on-error: true
 
       - name: Build Cloud Functions
         run: cd functions && npm run build
