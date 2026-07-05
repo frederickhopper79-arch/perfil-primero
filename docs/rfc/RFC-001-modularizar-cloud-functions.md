@@ -1,7 +1,12 @@
 # RFC-001: Modularizar `functions/src/index.ts`
 
-**Estado:** Borrador
+**Estado:** En implementación (paso 1 completado y validado en producción)
 **Fecha:** 2026-07-04 · **Autor:** `[completar]`
+
+> **Progreso:** Paso 1 hecho — lógica pura en `lib/` + infraestructura compartida
+> en `shared.ts`. Verificado: 100 funciones idénticas al baseline, desplegado y
+> con smoke-test OK. Pendiente: helpers db-acoplados restantes → `shared.ts` y
+> división de los 100 handlers en módulos de dominio.
 
 ## Objetivo
 
