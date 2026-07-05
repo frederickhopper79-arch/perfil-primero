@@ -24,6 +24,9 @@ import {
 // ── Módulos de dominio (RFC-001) — re-exportados para que Firebase los descubra ──
 export * from "./domains/referrals";
 export * from "./domains/notifications";
+export * from "./domains/salary";
+export * from "./domains/nps";
+export * from "./domains/timelines";
 
 // ── Mercado Pago: validar firma x-signature ───────────────────────────────
 // Lógica pura y con tests en functions/src/lib/mp-signature.ts
@@ -4358,26 +4361,6 @@ function selectFields<T extends Record<string, unknown>>(doc: T, fields: (keyof 
 export { selectFields };
 
 // ── submitNps — encuesta NPS post-proceso ─────────────────────────────────────
-export const submitNps = onCall<{ score: number; comment?: string; context?: string }>(async (request) => {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión.");
-  const { score, comment, context } = request.data;
-  if (typeof score !== "number" || score < 0 || score > 10) {
-    throw new HttpsError("invalid-argument", "El score NPS debe ser un número entre 0 y 10.");
-  }
-  const category = score >= 9 ? "promoter" : score >= 7 ? "passive" : "detractor";
-  await db.collection("npsSurveys").add({
-    uid,
-    score,
-    category,
-    comment: sanitize(comment ?? "", 500),
-    context: sanitize(context ?? "", 100),
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  log("INFO", "nps_submitted", { uid, score, category });
-  return { ok: true, category };
-});
-
 // ── getPublicWorkerStats — estadísticas públicas para landing ─────────────────
 export const getPublicWorkerStats = onCall(async () => {
   const [workersSnap, companiesSnap, invSnap] = await Promise.all([
@@ -4409,54 +4392,8 @@ export const recordUtmConversion = onCall<{
   return { ok: true };
 });
 
-// ── expireOldNpsData — limpieza mensual de NPS > 1 año ───────────────────────
-export const expireOldNpsData = onSchedule("every 720 hours", async () => {
-  const cutoff = Timestamp.fromDate(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
-  const snap = await db.collection("npsSurveys").where("createdAt", "<", cutoff).limit(200).get();
-  if (snap.empty) return;
-  const batch = db.batch();
-  snap.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-  log("INFO", "nps_old_data_expired", { count: snap.size });
-});
-
 // ── getReferralStats — estadísticas del programa de referidos del usuario ──────
 // ── getSalaryBenchmark — benchmark salarial por sector y región ───────────────
-export const getSalaryBenchmark = onCall<{ sector: string; region?: string; experienceLevel?: string }>(CALL_OPTS_FAST, async (request) => {
-  const sector = sanitize(request.data.sector, 100);
-  const region = sanitize(request.data.region ?? "", 80);
-  const experienceLevel = sanitize(request.data.experienceLevel ?? "", 20);
-  let q: Query = db.collection("workerPublicProfiles")
-    .where("visibilityStatus", "==", "visible")
-    .where("sectors", "array-contains", sector);
-  if (region) q = (q as Query).where("region", "==", region);
-  if (experienceLevel) q = (q as Query).where("experienceLevel", "==", experienceLevel);
-  const snap = await q.limit(200).get();
-  if (snap.empty) return { count: 0, medianMin: null, medianMax: null, p25Min: null, p75Max: null };
-  const mins: number[] = [];
-  const maxes: number[] = [];
-  snap.docs.forEach(d => {
-    const mn = Number(d.data().expectedSalaryMin ?? 0);
-    const mx = Number(d.data().expectedSalaryMax ?? 0);
-    if (mn > 0) mins.push(mn);
-    if (mx > 0) maxes.push(mx);
-  });
-  mins.sort((a, b) => a - b);
-  maxes.sort((a, b) => a - b);
-  const median = (arr: number[]) => arr.length === 0 ? null : arr[Math.floor(arr.length / 2)];
-  const p = (arr: number[], pct: number) => arr.length === 0 ? null : arr[Math.floor(arr.length * pct)];
-  return {
-    count: snap.size,
-    medianMin: median(mins),
-    medianMax: median(maxes),
-    p25Min: p(mins, 0.25),
-    p75Max: p(maxes, 0.75),
-    sector,
-    region: region || "Chile",
-    experienceLevel: experienceLevel || "todos",
-  };
-});
-
 // ── getProfileCompletionScore — score detallado de completitud del perfil ─────
 export const getProfileCompletionScore = onCall(CALL_OPTS_FAST, async (request) => {
   if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -4570,61 +4507,6 @@ export const updateContactTicketStatus = onCall<{ ticketId: string; status: "ope
 });
 
 // ── getWorkerTimeline — historial de eventos del trabajador ───────────────────
-export const getWorkerTimeline = onCall(CALL_OPTS_FAST, async (request) => {
-  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  const uid = request.auth.uid;
-  const [invitationsSnap, paymentsSnap] = await Promise.all([
-    db.collection("invitations").where("workerId", "==", uid).orderBy("expiresAt", "desc").limit(20).get(),
-    db.collection("payments").where("uid", "==", uid).orderBy("createdAt", "desc").limit(10).get(),
-  ]);
-  const events: Array<{ type: string; date: string | null; label: string; meta?: Record<string,unknown> }> = [];
-  invitationsSnap.docs.forEach(d => {
-    const data = d.data();
-    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
-    const statusLabels: Record<string,string> = {
-      sent: "Invitación recibida", accepted: "Invitación aceptada", hired: "Contratación confirmada",
-      rejected: "Invitación rechazada", expired: "Invitación expirada", in_process: "Proceso en curso",
-    };
-    events.push({ type: "invitation", date: ts, label: statusLabels[data.status] ?? data.status, meta: { opportunityTitle: data.opportunityTitle, status: data.status } });
-  });
-  paymentsSnap.docs.forEach(d => {
-    const data = d.data();
-    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
-    events.push({ type: "payment", date: ts, label: "Pago realizado — perfil activado", meta: { amount: data.amount, currency: data.currency } });
-  });
-  events.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-  return { events };
-});
-
-// ── getCompanyTimeline — historial de eventos de la empresa ───────────────────
-export const getCompanyTimeline = onCall(CALL_OPTS_FAST, async (request) => {
-  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  const uid = request.auth.uid;
-  const companyDoc = await db.collection("companyProfiles").doc(uid).get();
-  if (!companyDoc.exists) throw new HttpsError("not-found", "Empresa no encontrada.");
-  const [invitationsSnap, paymentsSnap] = await Promise.all([
-    db.collection("invitations").where("companyId", "==", uid).orderBy("expiresAt", "desc").limit(30).get(),
-    db.collection("payments").where("uid", "==", uid).orderBy("createdAt", "desc").limit(10).get(),
-  ]);
-  const events: Array<{ type: string; date: string | null; label: string; meta?: Record<string,unknown> }> = [];
-  const statusLabels: Record<string,string> = {
-    sent: "Invitación enviada", accepted: "Candidato aceptó", hired: "Contratación confirmada",
-    rejected: "Candidato rechazó", expired: "Invitación expirada", in_process: "Proceso activo",
-  };
-  invitationsSnap.docs.forEach(d => {
-    const data = d.data();
-    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
-    events.push({ type: "invitation", date: ts, label: statusLabels[data.status] ?? data.status, meta: { opportunityTitle: data.opportunityTitle, status: data.status } });
-  });
-  paymentsSnap.docs.forEach(d => {
-    const data = d.data();
-    const ts = (data.createdAt as Timestamp)?.toDate().toISOString() ?? null;
-    events.push({ type: "payment", date: ts, label: "Pago procesado", meta: { amount: data.amount } });
-  });
-  events.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-  return { events };
-});
-
 // ── generateWeeklyDigest — envía resumen semanal a trabajadores activos ────────
 export const generateWeeklyDigest = onSchedule("every monday 09:00", async () => {
   const snap = await db.collection("workerPublicProfiles")
@@ -4672,34 +4554,6 @@ export const getAggregatedMetrics = onCall(async (request) => {
 });
 
 // ── Sugerencia de sueldo por sector/región ─────────────────────────────────
-const SALARY_REFERENCE: Record<string, { min: number; median: number; max: number }> = {
-  "Tecnología / Software": { min: 1200000, median: 2200000, max: 4500000 },
-  "Finanzas / Banca": { min: 900000, median: 1900000, max: 3800000 },
-  "Salud / Clínico": { min: 800000, median: 1500000, max: 3200000 },
-  "Marketing / Comunicaciones": { min: 700000, median: 1300000, max: 2800000 },
-  "Logística / Operaciones": { min: 600000, median: 1100000, max: 2200000 },
-  "Educación / Capacitación": { min: 550000, median: 950000, max: 1800000 },
-  "Comercio / Ventas": { min: 600000, median: 1050000, max: 2500000 },
-  "Construcción / Minería": { min: 800000, median: 1600000, max: 3500000 },
-  "Gastronomía / Turismo": { min: 500000, median: 750000, max: 1500000 },
-  "RRHH / Administración": { min: 650000, median: 1100000, max: 2100000 },
-};
-
-export const getSalarySuggestion = onCall<{ sector: string; region: string; yearsExp: number }>(async (request) => {
-  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  const { sector, yearsExp } = request.data;
-  const ref = SALARY_REFERENCE[sector];
-  if (!ref) return { min: 560000, median: 900000, max: 1800000, note: "Estimación general de mercado" };
-  const expFactor = Math.min(1 + (Number(yearsExp ?? 0) * 0.04), 1.5);
-  return {
-    min: Math.round(ref.min * expFactor / 1000) * 1000,
-    median: Math.round(ref.median * expFactor / 1000) * 1000,
-    max: Math.round(ref.max * expFactor / 1000) * 1000,
-    note: `Estimación de referencia para ${sector} en Chile 2026`
-  };
-});
-
-// ── Referidos ─────────────────────────────────────────────────────────────
 // ── Email nurturing (D+3 perfil incompleto) ────────────────────────────────
 export const sendNurturingEmails = onSchedule(
   { schedule: "every day 10:00", timeZone: "America/Santiago", region: "us-central1" },
@@ -4733,55 +4587,7 @@ export const sendNurturingEmails = onSchedule(
 );
 
 // ── NPS automático (D+30 tras activación) ─────────────────────────────────
-export const sendNpsEmails = onSchedule(
-  { schedule: "every day 11:00", timeZone: "America/Santiago", region: "us-central1" },
-  async () => {
-    const thirtyDaysAgo = Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const thirtyOneDaysAgo = Timestamp.fromMillis(Date.now() - 31 * 24 * 60 * 60 * 1000);
-    const snap = await db.collection("workerPublicProfiles")
-      .where("subscriptionStatus", "==", "active")
-      .where("createdAt", ">=", thirtyOneDaysAgo)
-      .where("createdAt", "<=", thirtyDaysAgo)
-      .limit(100)
-      .get();
-    for (const doc of snap.docs) {
-      const reminded = await db.collection("emailReminders").doc(`nps-d30-${doc.id}`).get();
-      if (reminded.exists) continue;
-      const privSnap = await db.collection("workerPrivateProfiles").doc(doc.id).get();
-      const email: string | undefined = privSnap.data()?.email;
-      if (!email) continue;
-      const npsUrl = `${appUrl}/feedback?uid=${doc.id}&type=worker`;
-      await sendEmail(email, "¿Cómo ha sido tu experiencia en Perfil Primero?",
-        `<p>Hola,</p>
-         <p>Llevas 30 días en Perfil Primero. Queremos saber cómo te ha ido.</p>
-         <p>En una escala del 1 al 10, ¿cuánto recomendarías Perfil Primero a un amigo o colega?</p>
-         <p style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">
-           ${[1,2,3,4,5,6,7,8,9,10].map(n => `<a href="${npsUrl}&score=${n}" style="background:#f0f4f8;color:#0d1b2a;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:600">${n}</a>`).join("")}
-         </p>
-         <p>Tu opinión nos ayuda a mejorar la plataforma.</p>
-         <p>— Equipo Perfil Primero</p>`
-      );
-      await db.collection("emailReminders").doc(`nps-d30-${doc.id}`).set({
-        type: "nps_d30", workerId: doc.id, targetEmail: email, status: "sent", sentAt: FieldValue.serverTimestamp()
-      });
-    }
-  }
-);
-
 // ── Detector de sueldo irreal en oferta laboral ───────────────────────────
-export const validateJobOfferSalary = onCall<{ salaryMin: number; salaryMax: number; sector: string }>(async (request) => {
-  if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  const INGRESO_MINIMO = 560000;
-  const { salaryMin, salaryMax, sector } = request.data;
-  const ref = SALARY_REFERENCE[sector];
-  const marketMin = ref?.min ?? INGRESO_MINIMO;
-  const warnings: string[] = [];
-  if (Number(salaryMin) < INGRESO_MINIMO) warnings.push(`El sueldo mínimo ($${salaryMin?.toLocaleString("es-CL")}) está bajo el ingreso mínimo legal ($${INGRESO_MINIMO.toLocaleString("es-CL")}).`);
-  if (ref && Number(salaryMax) < marketMin * 0.6) warnings.push(`El sueldo máximo parece muy bajo para ${sector} (referencia de mercado: $${marketMin.toLocaleString("es-CL")} mínimo).`);
-  if (Number(salaryMax) < Number(salaryMin)) warnings.push("El sueldo máximo es menor que el mínimo.");
-  return { valid: warnings.length === 0, warnings };
-});
-
 // ── Dashboard MRR/ARR (admin) ──────────────────────────────────────────────
 export const getMrrDashboard = onCall(async (request) => {
   await assertAdmin(request.auth?.uid);
