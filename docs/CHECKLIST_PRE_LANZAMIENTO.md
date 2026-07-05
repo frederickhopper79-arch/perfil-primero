@@ -17,6 +17,7 @@
 - [x] Escalada de rol omil/admin desde cliente bloqueada (reglas + auth-card).
 - [x] Webhook de Mercado Pago valida firma HMAC; pagos confirmados contra la API del proveedor.
 - [x] Reuso de `paymentId` bloqueado (propiedad + invitación + uso único).
+- [x] Cabeceras HTTP de seguridad en `firebase.json`: HSTS con preload, CSP con allowlist, X-Frame-Options DENY, X-Content-Type-Options nosniff, Permissions-Policy, `object-src 'none'`, `base-uri 'self'`.
 - [ ] Rotar la clave de IA expuesta históricamente en git y confirmar revocación (RISK-008).
 
 ## Pagos (RISK-001, RISK-004)
