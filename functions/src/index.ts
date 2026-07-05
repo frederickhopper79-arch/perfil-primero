@@ -16,6 +16,7 @@ import { validateMpSignature } from "./lib/mp-signature";
 import { computeFinancialSummary } from "./lib/financial-health";
 import { evaluateCoupon } from "./lib/coupon";
 import { evaluateUnlock } from "./lib/unlock-guard";
+import { sanitize, validateRutCl } from "./lib/validation";
 
 initializeApp();
 
@@ -35,40 +36,8 @@ export function log(severity: "INFO" | "WARNING" | "ERROR", msg: string, data?: 
   console.log(JSON.stringify({ severity, message: msg, ...data, timestamp: new Date().toISOString() }));
 }
 
-// ── Input sanitizer ───────────────────────────────────────────────────────
-export function sanitize(input: unknown, maxLen = 2000): string {
-  if (typeof input !== "string") return "";
-  return input.replace(/<[^>]*>/g, "").replace(/javascript:/gi, "").slice(0, maxLen).trim();
-}
-
-// ── Typed error helpers ───────────────────────────────────────────────────
-export function assertString(val: unknown, field: string): string {
-  if (typeof val !== "string" || !val.trim()) throw new HttpsError("invalid-argument", `${field} es requerido.`);
-  return sanitize(val);
-}
-
-export function assertPositiveInt(val: unknown, field: string): number {
-  const n = Number(val);
-  if (!Number.isInteger(n) || n <= 0) throw new HttpsError("invalid-argument", `${field} debe ser un número entero positivo.`);
-  return n;
-}
-
-// ── Validación RUT chileno (módulo 11) ────────────────────────────────────
-function validateRutCl(rut: string): boolean {
-  const clean = rut.replace(/[^0-9kK]/g, "").toUpperCase();
-  if (clean.length < 8) return false;
-  const body = clean.slice(0, -1);
-  const dv = clean.slice(-1);
-  let sum = 0;
-  let mult = 2;
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += parseInt(body[i]) * mult;
-    mult = mult === 7 ? 2 : mult + 1;
-  }
-  const remainder = 11 - (sum % 11);
-  const expected = remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
-  return dv === expected;
-}
+// Helpers de validación/saneamiento (sanitize, assertString, assertPositiveInt,
+// validateRutCl) viven en ./lib/validation.ts con tests.
 
 // ── Rate limiting híbrido: in-memory (rápido) + Firestore (persistente para endpoints críticos) ────
 const _rateLimitStore = new Map<string, number[]>();
