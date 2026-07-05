@@ -26,7 +26,8 @@
 - [ ] `MERCADOPAGO_WEBHOOK_SECRET` cargado en `functions/.env` y redeploy hecho.
 - [ ] `MERCADOPAGO_ACCESS_TOKEN` confirmado como de producción (`APP_USR-...`).
 - [ ] Pago de prueba real: pasa a `paid` y desbloquea contacto end-to-end.
-- [ ] Inicio de actividades SII (RUT 78.449.783-6) y emisión de boleta/DTE operativa.
+- [x] Inicio de actividades SII (RUT 78.449.783-6) realizado.
+- [ ] Emisión de boleta/DTE operativa (credenciales OpenFactura).
 
 ## Comunicaciones (RISK-003)
 

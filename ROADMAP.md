@@ -16,7 +16,7 @@ Fase: **previo al lanzamiento**. Objetivos medibles para habilitar el cobro real
 
 1. **Activar el flujo de pagos end-to-end** — webhook de Mercado Pago registrado y confirmando pagos (hoy bloqueado). Métrica: un pago de prueba real pasa a estado `paid` y desbloquea contacto.
 2. **Habilitar correo transaccional** — remitente SendGrid verificado; invitaciones, bienvenidas y recordatorios llegan (hoy rebotan). Métrica: tasa de entrega > 95%.
-3. **Cumplimiento tributario mínimo** — inicio de actividades SII y emisión de boleta/DTE antes del primer peso cobrado.
+3. **Cumplimiento tributario mínimo** — inicio de actividades SII **realizado**; falta la emisión de boleta/DTE (OpenFactura) antes del primer peso cobrado.
 4. **Cierre legal de privacidad** — RAT con base legal, plazos de retención y transferencias internacionales validados (Ley 21.719).
 
 ## MVP / Alcance Mínimo
@@ -41,7 +41,7 @@ SII) para operar comercialmente.
 | Prioridad | Iniciativa | Justificación |
 |---|---|---|
 | P0 | Webhook Mercado Pago + secret | Sin esto ningún pago se confirma: el cliente paga y no recibe. Bloquea todo ingreso. |
-| P0 | Inicio de actividades SII | Cobrar sin poder emitir documento tributario es infracción. |
+| P0 | Emisión de DTE (OpenFactura) | Inicio de actividades SII ya hecho; falta emitir boleta/factura válida al cobrar. |
 | P1 | Remitente SendGrid verificado | Sin correo, invitaciones y recordatorios no llegan: rompe el loop de contratación. |
 | P1 | Validación legal del RAT | Transferencia internacional sin mecanismo válido es infracción (Ley 21.719). |
 | P2 | Dominio `perfil-primero.cl` + Search Console | SEO y confianza de marca. |

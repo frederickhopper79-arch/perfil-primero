@@ -2286,12 +2286,11 @@ const TAREAS_PENDIENTES: TareaPendiente[] = [
   },
   {
     id: "sii-inicio-actividades",
-    titulo: "Inicio de actividades SII pendiente para Perfil Primero SpA",
-    detalle: "RUT 78.449.783-6 aún no tiene inicio de actividades en el SII. Sin esto no se pueden emitir boletas/facturas válidas. Requiere gestión manual en sii.cl con RUT del representante legal.",
-    prioridad: "critico",
+    titulo: "Inicio de actividades SII — realizado",
+    detalle: "Perfil Primero SpA (RUT 78.449.783-6) ya tiene inicio de actividades en el SII. Pendiente asociado: credenciales OpenFactura para emisión automática de DTE (ver tarea aparte).",
+    prioridad: "info",
     categoria: "Legal / Contabilidad",
-    accion: "Ir a SII",
-    urlAccion: "https://www.sii.cl",
+    resuelta: true,
   },
   {
     id: "openfactura-credenciales",
