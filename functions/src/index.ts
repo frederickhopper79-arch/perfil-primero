@@ -15,6 +15,7 @@ import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 import { validateMpSignature } from "./lib/mp-signature";
 import { computeFinancialSummary } from "./lib/financial-health";
 import { evaluateCoupon } from "./lib/coupon";
+import { evaluateUnlock } from "./lib/unlock-guard";
 
 initializeApp();
 
@@ -1764,48 +1765,52 @@ export const unlockWorkerContact = onCall<{ invitationId: string; paymentId?: st
     const invitationRef = db.collection("invitations").doc(request.data.invitationId);
     const invitation = await invitationRef.get();
     const invitationData = invitation.data();
+    const useUnlimitedPlan = Boolean(request.data.useUnlimitedPlan);
+    const inputPaymentId = request.data.paymentId ?? "";
 
-    if (!invitation.exists || invitationData?.companyId !== companyId) {
-      throw new HttpsError("permission-denied", "No puedes desbloquear este contacto.");
-    }
+    // Resolver datos según el modo (plan ilimitado vs pago puntual)
+    let unlimitedPlanCtx: { active?: boolean; renewsAtMillis?: number | null } | undefined;
+    let paymentExists = false;
+    let paymentData: FirebaseFirestore.DocumentData | undefined;
+    let priorUnlockExists = false;
 
-    if (invitationData.status !== "accepted") {
-      throw new HttpsError("failed-precondition", "La invitación debe estar aceptada.");
-    }
-
-    let resolvedPaymentId = request.data.paymentId ?? "";
-
-    if (request.data.useUnlimitedPlan) {
+    if (useUnlimitedPlan) {
       const companySnap = await db.collection("companyProfiles").doc(companyId).get();
       const plan = companySnap.data()?.unlimitedPlan;
-      if (!plan?.active || !plan.renewsAt || plan.renewsAt.toMillis() <= Date.now()) {
-        throw new HttpsError("failed-precondition", "No tienes un plan ilimitado activo.");
-      }
-      resolvedPaymentId = `unlimited:${plan.renewsAt.toMillis()}`;
-    } else {
-      if (!resolvedPaymentId) throw new HttpsError("invalid-argument", "Se requiere paymentId.");
-      const payment = await db.collection("payments").doc(resolvedPaymentId).get();
-      const paymentData = payment.data();
-      if (!payment.exists || paymentData?.status !== "paid") {
-        throw new HttpsError("failed-precondition", "El pago no está confirmado.");
-      }
-      // El pago debe pertenecer a esta empresa
-      if (paymentData.userId !== companyId) {
-        throw new HttpsError("permission-denied", "El pago no pertenece a tu empresa.");
-      }
-      // El pago debe corresponder a esta invitación (si fue emitido para una)
-      if (paymentData.relatedInvitationId && paymentData.relatedInvitationId !== invitationRef.id) {
-        throw new HttpsError("failed-precondition", "El pago corresponde a otra invitación.");
-      }
-      // Un pago solo puede usarse una vez
+      unlimitedPlanCtx = { active: plan?.active, renewsAtMillis: plan?.renewsAt ? plan.renewsAt.toMillis() : null };
+    } else if (inputPaymentId) {
+      const payment = await db.collection("payments").doc(inputPaymentId).get();
+      paymentExists = payment.exists;
+      paymentData = payment.data();
       const priorUnlock = await db
         .collection("contactUnlocks")
-        .where("paymentId", "==", resolvedPaymentId)
+        .where("paymentId", "==", inputPaymentId)
         .limit(1)
         .get();
-      if (!priorUnlock.empty) {
-        throw new HttpsError("failed-precondition", "Este pago ya fue utilizado para desbloquear un contacto.");
-      }
+      priorUnlockExists = !priorUnlock.empty;
+    }
+
+    // Decisión pura de la guarda (con tests en functions/src/lib/unlock-guard.ts)
+    const decision = evaluateUnlock({
+      companyId,
+      invitationExists: invitation.exists,
+      invitation: invitationData,
+      invitationId: invitationRef.id,
+      useUnlimitedPlan,
+      paymentId: inputPaymentId,
+      paymentExists,
+      payment: paymentData,
+      priorUnlockExists,
+      unlimitedPlan: unlimitedPlanCtx,
+      nowMillis: Date.now(),
+    });
+    if (!decision.ok) {
+      throw new HttpsError(decision.code, decision.reason);
+    }
+    const resolvedPaymentId = decision.resolvedPaymentId;
+    // La decisión ok garantiza que la invitación existe y es de la empresa.
+    if (!invitationData) {
+      throw new HttpsError("not-found", "La invitación no existe.");
     }
 
     const unlockRef = db.collection("contactUnlocks").doc();
